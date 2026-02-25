@@ -1209,11 +1209,6 @@ html, body { height:100%; }
   transition:opacity .15s;
 }
 .nav-panel.collapsed .nav-logo__text { opacity:0; pointer-events:none; }
-.nav-panel.collapsed .nav-logo {
-  justify-content:center;
-  gap:0;
-  padding:.9rem 0 .85rem;
-}
 
 /* toggle */
 .nav-toggle {
