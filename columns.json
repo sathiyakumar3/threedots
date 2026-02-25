@@ -1,0 +1,9 @@
+{
+  "columns": [
+    { "id": 0, "sequence": 1, "title": "Backlog" },
+    { "id": 1, "sequence": 2, "title": "In Progress" },
+    { "id": 2, "sequence": 3, "title": "Review" },
+    { "id": 3, "sequence": 4, "title": "Done" },
+    { "id": 99, "sequence": 5, "title": "Archive", "archive": true }
+  ]
+}

@@ -1,0 +1,170 @@
+﻿<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Task Management Dashboard</title>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
+  <script src="js/firebase-init.js"></script>
+</head>
+<body>
+
+  <div class="app-shell" id="appShell">
+
+    <nav class="nav-panel" id="navPanel">
+      <div class="nav-logo">
+        <div class="nav-logo__icon"><i class="fas fa-layer-group"></i></div>
+        <span class="nav-logo__text">ThreeDots</span>
+      </div>
+      <div class="nav-section-label">Boards</div>
+      <div class="nav-items" id="navItems"></div>
+      <button class="nav-add-board" id="navAddBoard" data-label="Add board" title="Add board">
+        <i class="fas fa-plus"></i><span>Add board</span>
+      </button>
+      <div class="nav-footer">
+        <div class="nav-user" id="navUser">
+          <div class="nav-user__avatar" id="navAvatar"><i class="fas fa-user"></i></div>
+          <div class="nav-user__info">
+            <div class="nav-user__name"  id="navUserName">Guest</div>
+            <div class="nav-user__email" id="navUserEmail"></div>
+          </div>
+        </div>
+        <button class="nav-item" data-label="Settings" title="Settings">
+          <i class="fas fa-cog"></i><span>Settings</span>
+        </button>
+        <button class="nav-item danger" id="logoutBtn" data-label="Log out" title="Log out">
+          <i class="fas fa-sign-out-alt"></i><span>Log out</span>
+        </button>
+      </div>
+    </nav>
+
+    <div class="app-content">
+      <div class="project-info">
+        <button class="nav-toggle" id="navToggle" title="Toggle menu"><i class="fas fa-bars"></i></button>
+        <div class="board-title-wrap">
+          <h1>My Board</h1>
+        </div>
+        <div class="board-options-wrap">
+          <button class="project-column-heading__options" id="boardOptionsBtn" title="Board options"><i class="fas fa-ellipsis-h"></i></button>
+          <div class="board-dropdown" id="boardDropdown">
+            <button id="boardOptRename"><i class="fas fa-pen"></i> Rename board</button>
+            <button id="boardOptDelete" class="danger"><i class="fas fa-trash-alt"></i> Delete board</button>
+          </div>
+        </div>
+        <div class="topbar-search">
+          <i class="fas fa-search"></i>
+          <input type="text" id="boardSearch" placeholder="Search cards&hellip;" autocomplete="off">
+          <button class="topbar-search__clear" id="searchClear" title="Clear"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="project-participants" id="projectParticipants">
+          <!-- avatars injected by renderParticipants() -->
+          <button class="project-participants__add" id="addParticipantBtn" title="Add participant"></button>
+          <div class="participant-popover" id="participantPopover">
+            <input type="email" id="participantEmail" placeholder="User's email address" autocomplete="off">
+            <div class="participant-popover__actions">
+              <button id="participantAddConfirm">Add</button>
+              <button id="participantAddCancel">Cancel</button>
+            </div>
+            <p class="participant-popover__msg" id="participantMsg"></p>
+          </div>
+          <button class="btn-archive" id="archiveBtn"><i class="fas fa-archive"></i> Archive</button>
+          <button class="btn-archive" id="activityToggle" title="Show activity"><i class="fas fa-stream"></i> Activity</button>
+        </div>
+      </div>
+
+      <div class="app">
+        <main class="project">
+          <div class="project-tasks"></div>
+        </main>
+        <aside class="task-details collapsed" id="activityPanel">
+          <div class="task-activity">
+            <h2>Recent Activity</h2>
+            <ul id="activityFeed"></ul>
+          </div>
+        </aside>
+      </div>
+    </div>
+
+    <div class="save-toast" id="saveToast"></div>
+
+    <button class="fab" id="fabBtn" title="Add card"><i class="fas fa-plus"></i></button>
+
+    <div class="modal-overlay" id="modalOverlay">
+      <div class="modal">
+        <h3>Add New Card</h3>
+        <label for="cardColumn">Column</label>
+        <select id="cardColumn"></select>
+        <label for="cardTag">Tag</label>
+        <select id="cardTag">
+          <option value="copyright">Copywriting</option>
+          <option value="design">UI Design</option>
+          <option value="illustration">Illustration</option>
+        </select>
+        <label for="cardText">Task description</label>
+        <textarea id="cardText" placeholder="What needs to be done?"></textarea>
+        <div class="modal__actions">
+          <button class="btn-cancel" id="modalCancel">Cancel</button>
+          <button class="btn-add"    id="modalAdd">Add Card</button>
+        </div>
+      </div>
+    </div>
+
+  </div>
+
+  <div class="login-overlay" id="loginOverlay">
+    <div class="login-card">
+      <div class="login-card__logo"><i class="fas fa-layer-group"></i></div>
+      <h2>Welcome to ThreeDots</h2>
+      <p>Sign in to access your boards</p>
+
+      <!-- Social providers -->
+      <button class="btn-google" id="btnGoogleSignIn">
+        <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
+        Sign in with Google
+      </button>
+      <button class="btn-microsoft" id="btnMicrosoftSignIn">
+        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" width="20" height="20"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
+        Sign in with Microsoft
+      </button>
+
+      <!-- Divider -->
+      <div class="login-divider"><span>or continue with email</span></div>
+
+      <!-- Sign-in form -->
+      <div class="login-form" id="loginForm">
+        <input type="email"    id="loginEmail"    class="login-input" placeholder="Email address" autocomplete="email">
+        <input type="password" id="loginPassword" class="login-input" placeholder="Password" autocomplete="current-password">
+        <button class="btn-email-action" id="btnEmailSignIn">Sign in</button>
+        <p class="login-switch">No account? <button class="login-switch__btn" id="showRegister">Register</button></p>
+      </div>
+
+      <!-- Register form (hidden by default) -->
+      <div class="login-form" id="registerForm" style="display:none">
+        <input type="email"    id="regEmail"           class="login-input" placeholder="Email address" autocomplete="email">
+        <input type="text"     id="regDisplayName"     class="login-input" placeholder="Display name">
+        <input type="password" id="regPassword"        class="login-input" placeholder="Password (min 6 chars)" autocomplete="new-password">
+        <input type="password" id="regPasswordConfirm" class="login-input" placeholder="Confirm password" autocomplete="new-password">
+        <button class="btn-email-action" id="btnRegister">Create account</button>
+        <p class="login-switch">Have an account? <button class="login-switch__btn" id="showLogin">Sign in</button></p>
+      </div>
+
+      <div class="login-error" id="loginError"></div>
+    </div>
+  </div>
+
+  <script src="js/utils.js"></script>
+  <script src="js/cards.js"></script>
+  <script src="js/board.js"></script>
+  <script src="js/app.js"></script>
+  <script src="js/modal.js"></script>
+
+</body>
+</html>

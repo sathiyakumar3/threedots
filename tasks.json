@@ -1,0 +1,228 @@
+{
+  "project": "Homepage Design",
+  "columns": [
+    {
+      "id": 0,
+      "tasks": [
+        {
+          "id": "task-1",
+          "tag": "copyright",
+          "text": "Konsep hero title yang menarik",
+          "flagDate": "Nov 24",
+          "comments": 3,
+          "attachments": 7,
+          "created": "2021-11-20",
+          "timeline": [
+            { "type": "create",  "author": "Andrea", "text": "created the task",           "date": "Nov 20" },
+            { "type": "attach",  "author": "Andrea", "text": "attached 7 draft files",     "date": "Nov 21" },
+            { "type": "comment", "author": "Karen",  "text": "Can we make it punchier?", "date": "Nov 22" },
+            { "type": "comment", "author": "Andrea", "text": "Will update by EOD",      "date": "Nov 24" }
+          ]
+        },
+        {
+          "id": "task-2",
+          "tag": "design",
+          "text": "Icon di section our services",
+          "flagDate": "Nov 24",
+          "comments": 2,
+          "attachments": 5,
+          "created": "2021-11-21",
+          "timeline": [
+            { "type": "create",  "author": "Mark",  "text": "assigned the task",                       "date": "Nov 21" },
+            { "type": "attach",  "author": "Karen", "text": "attached 5 reference images",             "date": "Nov 22" },
+            { "type": "comment", "author": "Karen", "text": "Icons look good, minor tweaks needed", "date": "Nov 24" }
+          ]
+        },
+        {
+          "id": "task-3",
+          "tag": "copyright",
+          "text": "Konsep hero title yang menarik",
+          "flagDate": "Nov 24",
+          "comments": 2,
+          "attachments": 3,
+          "created": "2021-11-22",
+          "timeline": [
+            { "type": "create",  "author": "Andrea", "text": "created the task",          "date": "Nov 22" },
+            { "type": "attach",  "author": "Andrea", "text": "attached 3 draft files",    "date": "Nov 23" },
+            { "type": "comment", "author": "Mark",   "text": "Need 3 variations please", "date": "Nov 24" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 1,
+      "tasks": [
+        {
+          "id": "task-4",
+          "tag": "design",
+          "text": "Replace lorem ipsum text in the final designs",
+          "flagDate": "Nov 24",
+          "comments": 5,
+          "attachments": 5,
+          "created": "2021-11-20",
+          "timeline": [
+            { "type": "create",  "author": "Karen",  "text": "started the task",                  "date": "Nov 20" },
+            { "type": "attach",  "author": "Karen",  "text": "attached 5 content files",          "date": "Nov 21" },
+            { "type": "comment", "author": "Andrea", "text": "Which sections need updating?",  "date": "Nov 22" },
+            { "type": "comment", "author": "Karen",  "text": "All hero sections and footers",  "date": "Nov 23" },
+            { "type": "edit",    "author": "Karen",  "text": "updated the copy",                  "date": "Nov 24" }
+          ]
+        },
+        {
+          "id": "task-5",
+          "tag": "illustration",
+          "text": "Create and generate the custom SVG illustrations.",
+          "flagDate": "Nov 24",
+          "comments": 8,
+          "attachments": 7,
+          "created": "2021-11-18",
+          "timeline": [
+            { "type": "create",  "author": "Andrea", "text": "started illustrations",               "date": "Nov 18" },
+            { "type": "comment", "author": "Mark",   "text": "Can we get 3 style variants?",    "date": "Nov 20" },
+            { "type": "attach",  "author": "Andrea", "text": "attached 7 illustration drafts",      "date": "Nov 21" },
+            { "type": "comment", "author": "Karen",  "text": "Variant 2 looks best",             "date": "Nov 22" },
+            { "type": "comment", "author": "Andrea", "text": "Finalising variant 2 now",         "date": "Nov 24" }
+          ]
+        },
+        {
+          "id": "task-6",
+          "tag": "copyright",
+          "text": "Proof read the legal page and check for and loopholes",
+          "flagDate": "Nov 24",
+          "comments": 12,
+          "attachments": 11,
+          "created": "2021-11-19",
+          "timeline": [
+            { "type": "create",  "author": "Karen",  "text": "assigned to legal review",             "date": "Nov 19" },
+            { "type": "attach",  "author": "Karen",  "text": "attached 11 legal documents",          "date": "Nov 20" },
+            { "type": "comment", "author": "Karen",  "text": "Found 3 potential loopholes",       "date": "Nov 21" },
+            { "type": "comment", "author": "Andrea", "text": "Flagging to legal team",            "date": "Nov 22" },
+            { "type": "comment", "author": "Mark",   "text": "Legal team reviewing",              "date": "Nov 23" },
+            { "type": "comment", "author": "Karen",  "text": "Still 2 loopholes to resolve",      "date": "Nov 24" }
+          ]
+        },
+        {
+          "id": "task-7",
+          "tag": "illustration",
+          "text": "Create the landing page graphics for the hero slider.",
+          "flagDate": "Nov 24",
+          "comments": 4,
+          "attachments": 8,
+          "created": "2021-11-22",
+          "timeline": [
+            { "type": "create",  "author": "Mark",   "text": "started hero graphics",             "date": "Nov 22" },
+            { "type": "attach",  "author": "Mark",   "text": "attached 8 asset files",            "date": "Nov 23" },
+            { "type": "comment", "author": "Andrea", "text": "Slider needs more contrast",     "date": "Nov 23" },
+            { "type": "comment", "author": "Mark",   "text": "Updated — ready for review",     "date": "Nov 24" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 2,
+      "tasks": [
+        {
+          "id": "task-8",
+          "tag": "copyright",
+          "text": "Check the company we copied doesn't think we copied them.",
+          "flagDate": "Nov 24",
+          "comments": 4,
+          "attachments": 0,
+          "created": "2021-11-20",
+          "timeline": [
+            { "type": "create",  "author": "Andrea", "text": "created the task",                    "date": "Nov 20" },
+            { "type": "comment", "author": "Karen",  "text": "Running similarity check",         "date": "Nov 22" },
+            { "type": "comment", "author": "Karen",  "text": "Found 2 similarities, revising",   "date": "Nov 23" },
+            { "type": "comment", "author": "Andrea", "text": "All clear after revisions",         "date": "Nov 24" }
+          ]
+        },
+        {
+          "id": "task-9",
+          "tag": "design",
+          "text": "Design the about page.",
+          "flagDate": "Nov 24",
+          "comments": 0,
+          "attachments": 5,
+          "created": "2021-11-21",
+          "timeline": [
+            { "type": "create",  "author": "Andrea", "text": "created initial mockups",              "date": "Nov 21" },
+            { "type": "attach",  "author": "Andrea", "text": "attached 5 mockup files",             "date": "Nov 21" },
+            { "type": "comment", "author": "Mark",   "text": "Needs more whitespace",             "date": "Nov 22" },
+            { "type": "edit",    "author": "Andrea", "text": "revised the mockups",                  "date": "Nov 23" },
+            { "type": "comment", "author": "Mark",   "text": "Approved — submit for review",      "date": "Nov 24" }
+          ]
+        },
+        {
+          "id": "task-10",
+          "tag": "illustration",
+          "text": "Move that one image 5px down to make Phil Happy.",
+          "flagDate": "Nov 24",
+          "comments": 2,
+          "attachments": 2,
+          "created": "2021-11-23",
+          "timeline": [
+            { "type": "create",  "author": "Phil",   "text": "requested adjustment",                     "date": "Nov 23" },
+            { "type": "attach",  "author": "Phil",   "text": "attached 2 reference screenshots",         "date": "Nov 23" },
+            { "type": "edit",    "author": "Andrea", "text": "moved the image 5px down",                 "date": "Nov 24" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 3,
+      "tasks": [
+        {
+          "id": "task-11",
+          "tag": "illustration",
+          "text": "Send Advert illustrations over to production company.",
+          "flagDate": "Nov 24",
+          "comments": 12,
+          "attachments": 5,
+          "created": "2021-11-18",
+          "timeline": [
+            { "type": "create",  "author": "Andrea", "text": "created illustrations",              "date": "Nov 18" },
+            { "type": "attach",  "author": "Andrea", "text": "attached 5 final files",             "date": "Nov 19" },
+            { "type": "comment", "author": "Mark",   "text": "Production needs SVG format",     "date": "Nov 20" },
+            { "type": "comment", "author": "Andrea", "text": "Converted and re-sent",           "date": "Nov 21" },
+            { "type": "comment", "author": "Prod",   "text": "confirmed receipt",                  "date": "Nov 22" }
+          ]
+        },
+        {
+          "id": "task-12",
+          "tag": "illustration",
+          "text": "Dawn wants to move the text 3px to the right.",
+          "flagDate": "Nov 24",
+          "comments": 3,
+          "attachments": 7,
+          "created": "2021-11-23",
+          "timeline": [
+            { "type": "create",  "author": "Dawn",   "text": "requested the change",                "date": "Nov 23" },
+            { "type": "attach",  "author": "Dawn",   "text": "attached 7 before/after files",       "date": "Nov 23" },
+            { "type": "comment", "author": "Andrea", "text": "Done — looks much better",         "date": "Nov 24" },
+            { "type": "comment", "author": "Dawn",   "text": "Perfect, thanks!",                 "date": "Nov 24" }
+          ]
+        },
+        {
+          "id": "task-13",
+          "tag": "copyright",
+          "text": "Amend the contract details.",
+          "flagDate": "Nov 24",
+          "comments": 8,
+          "attachments": 16,
+          "created": "2021-11-19",
+          "timeline": [
+            { "type": "create",  "author": "Legal",  "text": "flagged amendment required",           "date": "Nov 19" },
+            { "type": "attach",  "author": "Karen",  "text": "attached 16 contract docs",            "date": "Nov 20" },
+            { "type": "comment", "author": "Karen",  "text": "Sections 3 & 7 need updating",      "date": "Nov 21" },
+            { "type": "comment", "author": "Andrea", "text": "Updated sections 3 & 7",            "date": "Nov 23" },
+            { "type": "edit",    "author": "Karen",  "text": "finalized the contract",               "date": "Nov 24" }
+          ]
+        }
+      ]
+    },
+    {
+      "id": 99,
+      "tasks": []
+    }
+  ]
+}
