@@ -9,7 +9,7 @@
   --tag-3-text:#1D4ED8;
   --tag-4:#EDE9FE;
   --tag-4-text:#5B21B6;
-  --purple:#1A56E8;
+  --purple:#0353a4;
 }
 
 * {
@@ -321,14 +321,49 @@ h1 {
 }
 
 .task__owner {
-  width:16px;
-  height:16px;
+  width:22px;
+  height:22px;
   border-radius:100rem;
-  background:var(--purple);
+  overflow:hidden;
   position:absolute;
-  display:inline-block;
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
   right:0;
   bottom:0;
+  cursor:default;
+}
+.task__owner img {
+  width:100%;
+  height:100%;
+  object-fit:cover;
+  border-radius:100rem;
+}
+
+/* ── Author avatars in timeline / activity ── */
+.tl-avatar {
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  object-fit:cover;
+  vertical-align:middle;
+  margin-right:5px;
+  flex-shrink:0;
+}
+.tl-avatar--initial {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  background:var(--purple);
+  color:#fff;
+  font-size:10px;
+  font-weight:700;
+  width:20px;
+  height:20px;
+  border-radius:50%;
+  margin-right:5px;
+  vertical-align:middle;
+  flex-shrink:0;
 }
 
 .task-hover {
@@ -1183,7 +1218,7 @@ html, body { height:100%; }
   display:flex;
   align-items:center;
   gap:10px;
-  padding:.9rem .95rem .85rem;
+  padding:.9rem .65rem .85rem;
   border-bottom:1px solid #eef1f5;
   white-space:nowrap;
   text-decoration:none;

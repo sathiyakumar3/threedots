@@ -28,12 +28,18 @@ function serializeTask(cardEl) {
         .map(n => n.textContent.trim())
         .filter(Boolean).join(' ');
     }
-    timeline.push({ type, author, text: entryText, date });
+    const authorPhoto = textDiv.dataset.authorPhoto || '';
+    timeline.push({ type, author, authorPhoto, text: entryText, date });
   });
   return {
     id:          cardEl.dataset.id || ('task-' + Date.now()),
     tag, text, flagDate, comments, attachments,
     created:     cardEl.dataset.created || '',
+    createdBy: {
+      uid:         cardEl.dataset.createdByUid   || '',
+      displayName: cardEl.dataset.createdByName  || '',
+      photoURL:    cardEl.dataset.createdByPhoto || ''
+    },
     timeline
   };
 }
@@ -45,6 +51,17 @@ function renderCard(taskData) {
   card.draggable   = true;
   card.dataset.id  = taskData.id;
   if (taskData.created) card.dataset.created = taskData.created;
+  const cb = taskData.createdBy || {};
+  card.dataset.createdByUid   = cb.uid         || '';
+  card.dataset.createdByName  = cb.displayName || '';
+  card.dataset.createdByPhoto = cb.photoURL    || '';
+  const ownerName  = cb.displayName || '';
+  const ownerPhoto = cb.photoURL    || '';
+  const ownerHTML  = ownerName
+    ? (ownerPhoto
+        ? `<img class='tl-avatar' src='${ownerPhoto}' alt='${ownerName}' title='${ownerName}'>`
+        : `<span class='tl-avatar tl-avatar--initial' title='${ownerName}'>${ownerName[0].toUpperCase()}</span>`)
+    : '';
   card.innerHTML   = `
     <div class='task__tags'>
       <span class='task__tag task__tag--${taskData.tag}'>${tagLabels[taskData.tag]}</span>
@@ -55,7 +72,7 @@ function renderCard(taskData) {
       <span><time><i class='fas fa-flag'></i>${taskData.flagDate}</time></span>
       <span><i class='fas fa-comment'></i>${taskData.comments}</span>
       <span><i class='fas fa-paperclip'></i>${taskData.attachments}</span>
-      <span class='task__owner'></span>
+      <span class='task__owner'>${ownerHTML}</span>
     </div>`;
   if (taskData.timeline && taskData.timeline.length) {
     card.insertAdjacentHTML('beforeend', buildTimeline(taskData.timeline));

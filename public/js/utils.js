@@ -52,13 +52,18 @@ function buildTimeline(entries) {
   if (!entries || !entries.length) return '';
   return `<div class="task__timeline">
     ${entries.map(e => {
-      const isComment = e.type === 'comment';
-      const editBtn   = isComment
+      const isComment   = e.type === 'comment';
+      const authorPhoto = e.authorPhoto || '';
+      const authorName  = e.author      || '?';
+      const avatarHTML  = authorPhoto
+        ? `<img class='tl-avatar' src='${authorPhoto}' alt='${authorName}' title='${authorName}'>`
+        : `<span class='tl-avatar tl-avatar--initial' title='${authorName}'>${authorName[0].toUpperCase()}</span>`;
+      const editBtn = isComment
         ? `<button class="task__tl-edit-btn" title="Edit comment"><i class="fas fa-pen"></i></button>`
         : '';
-      const textDiv   = isComment
-        ? `<div class="task__tl-text" data-comment="${e.text.replace(/"/g, '&quot;')}"><b>${e.author}</b> ${e.text}<div class="task__tl-meta"><time>${e.date}</time>${editBtn}</div></div>`
-        : `<div class="task__tl-text"><b>${e.author}</b> ${e.text}<time>${e.date}</time></div>`;
+      const textDiv = isComment
+        ? `<div class="task__tl-text" data-comment="${e.text.replace(/"/g, '&quot;')}" data-author-photo="${authorPhoto}">${avatarHTML}<b>${authorName}</b> ${e.text}<div class="task__tl-meta"><time>${e.date}</time>${editBtn}</div></div>`
+        : `<div class="task__tl-text" data-author-photo="${authorPhoto}">${avatarHTML}<b>${authorName}</b> ${e.text}<time>${e.date}</time></div>`;
       return `<div class="task__tl-entry"><span class="task__tl-dot task__tl-dot--${e.type || 'create'}"></span>${textDiv}</div>`;
     }).join('')}
   </div>`;

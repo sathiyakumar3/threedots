@@ -32,6 +32,12 @@
     const colEl = document.querySelectorAll('.project-column')[+colSel.value];
     const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
 
+    const authorName  = currentUser?.displayName || currentUser?.email || 'You';
+    const authorPhoto = currentUser?.photoURL    || '';
+    const authorHTML  = authorPhoto
+      ? `<img class='tl-avatar' src='${authorPhoto}' alt='${authorName}' title='${authorName}'>`
+      : `<span class='tl-avatar tl-avatar--initial' title='${authorName}'>${authorName[0].toUpperCase()}</span>`;
+
     const card      = document.createElement('div');
     card.className  = 'task';
     card.draggable  = true;
@@ -45,22 +51,25 @@
         <span><time><i class='fas fa-flag'></i>${today}</time></span>
         <span><i class='fas fa-comment'></i>0</span>
         <span><i class='fas fa-paperclip'></i>0</span>
-        <span class='task__owner'></span>
+        <span class='task__owner'>${authorHTML}</span>
       </div>`;
 
     card.insertAdjacentHTML('beforeend', buildTimeline([
-      { type: 'create', author: 'You', text: 'created this task', date: today }
+      { type: 'create', author: authorName, authorPhoto, text: 'created this task', date: today }
     ]));
 
-    card.dataset.id      = 'task-' + Date.now();
-    card.dataset.created = new Date().toISOString().split('T')[0];
+    card.dataset.id             = 'task-' + Date.now();
+    card.dataset.created        = new Date().toISOString().split('T')[0];
+    card.dataset.createdByUid   = currentUser?.uid         || '';
+    card.dataset.createdByName  = authorName;
+    card.dataset.createdByPhoto = authorPhoto;
     addUpdateWidget(card);
     refreshExpandBtn(card);
 
     const zone = colEl.querySelector('.drop-zone');
     zone ? colEl.insertBefore(card, zone) : colEl.appendChild(card);
 
-    logActivity('create', `<b>You</b> created "${text.slice(0, 40)}" in <b>${colSel.options[colSel.selectedIndex].text}</b>`);
+    logActivity('create', `<b>${authorName}</b> created "${text.slice(0, 40)}" in <b>${colSel.options[colSel.selectedIndex].text}</b>`);
     saveChanges();
     closeModal();
   });

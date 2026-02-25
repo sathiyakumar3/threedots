@@ -195,6 +195,17 @@ document.addEventListener('DOMContentLoaded', () => {
   let dragSrcEl = null;
   const board   = document.querySelector('.project-tasks');
 
+  // ── Author identity helpers ──────────────────────────────────────────────
+  function _authorName()  { return currentUser?.displayName || currentUser?.email || 'You'; }
+  function _authorPhoto() { return currentUser?.photoURL    || ''; }
+  function _authorAvatar() {
+    const name  = _authorName();
+    const photo = _authorPhoto();
+    return photo
+      ? `<img class='tl-avatar' src='${photo}' alt='${name}' title='${name}'>`
+      : `<span class='tl-avatar tl-avatar--initial' title='${name}'>${name[0].toUpperCase()}</span>`;
+  }
+
   // ── Board nav helpers ────────────────────────────────────────────────────
   function generateBoardName() {
     const existing = [...document.querySelectorAll('.nav-item[data-tab="board"] span')]
@@ -590,7 +601,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const moveEntry = document.createElement('div');
     moveEntry.className = 'task__tl-entry';
     moveEntry.innerHTML = `<span class='task__tl-dot task__tl-dot--edit'></span>
-      <div class='task__tl-text'><b>You</b> moved to <b>${colName}</b><time>${today}</time></div>`;
+      <div class='task__tl-text' data-author-photo='${_authorPhoto()}'>${_authorAvatar()}<b>${_authorName()}</b> moved to <b>${colName}</b><time>${today}</time></div>`;
     let tl = dragSrcEl.querySelector('.task__timeline');
     if (!tl) {
       dragSrcEl.querySelector('.task__footer').insertAdjacentHTML('beforebegin', `<div class='task__timeline'></div>`);
@@ -750,7 +761,7 @@ document.addEventListener('DOMContentLoaded', () => {
       task.querySelector('.task__edit-actions').remove();
       tagSpan.style.display = '';
       p.style.display       = '';
-      logActivity('edit', `<b>You</b> edited "${p.textContent.slice(0, 40)}"`);
+      logActivity('edit', `<b>${_authorName()}</b> edited "${p.textContent.slice(0, 40)}"`);
       saveChanges();
       return;
     }
@@ -761,7 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
       task.style.transition = 'opacity .2s';
       task.style.opacity    = '0';
       setTimeout(() => { task.remove(); saveChanges(); }, 200);
-      logActivity('delete', `<b>You</b> deleted "${cardText}"`);
+      logActivity('delete', `<b>${_authorName()}</b> deleted "${cardText}"`);
       openDropdown = null;
       return;
     }
@@ -775,8 +786,9 @@ document.addEventListener('DOMContentLoaded', () => {
       const current = textDiv.dataset.comment || '';
       const metaTime = textDiv.querySelector('.task__tl-meta time')?.textContent || '';
       entry.classList.add('task__tl-entry--editing');
-      textDiv._savedTime = metaTime;
-      textDiv.innerHTML  = `<textarea class='task__tl-edit-input' rows='2'>${current}</textarea>
+      textDiv._savedTime   = metaTime;
+      textDiv._savedAuthor = textDiv.querySelector('b')?.textContent || _authorName();
+      textDiv.innerHTML    = `<textarea class='task__tl-edit-input' rows='2'>${current}</textarea>
         <div class='task__tl-edit-actions'>
           <button class='task__tl-edit-cancel'>Cancel</button>
           <button class='task__tl-edit-save'>Save</button>
@@ -790,7 +802,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const current = textDiv.dataset.comment || '';
       const time    = textDiv._savedTime || '';
       entry.classList.remove('task__tl-entry--editing');
-      textDiv.innerHTML = `<b>You</b> ${current}<div class='task__tl-meta'><time>${time}</time><button class='task__tl-edit-btn' title='Edit comment'><i class='fas fa-pen'></i></button></div>`;
+      const _cAvatar = (textDiv.dataset.authorPhoto)
+        ? `<img class='tl-avatar' src='${textDiv.dataset.authorPhoto}' alt='${textDiv._savedAuthor || ''}' title='${textDiv._savedAuthor || ''}'>`
+        : `<span class='tl-avatar tl-avatar--initial' title='${textDiv._savedAuthor || ''}'>${(textDiv._savedAuthor || '?')[0].toUpperCase()}</span>`;
+      textDiv.innerHTML = `${_cAvatar}<b>${textDiv._savedAuthor || _authorName()}</b> ${current}<div class='task__tl-meta'><time>${time}</time><button class='task__tl-edit-btn' title='Edit comment'><i class='fas fa-pen'></i></button></div>`;
       return;
     }
     if (e.target.closest('.task__tl-edit-save')) {
@@ -802,9 +817,12 @@ document.addEventListener('DOMContentLoaded', () => {
       const time = textDiv._savedTime || '';
       entry.classList.remove('task__tl-entry--editing');
       textDiv.dataset.comment = newText;
-      textDiv.innerHTML = `<b>You</b> ${newText}<div class='task__tl-meta'><time>${time}</time><button class='task__tl-edit-btn' title='Edit comment'><i class='fas fa-pen'></i></button></div>`;
+      const _sAvatar = (textDiv.dataset.authorPhoto)
+        ? `<img class='tl-avatar' src='${textDiv.dataset.authorPhoto}' alt='${textDiv._savedAuthor || ''}' title='${textDiv._savedAuthor || ''}'>`
+        : `<span class='tl-avatar tl-avatar--initial' title='${textDiv._savedAuthor || ''}'>${(textDiv._savedAuthor || '?')[0].toUpperCase()}</span>`;
+      textDiv.innerHTML = `${_sAvatar}<b>${textDiv._savedAuthor || _authorName()}</b> ${newText}<div class='task__tl-meta'><time>${time}</time><button class='task__tl-edit-btn' title='Edit comment'><i class='fas fa-pen'></i></button></div>`;
       const cardText = entry.closest('.task')?.querySelector('p')?.textContent.slice(0, 40) || 'Card';
-      logActivity('edit', `<b>You</b> edited a comment on "${cardText}"`);
+      logActivity('edit', `<b>${_authorName()}</b> edited a comment on "${cardText}"`);
       saveChanges();
       return;
     }
@@ -835,7 +853,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const entry = document.createElement('div');
       entry.className = 'task__tl-entry';
       entry.innerHTML = `<span class='task__tl-dot task__tl-dot--comment'></span>
-        <div class='task__tl-text' data-comment="${comment.replace(/"/g, '&quot;')}"><b>You</b> ${comment}<div class='task__tl-meta'><time>${today}</time><button class='task__tl-edit-btn' title='Edit comment'><i class='fas fa-pen'></i></button></div></div>`;
+        <div class='task__tl-text' data-comment="${comment.replace(/"/g, '&quot;')}" data-author-photo='${_authorPhoto()}'>${_authorAvatar()}<b>${_authorName()}</b> ${comment}<div class='task__tl-meta'><time>${today}</time><button class='task__tl-edit-btn' title='Edit comment'><i class='fas fa-pen'></i></button></div></div>`;
 
       let tl = task.querySelector('.task__timeline');
       if (!tl) {
@@ -857,7 +875,7 @@ document.addEventListener('DOMContentLoaded', () => {
       input.value = '';
       box.classList.remove('open');
       const cardText = task.querySelector('p')?.textContent.slice(0, 40) || 'Card';
-      logActivity('comment', `<b>You</b> commented on "${cardText}"`);
+      logActivity('comment', `<b>${_authorName()}</b> commented on "${cardText}"`);
       saveChanges();
       return;
     }
