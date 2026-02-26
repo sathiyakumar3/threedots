@@ -1,8 +1,15 @@
 // ── Shared tag labels ──
 const tagLabels = {
-  copyright:    'Copywriting',
+  urgent:       'Urgent',
+  review:       'Review',
+  research:     'Research',
+  docs:         'Docs',
+  qa:           'QA',
+  backend:      'Backend',
   design:       'UI Design',
-  illustration: 'Illustration'
+  feature:      'Feature',
+  illustration: 'Illustration',
+  copyright:    'Copywriting'
 };
 
 // ── Save toast ──
@@ -62,9 +69,9 @@ function buildTimeline(entries) {
         ? `<button class="task__tl-edit-btn" title="Edit comment"><i class="fas fa-pen"></i></button>`
         : '';
       const textDiv = isComment
-        ? `<div class="task__tl-text" data-comment="${e.text.replace(/"/g, '&quot;')}" data-author-photo="${authorPhoto}">${avatarHTML}<b>${authorName}</b> ${e.text}<div class="task__tl-meta"><time>${e.date}</time>${editBtn}</div></div>`
-        : `<div class="task__tl-text" data-author-photo="${authorPhoto}">${avatarHTML}<b>${authorName}</b> ${e.text}<time>${e.date}</time></div>`;
-      return `<div class="task__tl-entry"><span class="task__tl-dot task__tl-dot--${e.type || 'create'}"></span>${textDiv}</div>`;
+        ? `<div class="task__tl-text" data-comment="${e.text.replace(/"/g, '&quot;')}" data-author-photo="${authorPhoto}"><b>${authorName}</b> ${e.text}<div class="task__tl-meta"><time>${e.date}</time>${editBtn}</div></div>`
+        : `<div class="task__tl-text" data-author-photo="${authorPhoto}"><b>${authorName}</b> ${e.text}<time>${e.date}</time></div>`;
+      return `<div class="task__tl-entry"><span class="task__tl-dot task__tl-dot--${e.type || 'create'}">${avatarHTML}</span>${textDiv}</div>`;
     }).join('')}
   </div>`;
 }

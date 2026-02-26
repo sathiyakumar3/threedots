@@ -1,6 +1,6 @@
-document.addEventListener('DOMContentLoaded', () => {
+﻿document.addEventListener('DOMContentLoaded', () => {
 
-  // ── Auth: gate the whole app behind Google sign-in ──────────────────────
+  // â”€â”€ Auth: gate the whole app behind Google sign-in â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const loginOverlay = document.getElementById('loginOverlay');
   const appShell     = document.getElementById('appShell');
   const btnGoogle    = document.getElementById('btnGoogleSignIn');
@@ -9,7 +9,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function setLoginError(msg) { loginError.textContent = msg; }
   function clearLoginError()  { loginError.textContent = ''; }
 
-  // ── Show / hide app ──
+  // â”€â”€ Show / hide app â”€â”€
   function showApp(user) {
     currentUser = user;
     db.collection('users').doc(user.uid).set({
@@ -22,10 +22,14 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('navUserName').textContent  = user.displayName || user.email;
     document.getElementById('navUserEmail').textContent = user.email;
     const avatarEl = document.getElementById('navAvatar');
+    const avatarDropEl = document.getElementById('navAvatarDrop');
     if (user.photoURL) {
       avatarEl.innerHTML = `<img src='${user.photoURL}' alt='avatar'>`;
+      if (avatarDropEl) avatarDropEl.innerHTML = `<img src='${user.photoURL}' alt='avatar'>`;
     } else {
-      avatarEl.textContent = (user.displayName || user.email || '?')[0].toUpperCase();
+      const initial = (user.displayName || user.email || '?')[0].toUpperCase();
+      avatarEl.textContent = initial;
+      if (avatarDropEl) avatarDropEl.textContent = initial;
     }
     loginOverlay.classList.add('hidden');
     appShell.style.display = '';
@@ -33,16 +37,16 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function loadUserBoards(uid) {
-    // Clear any boards left over from a previous session / account
     board.innerHTML = '';
-    document.querySelectorAll('.nav-item[data-tab="board"]').forEach(el => el.remove());
+    document.getElementById('boardComboMenu').innerHTML = '';
+    document.getElementById('boardComboLabel').textContent = 'Select board';
     const boardsQuery = db.collection('boards').where('users', 'array-contains', uid);
     boardsQuery.get()
       .then(snapshot => {
         if (snapshot.empty) {
           Swal.fire({
-            title: 'Welcome! 👋',
-            html: `It seems you're just getting started — let's create your first board!`,
+            title: 'Welcome! ðŸ‘‹',
+            html: `It seems you're just getting started â€” let's create your first board!`,
             icon: 'info',
             input: 'text',
             inputLabel: 'Board name',
@@ -55,7 +59,7 @@ document.addEventListener('DOMContentLoaded', () => {
             inputValidator: val => !val.trim() && 'Please enter a board name.'
           }).then(result => {
             if (!result.isConfirmed) return;
-            createBoard(result.value.trim(), false);
+            createBoard(result.value.trim());
           });
           return null;
         }
@@ -70,25 +74,24 @@ document.addEventListener('DOMContentLoaded', () => {
           const nb = (b.data().name || '').toLowerCase();
           return na.localeCompare(nb);
         });
-        docs.forEach(doc => addBoardNavItem(doc.id, doc.data().name || doc.id));
+        docs.forEach(doc => addBoardSelectOption(doc.id, doc.data().name || doc.id));
         const firstId  = docs[0].id;
         const targetId = docs.find(d => d.id === 'main') ? 'main' : firstId;
-        const navItem  = document.querySelector(`.nav-item[data-board-id="${targetId}"]`);
-        loadBoard(targetId, navItem);
+        loadBoard(targetId);
       })
       .catch(err => {
         console.error('Could not load boards:', err);
         board.insertAdjacentHTML('beforebegin',
-          `<p style="color:#e05252;padding:.5rem 1rem;font-size:13px">⚠ Could not connect to Firestore.</p>`);
+          `<p style="color:#e05252;padding:.5rem 1rem;font-size:13px">âš  Could not connect to Firestore.</p>`);
       });
   }
 
   function hideApp() {
     currentUser = null;
-    // ── Clean up stale board data so it never bleeds into the next login ──
     BOARD_ID = 'main';
     board.innerHTML = '';
-    document.querySelectorAll('.nav-item[data-tab="board"]').forEach(el => el.remove());
+    document.getElementById('boardComboMenu').innerHTML = '';
+    document.getElementById('boardComboLabel').textContent = 'Select board';
     document.querySelectorAll('.participant-avatar').forEach(el => el.remove());
     appShell.style.display = 'none';
     loginOverlay.classList.remove('hidden');
@@ -97,19 +100,19 @@ document.addEventListener('DOMContentLoaded', () => {
   appShell.style.display = 'none';
   auth.onAuthStateChanged(user => { if (user) showApp(user); else hideApp(); });
 
-  // ── Google sign-in ──
+  // â”€â”€ Google sign-in â”€â”€
   btnGoogle.addEventListener('click', () => {
     clearLoginError();
     auth.signInWithPopup(googleProvider).catch(err => setLoginError(err.message));
   });
 
-  // ── Microsoft sign-in ──
+  // â”€â”€ Microsoft sign-in â”€â”€
   document.getElementById('btnMicrosoftSignIn').addEventListener('click', () => {
     clearLoginError();
     auth.signInWithPopup(microsoftProvider).catch(err => setLoginError(err.message));
   });
 
-  // ── Email / password sign-in ──
+  // â”€â”€ Email / password sign-in â”€â”€
   document.getElementById('btnEmailSignIn').addEventListener('click', () => {
     clearLoginError();
     const email    = document.getElementById('loginEmail').value.trim();
@@ -119,7 +122,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(err => setLoginError(err.message));
   });
 
-  // ── Email / password register ──
+  // â”€â”€ Email / password register â”€â”€
   document.getElementById('btnRegister').addEventListener('click', () => {
     clearLoginError();
     const email    = document.getElementById('regEmail').value.trim();
@@ -137,7 +140,7 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(err => setLoginError(err.message));
   });
 
-  // ── Toggle sign-in ↔ register ──
+  // â”€â”€ Toggle sign-in â†” register â”€â”€
   document.getElementById('showRegister').addEventListener('click', () => {
     document.getElementById('loginForm').style.display    = 'none';
     document.getElementById('registerForm').style.display = '';
@@ -149,11 +152,16 @@ document.addEventListener('DOMContentLoaded', () => {
     clearLoginError();
   });
 
-  document.getElementById('logoutBtn').addEventListener('click', () => auth.signOut());
+  document.getElementById('logoutBtn').addEventListener('click', () => {
+    document.getElementById('topbarUser')?.classList.remove('open');
+    auth.signOut();
+  });
 
-  // ── Search ───────────────────────────────────────────────────────────────
-  const boardSearch = document.getElementById('boardSearch');
-  const searchClear = document.getElementById('searchClear');
+  // â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const boardSearch   = document.getElementById('boardSearch');
+  const searchClear   = document.getElementById('searchClear');
+  const searchToggle  = document.getElementById('searchToggle');
+  const topbarSearch  = document.getElementById('topbarSearch');
 
   function applySearch(query) {
     const q = query.trim().toLowerCase();
@@ -171,14 +179,38 @@ document.addEventListener('DOMContentLoaded', () => {
     searchClear.classList.toggle('visible', q.length > 0);
   }
 
+  function openSearch() {
+    topbarSearch.classList.add('open');
+    // Wait for transition then focus
+    setTimeout(() => boardSearch.focus(), 50);
+  }
+  function closeSearch() {
+    boardSearch.value = '';
+    applySearch('');
+    topbarSearch.classList.remove('open');
+  }
+
+  searchToggle.addEventListener('click', e => {
+    e.stopPropagation();
+    topbarSearch.classList.contains('open') ? closeSearch() : openSearch();
+  });
+
   boardSearch.addEventListener('input', () => applySearch(boardSearch.value));
+  boardSearch.addEventListener('keydown', e => { if (e.key === 'Escape') closeSearch(); });
+
   searchClear.addEventListener('click', () => {
     boardSearch.value = '';
     applySearch('');
     boardSearch.focus();
   });
 
-  // ── Activity panel toggle ────────────────────────────────────────────────
+  document.addEventListener('click', e => {
+    if (!topbarSearch.contains(e.target) && !boardSearch.value.trim()) {
+      topbarSearch.classList.remove('open');
+    }
+  });
+
+  // â”€â”€ Activity panel toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const activityPanel  = document.getElementById('activityPanel');
   const activityToggle = document.getElementById('activityToggle');
   activityToggle.addEventListener('click', () => {
@@ -187,15 +219,9 @@ document.addEventListener('DOMContentLoaded', () => {
     activityToggle.title = collapsed ? 'Show activity' : 'Hide activity';
   });
 
-  // ── Nav panel toggle ─────────────────────────────────────────────────────
-  const navPanel  = document.getElementById('navPanel');
-  const navToggle = document.getElementById('navToggle');
-  navToggle.addEventListener('click', () => navPanel.classList.toggle('collapsed'));
-
-  let dragSrcEl = null;
   const board   = document.querySelector('.project-tasks');
 
-  // ── Author identity helpers ──────────────────────────────────────────────
+  // â”€â”€ Author identity helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function _authorName()  { return currentUser?.displayName || currentUser?.email || 'You'; }
   function _authorPhoto() { return currentUser?.photoURL    || ''; }
   function _authorAvatar() {
@@ -206,36 +232,32 @@ document.addEventListener('DOMContentLoaded', () => {
       : `<span class='tl-avatar tl-avatar--initial' title='${name}'>${name[0].toUpperCase()}</span>`;
   }
 
-  // ── Board nav helpers ────────────────────────────────────────────────────
-  function generateBoardName() {
-    const existing = [...document.querySelectorAll('.nav-item[data-tab="board"] span')]
-      .map(s => s.textContent.trim());
-    if (!existing.includes('New Board')) return 'New Board';
-    let i = 2;
-    while (existing.includes(`New Board (${i})`)) i++;
-    return `New Board (${i})`;
-  }
-
-  function addBoardNavItem(id, name) {
-    const btn = document.createElement('button');
-    btn.className = 'nav-item';
-    btn.dataset.tab     = 'board';
+  // â”€â”€ Board nav helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  function addBoardSelectOption(id, name) {
+    const menu = document.getElementById('boardComboMenu');
+    const btn  = document.createElement('button');
+    btn.className      = 'board-combo__item';
     btn.dataset.boardId = id;
-    btn.dataset.label   = name;
-    btn.innerHTML = `<i class='fas fa-columns'></i><span>${name}</span>`;
-    document.querySelector('.nav-items').appendChild(btn);
+    btn.textContent    = name;
+    btn.addEventListener('click', () => {
+      loadBoard(id);
+      document.getElementById('boardComboMenu').classList.remove('open');
+      document.getElementById('boardComboTrigger').classList.remove('open');
+    });
+    menu.appendChild(btn);
     return btn;
   }
 
-  // ── Load a board by Firestore doc ID ────────────────────────────────────
-  function loadBoard(id, activeNavEl) {
+  // â”€â”€ Load a board by Firestore doc ID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  function loadBoard(id) {
     BOARD_ID = id;
     board.innerHTML = '';
     document.getElementById('activityFeed').innerHTML = '';
     const srch = document.getElementById('boardSearch');
     if (srch) { srch.value = ''; searchClear.classList.remove('visible'); }
-    document.querySelectorAll('.nav-item[data-tab="board"]').forEach(b => b.classList.remove('active'));
-    if (activeNavEl) activeNavEl.classList.add('active');
+    // Highlight active item in combo
+    document.getElementById('boardComboMenu').querySelectorAll('.board-combo__item')
+      .forEach(b => b.classList.toggle('active', b.dataset.boardId === id));
     // Reset archive button + show-archive state
     board.classList.remove('show-archive');
     document.getElementById('archiveBtn').classList.remove('active');
@@ -252,13 +274,10 @@ document.addEventListener('DOMContentLoaded', () => {
         if (snap.exists) {
           const data = snap.data();
           const name = data.name || 'Board';
-          const h1 = document.querySelector('.project-info h1');
-          h1.textContent = name;
-          h1.title = `Board ID: ${id}`;
-          if (activeNavEl) {
-            activeNavEl.querySelector('span').textContent = name;
-            activeNavEl.dataset.label = name;
-          }
+          const menu = document.getElementById('boardComboMenu');
+          const item = menu.querySelector(`[data-board-id="${id}"]`);
+          if (item) { item.textContent = name; }
+          document.getElementById('boardComboLabel').textContent = name;
           if (data.columns && data.tasks) {
             buildColumnsFromData(data.columns);
             buildTasksFromData(data.tasks);
@@ -269,11 +288,11 @@ document.addEventListener('DOMContentLoaded', () => {
       .catch(err => {
         console.error('Could not load board:', err);
         board.insertAdjacentHTML('beforebegin',
-          `<p style="color:#e05252;padding:.5rem 1rem;font-size:13px">⚠ Could not connect to Firestore.</p>`);
+          `<p style="color:#e05252;padding:.5rem 1rem;font-size:13px">âš  Could not connect to Firestore.</p>`);
       });
   }
 
-  // ── Participants avatars ─────────────────────────────────────────────────────
+  // â”€â”€ Participants avatars â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function renderParticipants(ownerUid, userUids) {
     const container = document.getElementById('projectParticipants');
     // Remove existing avatars only
@@ -301,7 +320,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ── Add-participant popover ───────────────────────────────────────────────
+  // â”€â”€ Add-participant popover â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const addParticipantBtn    = document.getElementById('addParticipantBtn');
   const participantPopover   = document.getElementById('participantPopover');
   const participantEmail     = document.getElementById('participantEmail');
@@ -339,7 +358,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const email = participantEmail.value.trim().toLowerCase();
     if (!email) { participantMsg.textContent = 'Please enter an email address.'; return; }
     participantMsg.className = 'participant-popover__msg';
-    participantMsg.textContent = 'Searching…';
+    participantMsg.textContent = 'Searchingâ€¦';
     db.collection('users').where('email', '==', email).get()
       .then(snap => {
         if (snap.empty) {
@@ -370,7 +389,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   });
 
-  // ── Board options dropdown (rename / delete) ──────────────────────────────
+  // â”€â”€ Board options dropdown (rename / delete) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const boardOptionsBtn = document.getElementById('boardOptionsBtn');
   const boardDropdown   = document.getElementById('boardDropdown');
 
@@ -386,13 +405,33 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('boardOptRename').addEventListener('click', () => {
     boardDropdown.classList.remove('open');
-    // Trigger the same inline rename as double-click
-    document.querySelector('.project-info h1').dispatchEvent(new MouseEvent('dblclick'));
+    const current = document.getElementById('boardComboLabel').textContent;
+    Swal.fire({
+      title: 'Rename board',
+      input: 'text',
+      inputValue: current,
+      inputLabel: 'Board name',
+      confirmButtonText: 'Rename',
+      confirmButtonColor: 'var(--purple)',
+      showCancelButton: true,
+      inputValidator: v => !v.trim() && 'Please enter a name.'
+    }).then(result => {
+      if (!result.isConfirmed) return;
+      const val = result.value.trim();
+      db.doc(`boards/${BOARD_ID}`).update({ name: val })
+        .then(() => {
+          const item = document.getElementById('boardComboMenu').querySelector(`[data-board-id="${BOARD_ID}"]`);
+          if (item) item.textContent = val;
+          document.getElementById('boardComboLabel').textContent = val;
+          showToast('Board renamed ✓');
+        })
+        .catch(() => showToast('Rename failed', true));
+    });
   });
 
   document.getElementById('boardOptDelete').addEventListener('click', () => {
     boardDropdown.classList.remove('open');
-    const boardName = document.querySelector('.project-info h1').textContent.trim();
+    const boardName = document.getElementById('boardComboLabel').textContent;
     Swal.fire({
       title: 'Delete board?',
       html: `<b>${boardName}</b> will be permanently deleted. This cannot be undone.`,
@@ -407,106 +446,39 @@ document.addEventListener('DOMContentLoaded', () => {
       db.doc(`boards/${BOARD_ID}`).delete()
         .then(() => {
           showToast('Board deleted');
-          const navItem = document.querySelector(`.nav-item[data-board-id="${BOARD_ID}"]`);
-          if (navItem) navItem.remove();
-          const remaining = document.querySelector('.nav-item[data-tab="board"]');
-          if (remaining) {
-            loadBoard(remaining.dataset.boardId, remaining);
+          const menu = document.getElementById('boardComboMenu');
+          const item = menu.querySelector(`[data-board-id="${BOARD_ID}"]`);
+          if (item) item.remove();
+          const next = menu.querySelector('.board-combo__item');
+          if (next) {
+            loadBoard(next.dataset.boardId);
           } else {
             board.innerHTML = '';
-            document.querySelector('.project-info h1').textContent = '';
+            document.getElementById('boardComboLabel').textContent = 'Select board';
           }
         })
         .catch(err => { console.error(err); showToast('Delete failed', true); });
     });
   });
 
-  // ── Double-click board title (top bar) to rename ───────────────────────────
-  document.querySelector('.project-info h1').addEventListener('dblclick', function () {
-    if (this.querySelector('input')) return;
-    const h1      = this;
-    const current = h1.textContent.trim();
-    h1.textContent = '';
-    const inp = document.createElement('input');
-    inp.type = 'text'; inp.className = 'board-title-input'; inp.value = current;
-    h1.appendChild(inp);
-    inp.focus(); inp.select();
-    function commitBoardRename() {
-      const val = inp.value.trim() || current;
-      h1.textContent = val;
-      h1.title = `Board ID: ${BOARD_ID}`;
-      // Update Firestore
-      db.doc(`boards/${BOARD_ID}`).update({ name: val })
-        .then(() => showToast('Board renamed ✓'))
-        .catch(() => showToast('Rename failed', true));
-      // Keep nav sidebar in sync
-      const navItem = document.querySelector(`.nav-item[data-board-id="${BOARD_ID}"]`);
-      if (navItem) {
-        const span = navItem.querySelector('span');
-        if (span) span.textContent = val;
-        navItem.dataset.label = val;
-      }
+  // ── Custom board combobox toggle ────────────────────────────────────────────
+  const boardComboTrigger = document.getElementById('boardComboTrigger');
+  const boardComboMenu    = document.getElementById('boardComboMenu');
+  boardComboTrigger.addEventListener('click', e => {
+    e.stopPropagation();
+    const isOpen = boardComboMenu.classList.toggle('open');
+    boardComboTrigger.classList.toggle('open', isOpen);
+  });
+  document.addEventListener('click', e => {
+    if (!document.getElementById('boardCombo').contains(e.target)) {
+      boardComboMenu.classList.remove('open');
+      boardComboTrigger.classList.remove('open');
     }
-    inp.addEventListener('blur', commitBoardRename);
-    inp.addEventListener('keydown', ev => {
-      if (ev.key === 'Enter')  inp.blur();
-      if (ev.key === 'Escape') { inp.value = current; inp.blur(); }
-    });
   });
+  boardComboMenu.addEventListener('click', e => e.stopPropagation());
 
-  // ── Nav board switching ─────────────────────────────────────────────────────
-  document.querySelector('.nav-items').addEventListener('click', e => {
-    const item = e.target.closest('.nav-item[data-tab="board"]');
-    if (!item || item.classList.contains('active')) return;
-    if (item.querySelector('.nav-rename-input')) return;
-    loadBoard(item.dataset.boardId, item);
-  });
-
-  // ── Nav board rename helper ─────────────────────────────────────────────
-  function startNavRename(item) {
-    if (item.querySelector('.nav-rename-input')) return;
-    const spanEl  = item.querySelector('span');
-    const current = spanEl.textContent.trim();
-    spanEl.style.display = 'none';
-    const inp = document.createElement('input');
-    inp.type = 'text';
-    inp.className = 'nav-rename-input';
-    inp.value = current;
-    item.appendChild(inp);
-    inp.focus(); inp.select();
-    function commitNavRename() {
-      const val = inp.value.trim() || current;
-      inp.remove();
-      spanEl.style.display = '';
-      spanEl.textContent   = val;
-      item.dataset.label   = val;
-      db.doc(`boards/${item.dataset.boardId}`).update({ name: val })
-        .then(() => showToast('Renamed ✓'))
-        .catch(() => showToast('Rename failed', true));
-      if (item.classList.contains('active')) {
-        const h1 = document.querySelector('.project-info h1');
-        h1.textContent = val;
-        h1.title = `Board ID: ${item.dataset.boardId}`;
-      }
-    }
-    inp.addEventListener('blur', commitNavRename);
-    inp.addEventListener('keydown', ev => {
-      if (ev.key === 'Enter')  inp.blur();
-      if (ev.key === 'Escape') { inp.value = current; inp.blur(); }
-    });
-    inp.addEventListener('mousedown', ev => ev.stopPropagation());
-  }
-
-  // ── Nav board rename on double-click ────────────────────────────────────
-  document.querySelector('.nav-items').addEventListener('dblclick', e => {
-    const item = e.target.closest('.nav-item[data-tab="board"]');
-    if (!item) return;
-    startNavRename(item);
-  });
-
-  // ── Add new board ────────────────────────────────────────────────────────
-  // ── Create a new board and add it to the nav ─────────────────────────────────
-  function createBoard(name, autoRename) {
+  // ── Create a new board ──────────────────────────────────────────────────────
+  function createBoard(name) {
     const uid = currentUser ? currentUser.uid : null;
     const data = {
       name,
@@ -527,20 +499,32 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     return db.collection('boards').add(data)
       .then(docRef => {
-        const navItem = addBoardNavItem(docRef.id, name);
-        loadBoard(docRef.id, navItem);
-        showToast(`Board “${name}” created ✓`);
-        if (autoRename) startNavRename(navItem);
+        addBoardSelectOption(docRef.id, name);
+        loadBoard(docRef.id);
+        showToast(`Board "${name}" created ✓`);
         return docRef;
       })
       .catch(err => { console.error('Create board failed:', err); showToast('Could not create board', true); });
   }
 
   document.getElementById('navAddBoard').addEventListener('click', () => {
-    createBoard(generateBoardName(), true);
+    Swal.fire({
+      title: 'New Board',
+      input: 'text',
+      inputLabel: 'Board name',
+      inputPlaceholder: 'e.g. My Project',
+      inputValue: 'New Board',
+      confirmButtonText: 'Create',
+      confirmButtonColor: 'var(--purple)',
+      showCancelButton: true,
+      inputValidator: v => !v.trim() && 'Please enter a name.'
+    }).then(result => {
+      if (!result.isConfirmed) return;
+      createBoard(result.value.trim());
+    });
   });
 
-  // ── Drag & Drop ──────────────────────────────────────────────────────────
+  // â”€â”€ Drag & Drop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function clearHighlights() {
     document.querySelectorAll('.task-hover').forEach(t => t.classList.remove('task-hover'));
     document.querySelectorAll('.column-drag-over').forEach(c => c.classList.remove('column-drag-over'));
@@ -600,8 +584,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const today     = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
     const moveEntry = document.createElement('div');
     moveEntry.className = 'task__tl-entry';
-    moveEntry.innerHTML = `<span class='task__tl-dot task__tl-dot--edit'></span>
-      <div class='task__tl-text' data-author-photo='${_authorPhoto()}'>${_authorAvatar()}<b>${_authorName()}</b> moved to <b>${colName}</b><time>${today}</time></div>`;
+    moveEntry.innerHTML = `<span class='task__tl-dot task__tl-dot--edit'>${_authorAvatar()}</span>
+      <div class='task__tl-text' data-author-photo='${_authorPhoto()}'><b>${_authorName()}</b> moved to <b>${colName}</b><time>${today}</time></div>`;
     let tl = dragSrcEl.querySelector('.task__timeline');
     if (!tl) {
       dragSrcEl.querySelector('.task__footer').insertAdjacentHTML('beforebegin', `<div class='task__timeline'></div>`);
@@ -613,7 +597,7 @@ document.addEventListener('DOMContentLoaded', () => {
     saveChanges();
   });
 
-  // ── Build board from Firestore data ─────────────────────────────────────
+  // â”€â”€ Build board from Firestore data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   const months       = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
   let   nextColId    = 100;
 
@@ -659,12 +643,12 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     allEntries.forEach(e => logActivity(
       e.type || 'edit',
-      `<b>${e.author}</b> ${e.text} — <em>${e.cardTitle}</em>`,
+      `<b>${e.author}</b> ${e.text} â€” <em>${e.cardTitle}</em>`,
       e.date
     ));
   }
 
-  // ── Card expand / collapse ───────────────────────────────────────────────
+  // â”€â”€ Card expand / collapse â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   board.addEventListener('click', e => {
     const task = e.target.closest('.task');
     if (!task) return;
@@ -688,7 +672,7 @@ document.addEventListener('DOMContentLoaded', () => {
     refreshExpandBtn(task);
   });
 
-  // ── Task options dropdown ────────────────────────────────────────────────
+  // â”€â”€ Task options dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let openDropdown = null;
   document.addEventListener('click', e => {
     if (openDropdown && !openDropdown.contains(e.target) && !e.target.closest('.task__options')) {
@@ -709,7 +693,7 @@ document.addEventListener('DOMContentLoaded', () => {
       openDropdown = !isOpen ? dd : null;
       return;
     }
-    // Edit — open
+    // Edit â€” open
     if (e.target.closest('.task__opt-edit')) {
       const task     = e.target.closest('.task');
       task.querySelector('.task__dropdown').classList.remove('open');
@@ -732,7 +716,7 @@ document.addEventListener('DOMContentLoaded', () => {
       task.querySelector('.task__edit-input').focus();
       return;
     }
-    // Edit — cancel
+    // Edit â€” cancel
     if (e.target.closest('.task__edit-cancel')) {
       const task = e.target.closest('.task');
       task.querySelector('.task__edit-tag-select')?.remove();
@@ -742,7 +726,7 @@ document.addEventListener('DOMContentLoaded', () => {
       task.querySelector('p').style.display          = '';
       return;
     }
-    // Edit — save
+    // Edit â€” save
     if (e.target.closest('.task__edit-save')) {
       const task    = e.target.closest('.task');
       const selEl   = task.querySelector('.task__edit-tag-select');
@@ -778,7 +762,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── Inline comment edit ──────────────────────────────────────────────────
+  // â”€â”€ Inline comment edit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   board.addEventListener('click', e => {
     if (e.target.closest('.task__tl-edit-btn')) {
       const entry   = e.target.closest('.task__tl-entry');
@@ -828,7 +812,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── Update button / comment box ──────────────────────────────────────────
+  // â”€â”€ Update button / comment box â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   board.addEventListener('click', e => {
     if (e.target.closest('.task__update-btn')) {
       const box = e.target.closest('.task').querySelector('.task__comment-box');
@@ -852,8 +836,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
       const entry = document.createElement('div');
       entry.className = 'task__tl-entry';
-      entry.innerHTML = `<span class='task__tl-dot task__tl-dot--comment'></span>
-        <div class='task__tl-text' data-comment="${comment.replace(/"/g, '&quot;')}" data-author-photo='${_authorPhoto()}'>${_authorAvatar()}<b>${_authorName()}</b> ${comment}<div class='task__tl-meta'><time>${today}</time><button class='task__tl-edit-btn' title='Edit comment'><i class='fas fa-pen'></i></button></div></div>`;
+      entry.innerHTML = `<span class='task__tl-dot task__tl-dot--comment'>${_authorAvatar()}</span>
+        <div class='task__tl-text' data-comment="${comment.replace(/"/g, '&quot;')}" data-author-photo='${_authorPhoto()}'><b>${_authorName()}</b> ${comment}<div class='task__tl-meta'><time>${today}</time><button class='task__tl-edit-btn' title='Edit comment'><i class='fas fa-pen'></i></button></div></div>`;
 
       let tl = task.querySelector('.task__timeline');
       if (!tl) {
@@ -881,7 +865,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── Column rename helper ─────────────────────────────────────────────────
+  // â”€â”€ Column rename helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   function startColRename(titleEl) {
     if (titleEl.querySelector('input')) return; // already editing
     const current = titleEl.textContent;
@@ -902,7 +886,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
-  // ── Column heading dropdown ──────────────────────────────────────────────
+  // â”€â”€ Column heading dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   let openColDropdown = null;
   document.addEventListener('click', e => {
     if (openColDropdown && !openColDropdown.contains(e.target) && !e.target.closest('.project-column-heading__options')) {
@@ -988,7 +972,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── Double-click column title to rename ───────────────────────────────────
+  // â”€â”€ Double-click column title to rename â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   board.addEventListener('dblclick', e => {
     const titleEl = e.target.closest('.project-column-heading__title');
     if (!titleEl) return;
@@ -999,11 +983,34 @@ document.addEventListener('DOMContentLoaded', () => {
     startColRename(titleEl);
   });
 
-  // ── Archive toggle ───────────────────────────────────────────────────────
+  // â”€â”€ Archive toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
   document.getElementById('archiveBtn').addEventListener('click', function () {
     board.classList.toggle('show-archive');
     this.classList.toggle('active');
     syncGrid();
+  });
+
+  // â”€â”€ Topbar user dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const topbarUser    = document.getElementById('topbarUser');
+  const topbarTrigger = document.getElementById('topbarUserTrigger');
+  topbarTrigger.addEventListener('click', e => {
+    e.stopPropagation();
+    topbarUser.classList.toggle('open');
+  });
+  document.addEventListener('click', e => {
+    if (!topbarUser.contains(e.target)) topbarUser.classList.remove('open');
+  });
+
+  // â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  document.getElementById('settingsBtn').addEventListener('click', () => {
+    topbarUser.classList.remove('open');
+    Swal.fire({ title: 'Settings', text: 'Settings panel coming soon.', icon: 'info', confirmButtonColor: 'var(--purple)' });
+  });
+
+  // â”€â”€ Profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  document.getElementById('profileBtn').addEventListener('click', () => {
+    topbarUser.classList.remove('open');
+    Swal.fire({ title: 'My Profile', text: 'Profile panel coming soon.', icon: 'info', confirmButtonColor: 'var(--purple)' });
   });
 
 }); // end DOMContentLoaded

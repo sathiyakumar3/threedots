@@ -19,64 +19,100 @@
 
   <div class="app-shell" id="appShell">
 
-    <nav class="nav-panel" id="navPanel">
-      <div class="nav-logo">
-        <div class="nav-logo__icon"><i class="fas fa-layer-group"></i></div>
-        <span class="nav-logo__text">ThreeDots</span>
-      </div>
-      <div class="nav-section-label">Boards</div>
-      <div class="nav-items" id="navItems"></div>
-      <button class="nav-add-board" id="navAddBoard" data-label="Add board" title="Add board">
-        <i class="fas fa-plus"></i><span>Add board</span>
-      </button>
-      <div class="nav-footer">
-        <div class="nav-user" id="navUser">
-          <div class="nav-user__avatar" id="navAvatar"><i class="fas fa-user"></i></div>
-          <div class="nav-user__info">
-            <div class="nav-user__name"  id="navUserName">Guest</div>
-            <div class="nav-user__email" id="navUserEmail"></div>
-          </div>
-        </div>
-        <button class="nav-item" data-label="Settings" title="Settings">
-          <i class="fas fa-cog"></i><span>Settings</span>
-        </button>
-        <button class="nav-item danger" id="logoutBtn" data-label="Log out" title="Log out">
-          <i class="fas fa-sign-out-alt"></i><span>Log out</span>
-        </button>
-      </div>
-    </nav>
-
     <div class="app-content">
       <div class="project-info">
-        <button class="nav-toggle" id="navToggle" title="Toggle menu"><i class="fas fa-bars"></i></button>
-        <div class="board-title-wrap">
-          <h1>My Board</h1>
-        </div>
-        <div class="board-options-wrap">
-          <button class="project-column-heading__options" id="boardOptionsBtn" title="Board options"><i class="fas fa-ellipsis-h"></i></button>
-          <div class="board-dropdown" id="boardDropdown">
-            <button id="boardOptRename"><i class="fas fa-pen"></i> Rename board</button>
-            <button id="boardOptDelete" class="danger"><i class="fas fa-trash-alt"></i> Delete board</button>
-          </div>
-        </div>
-        <div class="topbar-search">
-          <i class="fas fa-search"></i>
-          <input type="text" id="boardSearch" placeholder="Search cards&hellip;" autocomplete="off">
-          <button class="topbar-search__clear" id="searchClear" title="Clear"><i class="fas fa-times"></i></button>
-        </div>
-        <div class="project-participants" id="projectParticipants">
-          <!-- avatars injected by renderParticipants() -->
-          <button class="project-participants__add" id="addParticipantBtn" title="Add participant"></button>
-          <div class="participant-popover" id="participantPopover">
-            <input type="email" id="participantEmail" placeholder="User's email address" autocomplete="off">
-            <div class="participant-popover__actions">
-              <button id="participantAddConfirm">Add</button>
-              <button id="participantAddCancel">Cancel</button>
+        <!-- Left group -->
+        <div class="topbar-left">
+          <div class="topbar-logo">
+            <div class="topbar-logo__icon">
+              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="17" height="17">
+                <rect x="1"    y="4" width="6.5" height="16" rx="1.5" fill="rgba(255,255,255,0.22)"/>
+                <rect x="8.75" y="4" width="6.5" height="16" rx="1.5" fill="rgba(255,255,255,0.22)"/>
+                <rect x="16.5" y="4" width="6.5" height="16" rx="1.5" fill="rgba(255,255,255,0.35)"/>
+                <rect x="2.5"  y="6.5" width="3.5" height="2" rx="0.7" fill="white" opacity="0.95"/>
+                <rect x="2.5"  y="10"  width="3.5" height="2" rx="0.7" fill="white" opacity="0.95"/>
+                <rect x="10.2" y="6.5" width="3.5" height="2" rx="0.7" fill="white" opacity="0.95"/>
+                <rect x="10.2" y="10"  width="3.5" height="2" rx="0.7" fill="white" opacity="0.6"/>
+                <polyline points="18.2,12 19.8,14 22.5,9" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+              </svg>
             </div>
-            <p class="participant-popover__msg" id="participantMsg"></p>
+            <span class="topbar-logo__text">ThreeDots</span>
           </div>
-          <button class="btn-archive" id="archiveBtn"><i class="fas fa-archive"></i> Archive</button>
-          <button class="btn-archive" id="activityToggle" title="Show activity"><i class="fas fa-stream"></i> Activity</button>
+          <span class="topbar-breadcrumb__sep">/</span>
+          <div class="board-title-wrap">
+            <div class="board-combo" id="boardCombo">
+              <button class="board-combo__trigger" id="boardComboTrigger">
+                <i class="fas fa-columns board-combo__icon"></i>
+                <span id="boardComboLabel">Select board</span>
+                <i class="fas fa-chevron-down board-combo__chevron"></i>
+              </button>
+              <div class="board-combo__menu" id="boardComboMenu"></div>
+            </div>
+            <button class="board-add-btn" id="navAddBoard" title="New board"><i class="fas fa-plus"></i></button>
+          </div>
+          <div class="board-options-wrap">
+            <button class="project-column-heading__options" id="boardOptionsBtn" title="Board options"><i class="fas fa-ellipsis-h"></i></button>
+            <div class="board-dropdown" id="boardDropdown">
+              <button id="boardOptRename"><i class="fas fa-pen"></i> Rename board</button>
+              <button id="boardOptDelete" class="danger"><i class="fas fa-trash-alt"></i> Delete board</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right group -->
+        <div class="topbar-right">
+          <div class="topbar-search" id="topbarSearch">
+            <button class="topbar-search__icon-btn" id="searchToggle" title="Search"><i class="fas fa-search"></i></button>
+            <input type="text" id="boardSearch" placeholder="Search cards&hellip;" autocomplete="off">
+            <button class="topbar-search__clear" id="searchClear" title="Clear"><i class="fas fa-times"></i></button>
+          </div>
+
+          <div class="topbar-divider"></div>
+
+          <div class="project-participants" id="projectParticipants">
+            <!-- avatars injected by renderParticipants() -->
+            <button class="project-participants__add" id="addParticipantBtn" title="Add participant"></button>
+            <div class="participant-popover" id="participantPopover">
+              <input type="email" id="participantEmail" placeholder="User's email address" autocomplete="off">
+              <div class="participant-popover__actions">
+                <button id="participantAddConfirm">Add</button>
+                <button id="participantAddCancel">Cancel</button>
+              </div>
+              <p class="participant-popover__msg" id="participantMsg"></p>
+            </div>
+          </div>
+   <div class="topbar-divider"></div>
+          <button class="topbar-icon-btn" id="archiveBtn" title="Archive"><i class="fas fa-archive"></i></button>
+          <button class="topbar-icon-btn" id="activityToggle" title="Activity"><i class="fas fa-stream"></i></button>
+
+          <div class="topbar-divider"></div>
+
+          <!-- User dropdown -->
+          <div class="topbar-user" id="topbarUser">
+            <div class="topbar-user__trigger" id="topbarUserTrigger">
+              <div class="topbar-avatar-wrap">
+                <div class="nav-user__avatar" id="navAvatar"><i class="fas fa-user"></i></div>
+                <span class="topbar-status-dot"></span>
+              </div>
+            </div>
+            <div class="topbar-user__dropdown" id="topbarUserDropdown">
+              <div class="topbar-user__header">
+                <div class="topbar-user__hd-avatar">
+                  <div class="nav-user__avatar nav-user__avatar--lg" id="navAvatarDrop"><i class="fas fa-user"></i></div>
+                  <span class="topbar-status-dot"></span>
+                </div>
+                <div class="topbar-user__hd-info">
+                  <div class="topbar-user__hd-name" id="navUserName">Guest</div>
+                  <div class="topbar-user__hd-email" id="navUserEmail"></div>
+                </div>
+              </div>
+              <div class="topbar-user__divider"></div>
+              <button class="topbar-user__item" id="profileBtn"><i class="fas fa-user-circle"></i> My Profile</button>
+              <button class="topbar-user__item" id="settingsBtn"><i class="fas fa-cog"></i> Settings</button>
+              <div class="topbar-user__divider"></div>
+              <button class="topbar-user__item danger" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
+            </div>
+          </div>
         </div>
       </div>
 
@@ -104,9 +140,16 @@
         <select id="cardColumn"></select>
         <label for="cardTag">Tag</label>
         <select id="cardTag">
-          <option value="copyright">Copywriting</option>
+          <option value="urgent">Urgent</option>
+          <option value="review">Review</option>
+          <option value="research">Research</option>
+          <option value="docs">Docs</option>
+          <option value="qa">QA</option>
+          <option value="backend">Backend</option>
           <option value="design">UI Design</option>
+          <option value="feature">Feature</option>
           <option value="illustration">Illustration</option>
+          <option value="copyright">Copywriting</option>
         </select>
         <label for="cardText">Task description</label>
         <textarea id="cardText" placeholder="What needs to be done?"></textarea>

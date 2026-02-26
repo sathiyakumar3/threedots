@@ -1,7 +1,7 @@
 // ── Serialize the entire board DOM to a plain object for Firestore ──
 function serializeBoard() {
   const cols = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
-  const name = document.querySelector('.project-info h1')?.textContent || 'My Board';
+  const name = document.getElementById('boardSelect')?.selectedOptions[0]?.text || 'My Board';
   return {
     name,
     columns: {
