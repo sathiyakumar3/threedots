@@ -1,6 +1,6 @@
-﻿document.addEventListener('DOMContentLoaded', () => {
+document.addEventListener('DOMContentLoaded', () => {
 
-  // â”€â”€ Auth: gate the whole app behind Google sign-in â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Auth: gate the whole app behind Google sign-in ──────────────────────
   const loginOverlay = document.getElementById('loginOverlay');
   const appShell     = document.getElementById('appShell');
   const btnGoogle    = document.getElementById('btnGoogleSignIn');
@@ -9,18 +9,35 @@
   function setLoginError(msg) { loginError.textContent = msg; }
   function clearLoginError()  { loginError.textContent = ''; }
 
-  // â”€â”€ Show / hide app â”€â”€
+  // ── Show / hide app ──
   function showApp(user) {
     currentUser = user;
-    db.collection('users').doc(user.uid).set({
-      uid:         user.uid,
-      displayName: user.displayName || '',
-      email:       user.email       || '',
-      photoURL:    user.photoURL    || '',
-      lastLogin:   firebase.firestore.FieldValue.serverTimestamp()
-    }, { merge: true }).catch(err => console.error('Error saving user:', err));
+    // Read user doc first to get favourite, then merge-update lastLogin
+    db.collection('users').doc(user.uid).get()
+      .then(userSnap => {
+        userFavouriteBoard = userSnap.exists ? (userSnap.data().favourite || null) : null;
+        db.collection('users').doc(user.uid).set({
+          uid:         user.uid,
+          displayName: user.displayName || '',
+          email:       user.email       || '',
+          photoURL:    user.photoURL    || '',
+          lastLogin:   firebase.firestore.FieldValue.serverTimestamp()
+        }, { merge: true }).catch(err => console.error('Error saving user:', err));
+        if (window._loadUserTags) window._loadUserTags(user.uid);
+        loadUserBoards(user.uid);
+      })
+      .catch(() => {
+        userFavouriteBoard = null;
+        if (window._loadUserTags) window._loadUserTags(user.uid);
+        loadUserBoards(user.uid);
+      });
     document.getElementById('navUserName').textContent  = user.displayName || user.email;
     document.getElementById('navUserEmail').textContent = user.email;
+    // Seed photo map with the logged-in user
+    if (user.displayName && user.photoURL) {
+      window._userPhotoMap = window._userPhotoMap || {};
+      window._userPhotoMap[user.displayName] = user.photoURL;
+    }
     const avatarEl = document.getElementById('navAvatar');
     const avatarDropEl = document.getElementById('navAvatarDrop');
     if (user.photoURL) {
@@ -33,20 +50,18 @@
     }
     loginOverlay.classList.add('hidden');
     appShell.style.display = '';
-    loadUserBoards(user.uid);
   }
 
   function loadUserBoards(uid) {
     board.innerHTML = '';
-    document.getElementById('boardComboMenu').innerHTML = '';
+    document.getElementById('boardComboList').innerHTML = '';
     document.getElementById('boardComboLabel').textContent = 'Select board';
-    const boardsQuery = db.collection('boards').where('users', 'array-contains', uid);
-    boardsQuery.get()
+    db.collection('boards').where('users', 'array-contains', uid).get()
       .then(snapshot => {
         if (snapshot.empty) {
           Swal.fire({
-            title: 'Welcome! ðŸ‘‹',
-            html: `It seems you're just getting started â€” let's create your first board!`,
+            title: 'Welcome! 👋',
+            html: `It seems you're just getting started — let's create your first board!`,
             icon: 'info',
             input: 'text',
             inputLabel: 'Board name',
@@ -61,12 +76,8 @@
             if (!result.isConfirmed) return;
             createBoard(result.value.trim());
           });
-          return null;
+          return;
         }
-        return snapshot;
-      })
-      .then(snapshot => {
-        if (!snapshot) return;
         const docs = snapshot.docs.sort((a, b) => {
           if (a.id === 'main') return -1;
           if (b.id === 'main') return  1;
@@ -75,14 +86,16 @@
           return na.localeCompare(nb);
         });
         docs.forEach(doc => addBoardSelectOption(doc.id, doc.data().name || doc.id));
-        const firstId  = docs[0].id;
-        const targetId = docs.find(d => d.id === 'main') ? 'main' : firstId;
+        const ids      = docs.map(d => d.id);
+        const targetId = (userFavouriteBoard && ids.includes(userFavouriteBoard))
+          ? userFavouriteBoard
+          : ids.includes('main') ? 'main' : docs[0].id;
         loadBoard(targetId);
       })
       .catch(err => {
         console.error('Could not load boards:', err);
         board.insertAdjacentHTML('beforebegin',
-          `<p style="color:#e05252;padding:.5rem 1rem;font-size:13px">âš  Could not connect to Firestore.</p>`);
+          `<p style="color:#e05252;padding:.5rem 1rem;font-size:13px">⚠ Could not connect to Firestore.</p>`);
       });
   }
 
@@ -90,7 +103,7 @@
     currentUser = null;
     BOARD_ID = 'main';
     board.innerHTML = '';
-    document.getElementById('boardComboMenu').innerHTML = '';
+    document.getElementById('boardComboList').innerHTML = '';
     document.getElementById('boardComboLabel').textContent = 'Select board';
     document.querySelectorAll('.participant-avatar').forEach(el => el.remove());
     appShell.style.display = 'none';
@@ -100,19 +113,19 @@
   appShell.style.display = 'none';
   auth.onAuthStateChanged(user => { if (user) showApp(user); else hideApp(); });
 
-  // â”€â”€ Google sign-in â”€â”€
+  // ── Google sign-in ──
   btnGoogle.addEventListener('click', () => {
     clearLoginError();
     auth.signInWithPopup(googleProvider).catch(err => setLoginError(err.message));
   });
 
-  // â”€â”€ Microsoft sign-in â”€â”€
+  // ── Microsoft sign-in ──
   document.getElementById('btnMicrosoftSignIn').addEventListener('click', () => {
     clearLoginError();
     auth.signInWithPopup(microsoftProvider).catch(err => setLoginError(err.message));
   });
 
-  // â”€â”€ Email / password sign-in â”€â”€
+  // ── Email / password sign-in ──
   document.getElementById('btnEmailSignIn').addEventListener('click', () => {
     clearLoginError();
     const email    = document.getElementById('loginEmail').value.trim();
@@ -122,7 +135,7 @@
       .catch(err => setLoginError(err.message));
   });
 
-  // â”€â”€ Email / password register â”€â”€
+  // ── Email / password register ──
   document.getElementById('btnRegister').addEventListener('click', () => {
     clearLoginError();
     const email    = document.getElementById('regEmail').value.trim();
@@ -140,7 +153,7 @@
       .catch(err => setLoginError(err.message));
   });
 
-  // â”€â”€ Toggle sign-in â†” register â”€â”€
+  // ── Toggle sign-in ↔ register ──
   document.getElementById('showRegister').addEventListener('click', () => {
     document.getElementById('loginForm').style.display    = 'none';
     document.getElementById('registerForm').style.display = '';
@@ -157,7 +170,7 @@
     auth.signOut();
   });
 
-  // â”€â”€ Search â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Search ───────────────────────────────────────────────────────────────
   const boardSearch   = document.getElementById('boardSearch');
   const searchClear   = document.getElementById('searchClear');
   const searchToggle  = document.getElementById('searchToggle');
@@ -210,7 +223,7 @@
     }
   });
 
-  // â”€â”€ Activity panel toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Activity panel toggle ────────────────────────────────────────────────
   const activityPanel  = document.getElementById('activityPanel');
   const activityToggle = document.getElementById('activityToggle');
   activityToggle.addEventListener('click', () => {
@@ -219,9 +232,26 @@
     activityToggle.title = collapsed ? 'Show activity' : 'Hide activity';
   });
 
-  const board   = document.querySelector('.project-tasks');
+  // ── Dark / light mode toggle ─────────────────────────────────────────────
+  const themeBtn = document.getElementById('themeToggleBtn');
+  function applyTheme(dark) {
+    document.body.classList.toggle('dark', dark);
+    themeBtn.innerHTML = dark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+    themeBtn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
+    themeBtn.classList.toggle('active', dark);
+    if (window.Coloris) Coloris({ themeMode: dark ? 'dark' : 'light' });
+  }
+  applyTheme(localStorage.getItem('theme') === 'dark');
+  themeBtn.addEventListener('click', () => {
+    const isDark = !document.body.classList.contains('dark');
+    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    applyTheme(isDark);
+  });
 
-  // â”€â”€ Author identity helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  const board   = document.querySelector('.project-tasks');
+  let userFavouriteBoard = null;
+
+  // ── Author identity helpers ──────────────────────────────────────────────
   function _authorName()  { return currentUser?.displayName || currentUser?.email || 'You'; }
   function _authorPhoto() { return currentUser?.photoURL    || ''; }
   function _authorAvatar() {
@@ -232,9 +262,9 @@
       : `<span class='tl-avatar tl-avatar--initial' title='${name}'>${name[0].toUpperCase()}</span>`;
   }
 
-  // â”€â”€ Board nav helpers â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Board nav helpers ────────────────────────────────────────────────────
   function addBoardSelectOption(id, name) {
-    const menu = document.getElementById('boardComboMenu');
+    const menu = document.getElementById('boardComboList');
     const btn  = document.createElement('button');
     btn.className      = 'board-combo__item';
     btn.dataset.boardId = id;
@@ -248,7 +278,7 @@
     return btn;
   }
 
-  // â”€â”€ Load a board by Firestore doc ID â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Load a board by Firestore doc ID ────────────────────────────────────
   function loadBoard(id) {
     BOARD_ID = id;
     board.innerHTML = '';
@@ -278,27 +308,34 @@
           const item = menu.querySelector(`[data-board-id="${id}"]`);
           if (item) { item.textContent = name; }
           document.getElementById('boardComboLabel').textContent = name;
+          if (data.tags && window._applyBoardTags) window._applyBoardTags(data.tags);
           if (data.columns && data.tasks) {
             buildColumnsFromData(data.columns);
             buildTasksFromData(data.tasks);
           }
           renderParticipants(data.owner || '', data.users || []);
+          // sync favourite star + dropdown button
+          const isFav = userFavouriteBoard === id;
+          const favStar = document.getElementById('boardFavStar');
+          if (favStar) favStar.classList.toggle('visible', isFav);
+          const favBtn = document.getElementById('boardOptFavourite');
+          const favLbl = document.getElementById('boardOptFavouriteLabel');
+          if (favLbl) favLbl.textContent = isFav ? 'Remove favourite' : 'Make favourite';
+          favBtn?.classList.toggle('fav-active', isFav);
         }
       })
       .catch(err => {
         console.error('Could not load board:', err);
         board.insertAdjacentHTML('beforebegin',
-          `<p style="color:#e05252;padding:.5rem 1rem;font-size:13px">âš  Could not connect to Firestore.</p>`);
+          `<p style="color:#e05252;padding:.5rem 1rem;font-size:13px">⚠ Could not connect to Firestore.</p>`);
       });
   }
 
-  // â”€â”€ Participants avatars â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Participants avatars ─────────────────────────────────────────────────────
   function renderParticipants(ownerUid, userUids) {
     const container = document.getElementById('projectParticipants');
-    // Remove existing avatars only
     container.querySelectorAll('.participant-avatar').forEach(el => el.remove());
     const addBtn = document.getElementById('addParticipantBtn');
-    // Show members who are NOT the owner
     const members = userUids.filter(uid => uid !== ownerUid);
     const fetches = members.map(uid =>
       db.collection('users').doc(uid).get().catch(() => null)
@@ -306,21 +343,85 @@
     Promise.all(fetches).then(snaps => {
       snaps.forEach(snap => {
         if (!snap || !snap.exists) return;
-        const u   = snap.data();
-        const av  = document.createElement('div');
-        av.className = 'participant-avatar';
-        av.title = u.displayName || u.email || 'User';
-        if (u.photoURL) {
-          av.innerHTML = `<img src='${u.photoURL}' alt='${av.title}'>`;
-        } else {
-          av.textContent = (u.displayName || u.email || '?')[0].toUpperCase();
+        const u    = snap.data();
+        const uid  = snap.id;
+        const name  = u.displayName || u.email || 'User';
+        const email = u.email || '';
+        const photo = u.photoURL || '';
+        // Populate the photo map so avatars resolve correctly
+        if (name && photo) {
+          window._userPhotoMap = window._userPhotoMap || {};
+          window._userPhotoMap[name] = photo;
         }
+        const av   = document.createElement('div');
+        av.className = 'participant-avatar';
+        av.dataset.uid = uid;
+        const avatarInner = photo
+          ? `<img src='${photo}' alt='${name}'>`
+          : `<span>${name[0].toUpperCase()}</span>`;
+        av.innerHTML = `${avatarInner}
+          <div class='participant-card'>
+            <div class='pcard__title'>Participant</div>
+            <div class='pcard__info'>
+              <div class='pcard__row'><div class='pcard__name'>${name}</div></div>
+              <div class='pcard__row'><div class='pcard__email'>${email}</div></div>
+            </div>
+            <div class='pcard__footer'>
+              <button class='pcard__remove' data-uid='${uid}'><i class='fas fa-user-minus'></i> Remove access</button>
+            </div>
+          </div>`;
         container.insertBefore(av, addBtn);
       });
+      // Refresh all card assignee avatars now that photos are known
+      if (typeof refreshAllAssigneeAvatars === 'function') refreshAllAssigneeAvatars();
     });
   }
 
-  // â”€â”€ Add-participant popover â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // Toggle participant card on click, close on outside click
+  document.getElementById('projectParticipants').addEventListener('click', e => {
+    const btn = e.target.closest('.pcard__remove');
+    const av  = e.target.closest('.participant-avatar');
+    if (btn) return; // handled by remove listener below
+    if (!av) return;
+    e.stopPropagation();
+    const isOpen = av.classList.contains('open');
+    document.querySelectorAll('.participant-avatar.open').forEach(el => el.classList.remove('open'));
+    if (!isOpen) av.classList.add('open');
+  });
+  document.addEventListener('click', () => {
+    document.querySelectorAll('.participant-avatar.open').forEach(el => el.classList.remove('open'));
+  });
+
+  // Remove participant via card
+  document.getElementById('projectParticipants').addEventListener('click', e => {
+    const btn = e.target.closest('.pcard__remove');
+    if (!btn) return;
+    e.stopPropagation();
+    const uid  = btn.dataset.uid;
+    const av   = btn.closest('.participant-avatar');
+    const name = av.querySelector('.pcard__name')?.textContent || 'this user';
+    Swal.fire({
+      title: 'Remove access?',
+      html: `Remove <b>${name}</b> from this board?`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Remove',
+      confirmButtonColor: '#e05252',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true
+    }).then(result => {
+      if (!result.isConfirmed) return;
+      db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+        if (!snap.exists) return;
+        const newUsers = (snap.data().users || []).filter(u => u !== uid);
+        db.doc(`boards/${BOARD_ID}`).update({ users: newUsers }).then(() => {
+          av.remove();
+        });
+      }).catch(() => showToast('Could not remove user', true));
+    });
+  });
+
+  // ── Add-participant popover ───────────────────────────────────────────────
   const addParticipantBtn    = document.getElementById('addParticipantBtn');
   const participantPopover   = document.getElementById('participantPopover');
   const participantEmail     = document.getElementById('participantEmail');
@@ -358,7 +459,7 @@
     const email = participantEmail.value.trim().toLowerCase();
     if (!email) { participantMsg.textContent = 'Please enter an email address.'; return; }
     participantMsg.className = 'participant-popover__msg';
-    participantMsg.textContent = 'Searchingâ€¦';
+    participantMsg.textContent = 'Searching…';
     db.collection('users').where('email', '==', email).get()
       .then(snap => {
         if (snap.empty) {
@@ -389,7 +490,7 @@
       });
   });
 
-  // â”€â”€ Board options dropdown (rename / delete) â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Board options dropdown (rename / delete) ──────────────────────────────
   const boardOptionsBtn = document.getElementById('boardOptionsBtn');
   const boardDropdown   = document.getElementById('boardDropdown');
 
@@ -401,6 +502,27 @@
     if (!boardDropdown.contains(e.target) && e.target !== boardOptionsBtn) {
       boardDropdown.classList.remove('open');
     }
+  });
+
+  document.getElementById('boardOptFavourite').addEventListener('click', () => {
+    boardDropdown.classList.remove('open');
+    if (!currentUser) return;
+    const isFav = userFavouriteBoard === BOARD_ID;
+    const updateObj = isFav
+      ? { favourite: firebase.firestore.FieldValue.delete() }
+      : { favourite: BOARD_ID };
+    db.collection('users').doc(currentUser.uid).update(updateObj)
+      .then(() => {
+        userFavouriteBoard = isFav ? null : BOARD_ID;
+        const favStar = document.getElementById('boardFavStar');
+        if (favStar) favStar.classList.toggle('visible', !isFav);
+        const favLbl = document.getElementById('boardOptFavouriteLabel');
+        const favBtn = document.getElementById('boardOptFavourite');
+        if (favLbl) favLbl.textContent = isFav ? 'Make favourite' : 'Remove favourite';
+        favBtn?.classList.toggle('fav-active', !isFav);
+        showToast(isFav ? 'Favourite removed' : '⭐ Board set as favourite');
+      })
+      .catch(() => showToast('Could not update favourite', true));
   });
 
   document.getElementById('boardOptRename').addEventListener('click', () => {
@@ -423,7 +545,7 @@
           const item = document.getElementById('boardComboMenu').querySelector(`[data-board-id="${BOARD_ID}"]`);
           if (item) item.textContent = val;
           document.getElementById('boardComboLabel').textContent = val;
-          showToast('Board renamed ✓');
+          showToast('Board renamed ?');
         })
         .catch(() => showToast('Rename failed', true));
     });
@@ -461,11 +583,15 @@
     });
   });
 
-  // ── Custom board combobox toggle ────────────────────────────────────────────
+  // -- Custom board combobox toggle --------------------------------------------
   const boardComboTrigger = document.getElementById('boardComboTrigger');
   const boardComboMenu    = document.getElementById('boardComboMenu');
   boardComboTrigger.addEventListener('click', e => {
     e.stopPropagation();
+    // Close tags popup if open
+    const tagsPopup = document.getElementById('tagsPopup');
+    const tagsBtn   = document.getElementById('tagsBtn');
+    if (tagsPopup) { tagsPopup.classList.remove('open'); tagsBtn?.classList.remove('open'); }
     const isOpen = boardComboMenu.classList.toggle('open');
     boardComboTrigger.classList.toggle('open', isOpen);
   });
@@ -477,23 +603,39 @@
   });
   boardComboMenu.addEventListener('click', e => e.stopPropagation());
 
-  // ── Create a new board ──────────────────────────────────────────────────────
+  // ── Add board from combo footer ──────────────────────────────────────────
+  document.getElementById('boardComboNewInput').addEventListener('keydown', e => {
+    if (e.key === 'Enter') document.getElementById('boardComboNewAdd').click();
+  });
+  document.getElementById('boardComboNewAdd').addEventListener('click', () => {
+    const input = document.getElementById('boardComboNewInput');
+    const name  = input.value.trim();
+    if (!name) { input.focus(); return; }
+    input.value = '';
+    boardComboMenu.classList.remove('open');
+    document.getElementById('boardComboTrigger').classList.remove('open');
+    createBoard(name);
+  });
+
+  // -- Create a new board ------------------------------------------------------
   function createBoard(name) {
     const uid = currentUser ? currentUser.uid : null;
+    const tags = window._getDefaultTags ? window._getDefaultTags() : [];
     const data = {
       name,
       owner: uid,
       users: uid ? [uid] : [],
+      tags,
       columns: { columns: [
-        { id: 1,  sequence: 1,  title: 'To Do'       },
-        { id: 2,  sequence: 2,  title: 'In Progress' },
-        { id: 3,  sequence: 3,  title: 'Review'      },
-        { id: 4,  sequence: 4,  title: 'Done'        },
-        { id: 99, sequence: 99, title: 'Archive', archive: true }
+        { id: 1,  title: 'To Do'       },
+        { id: 2,  title: 'In Progress' },
+        { id: 3,  title: 'Review'      },
+        { id: 98, title: 'Done'        },
+        { id: 99, title: 'Archive', archive: true }
       ]},
       tasks: { columns: [
         { id: 1,  tasks: [] }, { id: 2, tasks: [] },
-        { id: 3,  tasks: [] }, { id: 4, tasks: [] },
+        { id: 3,  tasks: [] }, { id: 98, tasks: [] },
         { id: 99, tasks: [] }
       ]}
     };
@@ -501,30 +643,12 @@
       .then(docRef => {
         addBoardSelectOption(docRef.id, name);
         loadBoard(docRef.id);
-        showToast(`Board "${name}" created ✓`);
         return docRef;
       })
       .catch(err => { console.error('Create board failed:', err); showToast('Could not create board', true); });
   }
 
-  document.getElementById('navAddBoard').addEventListener('click', () => {
-    Swal.fire({
-      title: 'New Board',
-      input: 'text',
-      inputLabel: 'Board name',
-      inputPlaceholder: 'e.g. My Project',
-      inputValue: 'New Board',
-      confirmButtonText: 'Create',
-      confirmButtonColor: 'var(--purple)',
-      showCancelButton: true,
-      inputValidator: v => !v.trim() && 'Please enter a name.'
-    }).then(result => {
-      if (!result.isConfirmed) return;
-      createBoard(result.value.trim());
-    });
-  });
-
-  // â”€â”€ Drag & Drop â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Drag & Drop ──────────────────────────────────────────────────────────
   function clearHighlights() {
     document.querySelectorAll('.task-hover').forEach(t => t.classList.remove('task-hover'));
     document.querySelectorAll('.column-drag-over').forEach(c => c.classList.remove('column-drag-over'));
@@ -578,26 +702,19 @@
     }
 
     logActivity('move', `<b>Card</b> "${cardText}" moved to <b>${colName}</b>`);
+    if (col && +col.dataset.columnId === 98 && window.launchConfetti) {
+      const rect = dragSrcEl.getBoundingClientRect();
+      const tagEl = dragSrcEl.querySelector('.task__tag');
+      const tagColor = tagEl ? getComputedStyle(tagEl).backgroundColor : null;
+      window.launchConfetti(rect.left + rect.width / 2, rect.top + rect.height / 2, tagColor);
+    }
     dragSrcEl.style.opacity = '1';
     clearHighlights();
-
-    const today     = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
-    const moveEntry = document.createElement('div');
-    moveEntry.className = 'task__tl-entry';
-    moveEntry.innerHTML = `<span class='task__tl-dot task__tl-dot--edit'>${_authorAvatar()}</span>
-      <div class='task__tl-text' data-author-photo='${_authorPhoto()}'><b>${_authorName()}</b> moved to <b>${colName}</b><time>${today}</time></div>`;
-    let tl = dragSrcEl.querySelector('.task__timeline');
-    if (!tl) {
-      dragSrcEl.querySelector('.task__footer').insertAdjacentHTML('beforebegin', `<div class='task__timeline'></div>`);
-      tl = dragSrcEl.querySelector('.task__timeline');
-    }
-    tl.appendChild(moveEntry);
-    refreshExpandBtn(dragSrcEl);
     dragSrcEl = null;
-    saveChanges();
+    saveChanges(true);
   });
 
-  // â”€â”€ Build board from Firestore data â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Build board from Firestore data ─────────────────────────────────────
   const months       = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
   let   nextColId    = 100;
 
@@ -641,14 +758,17 @@
       const [bm, bd] = b.date.split(' ');
       return (months[am] * 31 + +ad) - (months[bm] * 31 + +bd);
     });
-    allEntries.forEach(e => logActivity(
-      e.type || 'edit',
-      `<b>${e.author}</b> ${e.text} â€” <em>${e.cardTitle}</em>`,
-      e.date
-    ));
+    allEntries.forEach(e => {
+      if ((e.type || 'edit') === 'create') return;
+      logActivity(
+        e.type || 'edit',
+        `<b>${e.author}</b> ${e.text} — <em>${e.cardTitle}</em>`,
+        e.date
+      );
+    });
   }
 
-  // â”€â”€ Card expand / collapse â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Card expand / collapse ───────────────────────────────────────────────
   board.addEventListener('click', e => {
     const task = e.target.closest('.task');
     if (!task) return;
@@ -659,20 +779,23 @@
     if (e.target.closest('.task__dropdown'))         return;
     if (e.target.closest('.task__edit-actions'))     return;
     if (e.target.closest('.task__comment-box'))      return;
-    if (e.target.closest('.task__tl-edit-btn'))      return;
     if (e.target.closest('.task__tl-edit-actions'))  return;
     if (e.target.closest('.task__tl-edit-input'))    return;
     if (e.target.closest('.task__tl-entry--editing')) return;
-    if (!task.querySelector('.task__timeline'))      return;
+    if (task.classList.contains('task--expanded') && e.target.closest('.task__tl-text')) return;
     task.classList.toggle('task--expanded');
-    if (!task.classList.contains('task--expanded')) {
-      const box = task.querySelector('.task__comment-box');
-      if (box) box.classList.remove('open');
-    }
+    // Close any open comment edits
+    task.querySelectorAll('.task__tl-entry--editing').forEach(entry => {
+      entry.classList.remove('task__tl-entry--editing');
+      const textDiv = entry.querySelector('.task__tl-text');
+      if (!textDiv) return;
+      const t = textDiv._savedTime || '';
+      textDiv.innerHTML = `${textDiv.dataset.comment || ''}<div class='task__tl-meta'><time>${t}</time><b>${textDiv._savedAuthor || ''}</b></div>`;
+    });
     refreshExpandBtn(task);
   });
 
-  // â”€â”€ Task options dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Task options dropdown ────────────────────────────────────────────────
   let openDropdown = null;
   document.addEventListener('click', e => {
     if (openDropdown && !openDropdown.contains(e.target) && !e.target.closest('.task__options')) {
@@ -693,91 +816,101 @@
       openDropdown = !isOpen ? dd : null;
       return;
     }
-    // Edit â€” open
+    // Edit — open modal
     if (e.target.closest('.task__opt-edit')) {
-      const task     = e.target.closest('.task');
-      task.querySelector('.task__dropdown').classList.remove('open');
-      openDropdown   = null;
-      const p        = task.querySelector('p');
-      const tagSpan  = task.querySelector('.task__tag');
-      const tagClass = [...tagSpan.classList].find(c => c.startsWith('task__tag--'));
-      const currentTag = tagClass ? tagClass.replace('task__tag--', '') : 'copyright';
-      const options    = Object.entries(tagLabels).map(([val, label]) =>
-        `<option value="${val}"${val === currentTag ? ' selected' : ''}>${label}</option>`).join('');
-      p.insertAdjacentHTML('afterend',
-        `<select class='task__edit-tag-select'>${options}</select>
-         <textarea class='task__edit-input' rows='2'>${p.textContent}</textarea>
-         <div class='task__edit-actions'>
-           <button class='task__edit-cancel'>Cancel</button>
-           <button class='task__edit-save'>Save</button>
-         </div>`);
-      tagSpan.style.display = 'none';
-      p.style.display       = 'none';
-      task.querySelector('.task__edit-input').focus();
-      return;
-    }
-    // Edit â€” cancel
-    if (e.target.closest('.task__edit-cancel')) {
       const task = e.target.closest('.task');
-      task.querySelector('.task__edit-tag-select')?.remove();
-      task.querySelector('.task__edit-input').remove();
-      task.querySelector('.task__edit-actions').remove();
-      task.querySelector('.task__tag').style.display = '';
-      task.querySelector('p').style.display          = '';
+      task.querySelector('.task__dropdown').classList.remove('open');
+      openDropdown = null;
+      if (window._openEditModal) window._openEditModal(task);
       return;
     }
-    // Edit â€” save
-    if (e.target.closest('.task__edit-save')) {
-      const task    = e.target.closest('.task');
-      const selEl   = task.querySelector('.task__edit-tag-select');
-      const input   = task.querySelector('.task__edit-input');
-      const p       = task.querySelector('p');
-      const tagSpan = task.querySelector('.task__tag');
-      if (selEl) {
-        const newTag = selEl.value;
-        tagSpan.className   = `task__tag task__tag--${newTag}`;
-        tagSpan.textContent = tagLabels[newTag];
-        selEl.remove();
-      }
-      const newText = input.value.trim();
-      if (newText) p.textContent = newText;
-      input.remove();
-      task.querySelector('.task__edit-actions').remove();
-      tagSpan.style.display = '';
-      p.style.display       = '';
-      logActivity('edit', `<b>${_authorName()}</b> edited "${p.textContent.slice(0, 40)}"`);
-      saveChanges();
-      return;
-    }
+
     // Delete
     if (e.target.closest('.task__opt-delete')) {
       const task     = e.target.closest('.task');
       const cardText = task.querySelector('p')?.textContent.slice(0, 40) || 'Card';
-      task.style.transition = 'opacity .2s';
-      task.style.opacity    = '0';
-      setTimeout(() => { task.remove(); saveChanges(); }, 200);
-      logActivity('delete', `<b>${_authorName()}</b> deleted "${cardText}"`);
-      openDropdown = null;
+      Swal.fire({
+        title: 'Are you sure?',
+        text: 'This task will be permanently deleted.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        confirmButtonColor: '#e05252',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+      }).then(result => {
+        if (!result.isConfirmed) return;
+        task.style.transition = 'opacity .2s';
+        task.style.opacity    = '0';
+        setTimeout(() => { task.remove(); saveChanges(true); }, 200);
+        logActivity('delete', `<b>${_authorName()}</b> deleted "${cardText}"`);
+        openDropdown = null;
+      });
       return;
     }
   });
 
-  // â”€â”€ Inline comment edit â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Inline comment edit ──────────────────────────────────────────────────
   board.addEventListener('click', e => {
-    if (e.target.closest('.task__tl-edit-btn')) {
-      const entry   = e.target.closest('.task__tl-entry');
+    if (e.target.closest('.task__tl-text') && !e.target.closest('.task__tl-entry--editing')) {
+      const entry = e.target.closest('.task__tl-entry');
+      if (!entry || !entry.closest('.task--expanded')) return;
       const textDiv = entry.querySelector('.task__tl-text');
+      if (!textDiv.dataset.comment && textDiv.dataset.comment !== '') return; // not a comment entry
       const current = textDiv.dataset.comment || '';
       const metaTime = textDiv.querySelector('.task__tl-meta time')?.textContent || '';
+      // Close any other open edits in the same card
+      entry.closest('.task__timeline')?.querySelectorAll('.task__tl-entry--editing').forEach(other => {
+        if (other === entry) return;
+        other.classList.remove('task__tl-entry--editing');
+        const otherDiv = other.querySelector('.task__tl-text');
+        if (!otherDiv) return;
+        const t = otherDiv._savedTime || '';
+        otherDiv.innerHTML = `${otherDiv.dataset.comment || ''}<div class='task__tl-meta'><time>${t}</time><b>${otherDiv._savedAuthor || ''}</b></div>`;
+      });
       entry.classList.add('task__tl-entry--editing');
       textDiv._savedTime   = metaTime;
       textDiv._savedAuthor = textDiv.querySelector('b')?.textContent || _authorName();
       textDiv.innerHTML    = `<textarea class='task__tl-edit-input' rows='2'>${current}</textarea>
         <div class='task__tl-edit-actions'>
-          <button class='task__tl-edit-cancel'>Cancel</button>
-          <button class='task__tl-edit-save'>Save</button>
+          <button class='task__tl-edit-delete' title='Delete comment'><i class='fas fa-trash-alt'></i></button>
+          <button class='task__tl-edit-cancel' title='Cancel'><i class='fas fa-times'></i></button>
+          <button class='task__tl-edit-save' title='Save'><i class='fas fa-check'></i></button>
         </div>`;
-      textDiv.querySelector('.task__tl-edit-input').focus();
+      const ta = textDiv.querySelector('.task__tl-edit-input');
+      ta.focus();
+      ta.addEventListener('keydown', ev => {
+        if (ev.key === 'Escape') {
+          ev.preventDefault();
+          entry.classList.remove('task__tl-entry--editing');
+          const t = textDiv._savedTime || '';
+          textDiv.innerHTML = `${textDiv.dataset.comment || ''}<div class='task__tl-meta'><time>${t}</time><b>${textDiv._savedAuthor || _authorName()}</b></div>`;
+        }
+        if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
+          ev.preventDefault();
+          entry.querySelector('.task__tl-edit-save')?.click();
+        }
+      });
+      return;
+    }
+    if (e.target.closest('.task__tl-edit-delete')) {
+      const entry = e.target.closest('.task__tl-entry');
+      const cardText = entry.closest('.task')?.querySelector('p')?.textContent.slice(0, 40) || 'Card';
+      Swal.fire({
+        title: 'Are you sure?',
+        text: 'This comment will be permanently deleted.',
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        confirmButtonColor: '#e05252',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+      }).then(result => {
+        if (!result.isConfirmed) return;
+        entry.remove();
+        logActivity('delete', `<b>${_authorName()}</b> deleted a comment on "${cardText}"`);
+        saveChanges(true);
+      });
       return;
     }
     if (e.target.closest('.task__tl-edit-cancel')) {
@@ -786,10 +919,7 @@
       const current = textDiv.dataset.comment || '';
       const time    = textDiv._savedTime || '';
       entry.classList.remove('task__tl-entry--editing');
-      const _cAvatar = (textDiv.dataset.authorPhoto)
-        ? `<img class='tl-avatar' src='${textDiv.dataset.authorPhoto}' alt='${textDiv._savedAuthor || ''}' title='${textDiv._savedAuthor || ''}'>`
-        : `<span class='tl-avatar tl-avatar--initial' title='${textDiv._savedAuthor || ''}'>${(textDiv._savedAuthor || '?')[0].toUpperCase()}</span>`;
-      textDiv.innerHTML = `${_cAvatar}<b>${textDiv._savedAuthor || _authorName()}</b> ${current}<div class='task__tl-meta'><time>${time}</time><button class='task__tl-edit-btn' title='Edit comment'><i class='fas fa-pen'></i></button></div>`;
+      textDiv.innerHTML = `${current}<div class='task__tl-meta'><time>${time}</time><b>${textDiv._savedAuthor || _authorName()}</b></div>`;
       return;
     }
     if (e.target.closest('.task__tl-edit-save')) {
@@ -801,10 +931,7 @@
       const time = textDiv._savedTime || '';
       entry.classList.remove('task__tl-entry--editing');
       textDiv.dataset.comment = newText;
-      const _sAvatar = (textDiv.dataset.authorPhoto)
-        ? `<img class='tl-avatar' src='${textDiv.dataset.authorPhoto}' alt='${textDiv._savedAuthor || ''}' title='${textDiv._savedAuthor || ''}'>`
-        : `<span class='tl-avatar tl-avatar--initial' title='${textDiv._savedAuthor || ''}'>${(textDiv._savedAuthor || '?')[0].toUpperCase()}</span>`;
-      textDiv.innerHTML = `${_sAvatar}<b>${textDiv._savedAuthor || _authorName()}</b> ${newText}<div class='task__tl-meta'><time>${time}</time><button class='task__tl-edit-btn' title='Edit comment'><i class='fas fa-pen'></i></button></div>`;
+      textDiv.innerHTML = `${newText}<div class='task__tl-meta'><time>${time}</time><b>${textDiv._savedAuthor || _authorName()}</b></div>`;
       const cardText = entry.closest('.task')?.querySelector('p')?.textContent.slice(0, 40) || 'Card';
       logActivity('edit', `<b>${_authorName()}</b> edited a comment on "${cardText}"`);
       saveChanges();
@@ -812,18 +939,13 @@
     }
   });
 
-  // â”€â”€ Update button / comment box â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Update button / comment box ──────────────────────────────────────────
   board.addEventListener('click', e => {
-    if (e.target.closest('.task__update-btn')) {
-      const box = e.target.closest('.task').querySelector('.task__comment-box');
-      box.classList.add('open');
-      box.querySelector('.task__comment-input').focus();
-      return;
-    }
     if (e.target.closest('.task__cc-cancel')) {
-      const box = e.target.closest('.task').querySelector('.task__comment-box');
-      box.classList.remove('open');
-      box.querySelector('.task__comment-input').value = '';
+      const task = e.target.closest('.task');
+      task.querySelector('.task__comment-input').value = '';
+      task.classList.remove('task--expanded');
+      refreshExpandBtn(task);
       return;
     }
     if (e.target.closest('.task__cc-submit')) {
@@ -837,7 +959,7 @@
       const entry = document.createElement('div');
       entry.className = 'task__tl-entry';
       entry.innerHTML = `<span class='task__tl-dot task__tl-dot--comment'>${_authorAvatar()}</span>
-        <div class='task__tl-text' data-comment="${comment.replace(/"/g, '&quot;')}" data-author-photo='${_authorPhoto()}'><b>${_authorName()}</b> ${comment}<div class='task__tl-meta'><time>${today}</time><button class='task__tl-edit-btn' title='Edit comment'><i class='fas fa-pen'></i></button></div></div>`;
+        <div class='task__tl-text' data-comment="${comment.replace(/"/g, '&quot;')}" data-author-photo='${_authorPhoto()}'>${comment}<div class='task__tl-meta'><time>${today}</time><b>${_authorName()}</b></div></div>`;
 
       let tl = task.querySelector('.task__timeline');
       if (!tl) {
@@ -859,13 +981,13 @@
       input.value = '';
       box.classList.remove('open');
       const cardText = task.querySelector('p')?.textContent.slice(0, 40) || 'Card';
-      logActivity('comment', `<b>${_authorName()}</b> commented on "${cardText}"`);
+      logActivity('comment', `<b>${_authorName()}</b> commented on "<b>${cardText}</b>": ${comment.slice(0, 80)}${comment.length > 80 ? '�' : ''}`);
       saveChanges();
       return;
     }
   });
 
-  // â”€â”€ Column rename helper â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Column rename helper ─────────────────────────────────────────────────
   function startColRename(titleEl) {
     if (titleEl.querySelector('input')) return; // already editing
     const current = titleEl.textContent;
@@ -886,7 +1008,7 @@
     });
   }
 
-  // â”€â”€ Column heading dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Column heading dropdown ──────────────────────────────────────────────
   let openColDropdown = null;
   document.addEventListener('click', e => {
     if (openColDropdown && !openColDropdown.contains(e.target) && !e.target.closest('.project-column-heading__options')) {
@@ -935,6 +1057,10 @@
       setupColDropdown(newCol);
       syncGrid();
       saveChanges();
+      if (window._refreshColCombo) {
+        const idx = [...document.querySelectorAll('.project-column')].indexOf(newCol);
+        window._refreshColCombo(idx);
+      }
       return;
     }
     // Add column after
@@ -954,6 +1080,10 @@
       setupColDropdown(newCol);
       syncGrid();
       saveChanges();
+      if (window._refreshColCombo) {
+        const idx = [...document.querySelectorAll('.project-column')].indexOf(newCol);
+        window._refreshColCombo(idx);
+      }
       return;
     }
     // Delete column
@@ -962,17 +1092,30 @@
       colEl.querySelector('.col-dropdown').classList.remove('open'); openColDropdown = null;
       const taskCount = colEl.querySelectorAll(':scope > .task').length;
       if (taskCount > 0) {
-        showToast(`Move or delete the ${taskCount} card${taskCount > 1 ? 's' : ''} first`, true);
+        Swal.fire({ title: 'Column not empty', text: `Move or delete the ${taskCount} card${taskCount > 1 ? 's' : ''} before deleting this column.`, icon: 'warning', confirmButtonColor: '#e05252' });
         return;
       }
-      colEl.remove();
-      syncGrid();
-      saveChanges();
+      const colTitle = colEl.querySelector('.project-column-heading__title')?.textContent || 'this column';
+      Swal.fire({
+        title: 'Are you sure?',
+        text: `"${colTitle}" will be permanently deleted.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Delete',
+        confirmButtonColor: '#e05252',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+      }).then(result => {
+        if (!result.isConfirmed) return;
+        colEl.remove();
+        syncGrid();
+        saveChanges();
+      });
       return;
     }
   });
 
-  // â”€â”€ Double-click column title to rename â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Double-click column title to rename ───────────────────────────────────
   board.addEventListener('dblclick', e => {
     const titleEl = e.target.closest('.project-column-heading__title');
     if (!titleEl) return;
@@ -982,15 +1125,34 @@
     if (openColDropdown) { openColDropdown.classList.remove('open'); openColDropdown = null; }
     startColRename(titleEl);
   });
+  // Todo checkbox toggle
+  board.addEventListener('change', e => {
+    const cb = e.target.closest('.task__todo-cb');
+    if (!cb) return;
+    const span = cb.nextElementSibling;
+    if (span) span.classList.toggle('task__todo-text--done', cb.checked);
+    const todosWrap = cb.closest('.task__todos');
+    if (todosWrap) {
+      const all  = [...todosWrap.querySelectorAll('.task__todo-cb')];
+      const done = all.filter(c => c.checked).length;
+      const pct  = all.length ? Math.round(done / all.length * 100) : 0;
+      const bar  = todosWrap.querySelector('.task__todos-bar-fill');
+      const lbl  = todosWrap.querySelector('.task__todos-progress span');
+      if (bar) bar.style.width = pct + '%';
+      if (lbl) lbl.textContent = done + '/' + all.length;
+    }
+    saveChanges(true);
+  });
 
-  // â”€â”€ Archive toggle â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+
+  // ── Archive toggle ───────────────────────────────────────────────────────
   document.getElementById('archiveBtn').addEventListener('click', function () {
     board.classList.toggle('show-archive');
     this.classList.toggle('active');
     syncGrid();
   });
 
-  // â”€â”€ Topbar user dropdown â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Topbar user dropdown ─────────────────────────────────────────────────
   const topbarUser    = document.getElementById('topbarUser');
   const topbarTrigger = document.getElementById('topbarUserTrigger');
   topbarTrigger.addEventListener('click', e => {
@@ -1001,13 +1163,13 @@
     if (!topbarUser.contains(e.target)) topbarUser.classList.remove('open');
   });
 
-  // â”€â”€ Settings â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Settings ─────────────────────────────────────────────────────────────
   document.getElementById('settingsBtn').addEventListener('click', () => {
     topbarUser.classList.remove('open');
     Swal.fire({ title: 'Settings', text: 'Settings panel coming soon.', icon: 'info', confirmButtonColor: 'var(--purple)' });
   });
 
-  // â”€â”€ Profile â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+  // ── Profile ───────────────────────────────────────────────────────────────
   document.getElementById('profileBtn').addEventListener('click', () => {
     topbarUser.classList.remove('open');
     Swal.fire({ title: 'My Profile', text: 'Profile panel coming soon.', icon: 'info', confirmButtonColor: 'var(--purple)' });

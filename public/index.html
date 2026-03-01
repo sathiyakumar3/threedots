@@ -4,9 +4,13 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Task Management Dashboard</title>
+  <link rel="icon" type="image/svg+xml" href="images/logo.svg">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
+  <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/layout.css">
+  <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/themes/light.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css">
   <link rel="stylesheet" href="css/styles.css">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -25,16 +29,7 @@
         <div class="topbar-left">
           <div class="topbar-logo">
             <div class="topbar-logo__icon">
-              <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" width="17" height="17">
-                <rect x="1"    y="4" width="6.5" height="16" rx="1.5" fill="rgba(255,255,255,0.22)"/>
-                <rect x="8.75" y="4" width="6.5" height="16" rx="1.5" fill="rgba(255,255,255,0.22)"/>
-                <rect x="16.5" y="4" width="6.5" height="16" rx="1.5" fill="rgba(255,255,255,0.35)"/>
-                <rect x="2.5"  y="6.5" width="3.5" height="2" rx="0.7" fill="white" opacity="0.95"/>
-                <rect x="2.5"  y="10"  width="3.5" height="2" rx="0.7" fill="white" opacity="0.95"/>
-                <rect x="10.2" y="6.5" width="3.5" height="2" rx="0.7" fill="white" opacity="0.95"/>
-                <rect x="10.2" y="10"  width="3.5" height="2" rx="0.7" fill="white" opacity="0.6"/>
-                <polyline points="18.2,12 19.8,14 22.5,9" fill="none" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-              </svg>
+              <img src="images/logo.svg" alt="Logo" width="32" height="32" style="display:block;">
             </div>
             <span class="topbar-logo__text">ThreeDots</span>
           </div>
@@ -44,19 +39,52 @@
               <button class="board-combo__trigger" id="boardComboTrigger">
                 <i class="fas fa-columns board-combo__icon"></i>
                 <span id="boardComboLabel">Select board</span>
+                <i class="fas fa-star board-combo__fav-star" id="boardFavStar"></i>
                 <i class="fas fa-chevron-down board-combo__chevron"></i>
               </button>
-              <div class="board-combo__menu" id="boardComboMenu"></div>
+              <div class="board-combo__menu" id="boardComboMenu">
+                <div id="boardComboList"></div>
+                <div class="board-combo__footer">
+                  <input type="text" class="board-combo__new-input" id="boardComboNewInput" placeholder="New board…" autocomplete="off">
+                  <button class="board-combo__new-add" id="boardComboNewAdd" title="Add board"><i class="fas fa-plus"></i></button>
+                </div>
+              </div>
             </div>
-            <button class="board-add-btn" id="navAddBoard" title="New board"><i class="fas fa-plus"></i></button>
           </div>
           <div class="board-options-wrap">
             <button class="project-column-heading__options" id="boardOptionsBtn" title="Board options"><i class="fas fa-ellipsis-h"></i></button>
             <div class="board-dropdown" id="boardDropdown">
+              <button id="boardOptFavourite"><i class="fas fa-star"></i> <span id="boardOptFavouriteLabel">Make favourite</span></button>
+              <div class="board-dropdown__divider"></div>
               <button id="boardOptRename"><i class="fas fa-pen"></i> Rename board</button>
               <button id="boardOptDelete" class="danger"><i class="fas fa-trash-alt"></i> Delete board</button>
             </div>
           </div>
+       
+          <div class="tags-wrap" id="tagsWrap">
+            <button class="tags-btn" id="tagsBtn" title="Tags"><i class="fas fa-tag"></i></button>
+            <div class="tags-popup" id="tagsPopup">
+              <div class="tags-popup__title">
+                Tags
+                <button type="button" class="tags-themes__icon-btn" id="tagsThemesToggle" title="Color Themes">
+                  <i class="fas fa-palette"></i>
+                </button>
+              </div>
+              <div class="tags-list" id="tagsPopupList"></div>
+              <div class="tags-popup__footer">
+                <div class="tags-popup__new-row">
+                  <input type="text" class="tags-new-input" id="tagsNewInput" placeholder="New tag name…" autocomplete="off">
+                  <button class="tags-new-add" id="tagsNewAdd" title="Add tag"><i class="fas fa-plus"></i></button>
+                </div>
+              </div>
+              <div class="tags-themes" id="tagsThemesPanel">
+                <div class="tags-themes__title">Color Themes</div>
+                <div class="tags-themes__list" id="tagsThemesList"></div>
+              </div>
+            </div>
+          </div>
+          <div class="topbar-divider"></div>
+          <button class="topbar-icon-btn" id="themeToggleBtn" title="Toggle dark mode"><i class="fas fa-moon"></i></button>
         </div>
 
         <!-- Right group -->
@@ -134,31 +162,84 @@
     <button class="fab" id="fabBtn" title="Add card"><i class="fas fa-plus"></i></button>
 
     <div class="modal-overlay" id="modalOverlay">
-      <div class="modal">
-        <h3>Add New Card</h3>
-        <label for="cardColumn">Column</label>
-        <select id="cardColumn"></select>
-        <label for="cardTag">Tag</label>
-        <select id="cardTag">
-          <option value="urgent">Urgent</option>
-          <option value="review">Review</option>
-          <option value="research">Research</option>
-          <option value="docs">Docs</option>
-          <option value="qa">QA</option>
-          <option value="backend">Backend</option>
-          <option value="design">UI Design</option>
-          <option value="feature">Feature</option>
-          <option value="illustration">Illustration</option>
-          <option value="copyright">Copywriting</option>
-        </select>
-        <label for="cardText">Task description</label>
-        <textarea id="cardText" placeholder="What needs to be done?"></textarea>
-        <div class="modal__actions">
-          <button class="btn-cancel" id="modalCancel">Cancel</button>
-          <button class="btn-add"    id="modalAdd">Add Card</button>
+      <div class="modal-wrapper">
+        <div class="modal__float-icon">
+          <img src="images/logo.svg" alt="ThreeDots">
         </div>
-      </div>
-    </div>
+        <div class="modal">
+          <div class="modal__header">
+            <h3 id="modalTitle">Add New Card</h3>
+          </div>
+          <div class="modal__body">
+            <div class="modal-two-col">
+              <div class="modal-field">
+                <label>Column</label>
+                <div class="col-combo" id="colCombo">
+                  <button type="button" class="col-combo__trigger" id="colComboTrigger">
+                    <span id="colComboLabel">Select column</span>
+                    <i class="fas fa-chevron-down col-combo__chevron"></i>
+                  </button>
+                  <div class="col-combo__menu" id="colComboMenu">
+                    <div id="colComboList"></div>
+                    <div class="board-combo__footer">
+                      <input type="text" class="board-combo__new-input" id="colNewInput" placeholder="New column…" autocomplete="off">
+                      <button type="button" class="board-combo__new-add" id="colNewAdd" title="Add column"><i class="fas fa-plus"></i></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-field">
+                <label>Tag</label>
+                <div id="cardTag"></div>
+              </div>
+            </div>
+            <div class="modal-field">
+              <label for="cardText">Description</label>
+              <textarea id="cardText" placeholder="What needs to be done?"></textarea>
+            </div>
+            <button type="button" class="modal-more-toggle" id="modalMoreToggle">
+              <i class="fas fa-chevron-down modal-more-toggle__icon"></i> More Options
+            </button>
+            <div class="modal-more-fields" id="modalMoreFields">
+              <div class="modal-field">
+                <label>To-Do</label>
+                <div class="modal-todo-wrap" id="cardTodoWrap">
+                  <div class="modal-todo-list" id="cardTodoList"></div>
+                  <div class="modal-todo-input-row">
+                    <input type="text" id="cardTodoInput" class="modal-todo-input" placeholder="Add a to-do item…">
+                    <button type="button" id="cardTodoAdd" class="modal-todo-add-btn"><i class="fas fa-plus"></i></button>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-field">
+                <label>Assignee</label>
+                <div class="col-combo" id="assigneeCombo">
+                  <button type="button" class="col-combo__trigger" id="assigneeComboTrigger">
+                    <span id="assigneeComboLabel" class="assignee-placeholder">Unassigned</span>
+                    <i class="fas fa-chevron-down col-combo__chevron"></i>
+                  </button>
+                  <div class="col-combo__menu" id="assigneeComboMenu"></div>
+                </div>
+              </div>
+              <div class="modal-field modal-field--row">
+                <div class="modal-field modal-field--half">
+                  <label for="cardDeadline">Deadline</label>
+                  <input type="text" id="cardDeadline" placeholder="Select deadline…" readonly autocomplete="off">
+                </div>
+                <div class="modal-field modal-field--half">
+                  <label for="cardLink">Link</label>
+                  <input type="url" id="cardLink" placeholder="https://…">
+                </div>
+              </div>
+            </div>
+          </div>
+          <div class="modal__actions">
+            <button class="btn-cancel" id="modalCancel">Cancel</button>
+            <button class="btn-add"    id="modalAdd"><i class="fas fa-plus"></i> Add Card</button>
+          </div>
+        </div><!-- /.modal -->
+      </div><!-- /.modal-wrapper -->
+    </div><!-- /.modal-overlay -->
 
   </div>
 
@@ -203,11 +284,15 @@
     </div>
   </div>
 
+  <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/cards.js"></script>
   <script src="js/board.js"></script>
   <script src="js/app.js"></script>
+  <script src="js/tags.js"></script>
+  <script src="https://unpkg.com/vanilla-calendar-pro@3.1.0/index.js"></script>
   <script src="js/modal.js"></script>
+  <script src="js/confetti.js"></script>
 
 </body>
 </html>
