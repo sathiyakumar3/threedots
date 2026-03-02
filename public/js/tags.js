@@ -302,8 +302,11 @@
   // ── Toggle popup ──
   tagsBtn.addEventListener('click', e => {
     e.stopPropagation();
-    const isOpen = popup.classList.toggle('open');
-    tagsBtn.classList.toggle('open', isOpen);
+    const willOpen = !popup.classList.contains('open');
+    window.closeAllPopups && window.closeAllPopups(['tagsPopup']);
+    popup.classList.toggle('open', willOpen);
+    tagsBtn.classList.toggle('open', willOpen);
+    const isOpen = willOpen;
     if (isOpen) { renderList(); renderThemes(); setTimeout(() => newInput.focus(), 50); }
   });
 

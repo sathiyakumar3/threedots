@@ -3,10 +3,10 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Task Management Dashboard</title>
-  <link rel="icon" type="image/svg+xml" href="images/logo.svg">
+  <title>Taskbz</title>
+  <link rel="icon" type="image/svg+xml" href="images/favicon.svg">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@800;900&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/layout.css">
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/themes/light.css">
@@ -28,10 +28,8 @@
         <!-- Left group -->
         <div class="topbar-left">
           <div class="topbar-logo">
-            <div class="topbar-logo__icon">
-              <img src="images/logo.svg" alt="Logo" width="32" height="32" style="display:block;">
-            </div>
-            <span class="topbar-logo__text">ThreeDots</span>
+            <img class="logo-mode-light" src="images/logo-light.svg" width="160" height="42" alt="Taskbz logo">
+            <img class="logo-mode-dark"  src="images/logo-dark.svg"  width="160" height="42" alt="Taskbz logo">
           </div>
           <span class="topbar-breadcrumb__sep">/</span>
           <div class="board-title-wrap">
@@ -150,7 +148,22 @@
         </main>
         <aside class="task-details collapsed" id="activityPanel">
           <div class="task-activity">
-            <h2>Recent Activity</h2>
+            <div class="activity-header">
+              <h2>Activity</h2>
+              <div class="activity-tabs-wrap">
+                <div class="activity-period-tabs" id="activityPeriodTabs">
+                  <button class="activity-period-tab active" data-period="today">Today</button>
+                  <button class="activity-period-tab" data-period="week">Week</button>
+                  <button class="activity-period-tab" data-period="month">Month</button>
+                  <button class="activity-period-tab" data-period="all">All</button>
+                  <button class="activity-period-tab" data-period="custom" id="customPeriodTab"><i class="fas fa-calendar-alt"></i></button>
+                </div>
+                <div class="activity-calendar-popover" id="activityCalendarWrap" style="display:none;">
+                  <p class="cal-hint">Select a start and end date</p>
+                  <div id="activityCalendar"></div>
+                </div>
+              </div>
+            </div>
             <ul id="activityFeed"></ul>
           </div>
         </aside>
@@ -159,16 +172,17 @@
 
     <div class="save-toast" id="saveToast"></div>
 
-    <button class="fab" id="fabBtn" title="Add card"><i class="fas fa-plus"></i></button>
+    <button class="fab" id="fabBtn" title="Add card (Enter)"><i class="fas fa-plus"></i></button>
 
     <div class="modal-overlay" id="modalOverlay">
       <div class="modal-wrapper">
-        <div class="modal__float-icon">
-          <img src="images/logo.svg" alt="ThreeDots">
-        </div>
         <div class="modal">
           <div class="modal__header">
-            <h3 id="modalTitle">Add New Card</h3>
+            <div class="modal__header-brand">
+              <img src="images/favicon.svg" width="28" height="28" alt="Taskbz mark">
+              <h3 id="modalTitle">Add New Card</h3>
+            </div>
+            <div class="modal__header-bar"></div>
           </div>
           <div class="modal__body">
             <div class="modal-two-col">
@@ -245,9 +259,13 @@
 
   <div class="login-overlay" id="loginOverlay">
     <div class="login-card">
-      <div class="login-card__logo"><i class="fas fa-layer-group"></i></div>
-      <h2>Welcome to ThreeDots</h2>
-      <p>Sign in to access your boards</p>
+      <div class="login-card__logo">
+        <img class="logo-mode-light" src="images/logo-light.svg" width="160" height="42" alt="Taskbz logo">
+        <img class="logo-mode-dark"  src="images/logo-dark.svg"  width="160" height="42" alt="Taskbz logo">
+      </div>
+      <h2>Clarity in Simplicity</h2>
+      <p>Welcome back. Please sign in.</p>
+      
 
       <!-- Social providers -->
       <button class="btn-google" id="btnGoogleSignIn">
@@ -264,19 +282,23 @@
 
       <!-- Sign-in form -->
       <div class="login-form" id="loginForm">
-        <input type="email"    id="loginEmail"    class="login-input" placeholder="Email address" autocomplete="email">
-        <input type="password" id="loginPassword" class="login-input" placeholder="Password" autocomplete="current-password">
-        <button class="btn-email-action" id="btnEmailSignIn">Sign in</button>
+        <form id="loginFormEl" onsubmit="return false;">
+          <input type="email"    id="loginEmail"    class="login-input" placeholder="Email address" autocomplete="email">
+          <input type="password" id="loginPassword" class="login-input" placeholder="Password" autocomplete="current-password">
+          <button class="btn-email-action" id="btnEmailSignIn" type="submit"><i class="fas fa-sign-in-alt"></i> Sign in</button>
+        </form>
         <p class="login-switch">No account? <button class="login-switch__btn" id="showRegister">Register</button></p>
       </div>
 
       <!-- Register form (hidden by default) -->
       <div class="login-form" id="registerForm" style="display:none">
-        <input type="email"    id="regEmail"           class="login-input" placeholder="Email address" autocomplete="email">
-        <input type="text"     id="regDisplayName"     class="login-input" placeholder="Display name">
-        <input type="password" id="regPassword"        class="login-input" placeholder="Password (min 6 chars)" autocomplete="new-password">
-        <input type="password" id="regPasswordConfirm" class="login-input" placeholder="Confirm password" autocomplete="new-password">
-        <button class="btn-email-action" id="btnRegister">Create account</button>
+        <form id="registerFormEl" onsubmit="return false;">
+          <input type="email"    id="regEmail"           class="login-input" placeholder="Email address" autocomplete="email">
+          <input type="text"     id="regDisplayName"     class="login-input" placeholder="Display name">
+          <input type="password" id="regPassword"        class="login-input" placeholder="Password (min 6 chars)" autocomplete="new-password">
+          <input type="password" id="regPasswordConfirm" class="login-input" placeholder="Confirm password" autocomplete="new-password">
+          <button class="btn-email-action" id="btnRegister" type="submit"><i class="fas fa-user-plus"></i> Create account</button>
+        </form>
         <p class="login-switch">Have an account? <button class="login-switch__btn" id="showLogin">Sign in</button></p>
       </div>
 

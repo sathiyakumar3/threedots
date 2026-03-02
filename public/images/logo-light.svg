@@ -1,22 +1,14 @@
 ﻿<svg xmlns="http://www.w3.org/2000/svg" width="160" height="42" viewBox="68 65 510 128" role="img" aria-label="Taskbz logo" style="display:block;">
   <style>
     text, tspan { font-family: 'Plus Jakarta Sans', ui-sans-serif, system-ui, sans-serif !important; }
-    .logo-box        { fill: #0F172A; }
-    .logo-text-main  { fill: #000000; }
-    .logo-text-accent{ fill: #da1e37; }
-    @media (prefers-color-scheme: dark) {
-      .logo-box        { fill: #1E293B; }
-      .logo-text-main  { fill: #F1F5F9; }
-      .logo-text-accent{ fill: #94A3B8; }
-    }
   </style>
   <g transform="translate(70 70)">
-    <rect x="0" y="0" width="120" height="120" rx="32" class="logo-box"/>
+    <rect x="0" y="0" width="120" height="120" rx="32" fill="#0F172A"/>
     <rect x="22" y="28" width="22" height="64" rx="11" fill="#F8FAFC" opacity="0.92"/>
     <rect x="49" y="28" width="22" height="48" rx="11" fill="#F8FAFC" opacity="0.72"/>
     <rect x="76" y="28" width="22" height="56" rx="11" fill="#F8FAFC" opacity="0.52"/>
   </g>
   <g transform="translate(220 168)">
-    <text x="0" y="0" font-size="104" font-weight="900" letter-spacing="-2.2"><tspan class="logo-text-main" fill="#000000">Task</tspan><tspan class="logo-text-accent" fill="#da1e37">bz</tspan></text>
+    <text x="0" y="0" font-size="104" font-weight="900" letter-spacing="-2.2"><tspan fill="#1E293B">Task</tspan><tspan fill="#94A3B8">bz</tspan></text>
   </g>
 </svg>

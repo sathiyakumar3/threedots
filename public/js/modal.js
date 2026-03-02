@@ -323,8 +323,19 @@
     textEl.focus();
   }
   window._openEditModal = openEditModal;
+  window._openModal = openModal;
 
   fab.addEventListener('click', openModal);
+
+  // Keyboard shortcut: press Enter (when not typing in an input) to open Add Card
+  document.addEventListener('keydown', e => {
+    const tag = document.activeElement?.tagName?.toLowerCase();
+    const isTyping = tag === 'input' || tag === 'textarea' || tag === 'select' || document.activeElement?.isContentEditable;
+    if (!isTyping && e.key === 'Enter' && !e.ctrlKey && !e.metaKey && !e.altKey) {
+      e.preventDefault();
+      openModal();
+    }
+  });
   cancel.addEventListener('click', closeModal);
   document.getElementById('modalMoreToggle')?.addEventListener('click', () => {
     const fields = document.getElementById('modalMoreFields');

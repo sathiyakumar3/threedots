@@ -26,7 +26,7 @@ function showToast(msg, isError) {
 
 // ── Activity feed ──
 const MAX_ACTIVITY = 20;
-function logActivity(type, text, timeLabel) {
+function logActivity(type, text, timeLabel, ts) {
   const feed = document.getElementById('activityFeed');
   if (!feed) return;
   const icons = {
@@ -40,9 +40,11 @@ function logActivity(type, text, timeLabel) {
   const { cls, icon } = icons[type] || icons.edit;
   const now = timeLabel || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
   const li  = document.createElement('li');
+  li.dataset.ts = ts || Date.now();
   li.innerHTML = `<span class='task-icon ${cls}'><i class='${icon}'></i></span>${text}<time>${now}</time>`;
   feed.prepend(li);
   while (feed.children.length > MAX_ACTIVITY) feed.lastElementChild.remove();
+  if (window._filterActivityFeed) window._filterActivityFeed();
 }
 
 // ── Days-since helper ──
@@ -62,10 +64,12 @@ function buildTimeline(entries, opts) {
     ${entries.map(e => {
       const isComment   = e.type === 'comment';
       const authorPhoto = e.authorPhoto || '';
-      const authorName  = e.author      || '?';
+      const authorName  = e.author      || 'User';
+      const initial     = authorName[0].toUpperCase();
+      const avatarFallback = `this.replaceWith(Object.assign(document.createElement('span'),{className:'tl-avatar tl-avatar--initial',title:'${authorName}',textContent:'${initial}'}))`;
       const avatarHTML  = authorPhoto
-        ? `<img class='tl-avatar' src='${authorPhoto}' alt='${authorName}' title='${authorName}'>`
-        : `<span class='tl-avatar tl-avatar--initial' title='${authorName}'>${authorName[0].toUpperCase()}</span>`;
+        ? `<img class='tl-avatar' src='${authorPhoto}' alt='${authorName}' title='${authorName}' onerror="${avatarFallback}">`
+        : `<span class='tl-avatar tl-avatar--initial' title='${authorName}'>${initial}</span>`;
       const editBtn = '';
       const textDiv = isComment
         ? `<div class="task__tl-text" data-comment="${e.text.replace(/"/g, '&quot;')}" data-author-photo="${authorPhoto}">${e.text}<div class="task__tl-meta"><time>${e.date}</time><b>${authorName}</b></div></div>`
@@ -82,19 +86,18 @@ window._userPhotoMap = window._userPhotoMap || {};
 
 // ── Resolve an assignee name → avatar HTML (img or initial circle) with tooltip ──
 function resolveAssigneeAvatar(name) {
+  const initial = name && name[0] ? name[0].toUpperCase() : '?';
+  const fallback = `this.replaceWith(Object.assign(document.createElement('span'),{className:'tl-avatar tl-avatar--initial tl-avatar--assignee',title:'${name}',textContent:'${initial}'}))`;
+  const imgTag = (src) => `<img class='tl-avatar tl-avatar--assignee' src='${src}' alt='${name}' title='${name}' onerror="${fallback}">`;
   // 1. Fast path: pre-built photo map
   const mapped = window._userPhotoMap[name];
-  if (mapped) {
-    return `<img class='tl-avatar tl-avatar--assignee' src='${mapped}' alt='${name}' title='${name}'>`;
-  }
+  if (mapped) return imgTag(mapped);
   // 2. Logged-in nav user
   const navName = document.getElementById('navUserName')?.textContent?.trim();
   if (navName && navName === name) {
     const navImg = document.querySelector('#navAvatar img');
-    if (navImg) {
-      return `<img class='tl-avatar tl-avatar--assignee' src='${navImg.src}' alt='${name}' title='${name}'>`;
-    }
-    return `<span class='tl-avatar tl-avatar--initial tl-avatar--assignee' title='${name}'>${name[0].toUpperCase()}</span>`;
+    if (navImg) return imgTag(navImg.src);
+    return `<span class='tl-avatar tl-avatar--initial tl-avatar--assignee' title='${name}'>${initial}</span>`;
   }
   // 3. Participants DOM fallback
   let photo = '';
@@ -105,10 +108,8 @@ function resolveAssigneeAvatar(name) {
       if (img) photo = img.src;
     }
   });
-  if (photo) {
-    return `<img class='tl-avatar tl-avatar--assignee' src='${photo}' alt='${name}' title='${name}'>`;
-  }
-  return `<span class='tl-avatar tl-avatar--initial tl-avatar--assignee' title='${name}'>${name[0].toUpperCase()}</span>`;
+  if (photo) return imgTag(photo);
+  return `<span class='tl-avatar tl-avatar--initial tl-avatar--assignee' title='${name}'>${initial}</span>`;
 }
 
 // ── Refresh all card assignee avatars after photo map is updated ──

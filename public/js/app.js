@@ -1,3 +1,19 @@
+// ── Mutual-exclusion: only one popup/dropdown open at a time ───────────────
+window.closeAllPopups = function(skip = []) {
+  const all = [
+    { id: 'boardDropdown',        cls: 'open', extra: null },
+    { id: 'boardComboMenu',       cls: 'open', extra: 'boardComboTrigger' },
+    { id: 'tagsPopup',            cls: 'open', extra: 'tagsBtn' },
+    { id: 'participantPopover',   cls: 'open', extra: null },
+    { id: 'topbarUser',           cls: 'open', extra: null },
+  ];
+  all.forEach(({ id, cls, extra }) => {
+    if (skip.includes(id)) return;
+    document.getElementById(id)?.classList.remove(cls);
+    if (extra) document.getElementById(extra)?.classList.remove(cls);
+  });
+};
+
 document.addEventListener('DOMContentLoaded', () => {
 
   // ── Auth: gate the whole app behind Google sign-in ──────────────────────
@@ -134,6 +150,9 @@ document.addEventListener('DOMContentLoaded', () => {
     auth.signInWithEmailAndPassword(email, password)
       .catch(err => setLoginError(err.message));
   });
+  document.getElementById('loginFormEl').addEventListener('submit', () =>
+    document.getElementById('btnEmailSignIn').click()
+  );
 
   // ── Email / password register ──
   document.getElementById('btnRegister').addEventListener('click', () => {
@@ -152,6 +171,9 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(() => auth.currentUser.reload())
       .catch(err => setLoginError(err.message));
   });
+  document.getElementById('registerFormEl').addEventListener('submit', () =>
+    document.getElementById('btnRegister').click()
+  );
 
   // ── Toggle sign-in ↔ register ──
   document.getElementById('showRegister').addEventListener('click', () => {
@@ -232,6 +254,124 @@ document.addEventListener('DOMContentLoaded', () => {
     activityToggle.title = collapsed ? 'Show activity' : 'Hide activity';
   });
 
+  // ── Activity period filter ───────────────────────────────────────────────
+  let _activityPeriod = 'today';
+  let _activityCustomRange = null; // { from: Date, to: Date }
+  let _activityCalendar = null;
+
+  function filterActivityFeed() {
+    const feed = document.getElementById('activityFeed');
+    if (!feed) return;
+    const now = new Date();
+    const todayStart = new Date(now.getFullYear(), now.getMonth(), now.getDate()).getTime();
+    // Sunday-based week start (Sun=0 … Sat=6)
+    const weekStart  = todayStart - (now.getDay() * 86400000);
+    const monthStart = new Date(now.getFullYear(), now.getMonth(), 1).getTime();
+
+    let visibleCount = 0;
+    feed.querySelectorAll('li[data-ts]').forEach(li => {
+      const ts = parseInt(li.dataset.ts);
+      let visible = true;
+      if (_activityPeriod === 'today')       visible = ts >= todayStart;
+      else if (_activityPeriod === 'week')   visible = ts >= weekStart;
+      else if (_activityPeriod === 'month')  visible = ts >= monthStart;
+      else if (_activityPeriod === 'custom') {
+        visible = _activityCustomRange
+          ? ts >= _activityCustomRange.from && ts <= _activityCustomRange.to
+          : false;
+      }
+      // 'all' → always visible
+      li.style.display = visible ? '' : 'none';
+      if (visible) visibleCount++;
+    });
+
+    // Empty state
+    let emptyEl = feed.querySelector('.activity-empty');
+    if (visibleCount === 0) {
+      if (!emptyEl) {
+        emptyEl = document.createElement('li');
+        emptyEl.className = 'activity-empty';
+        feed.appendChild(emptyEl);
+      }
+      const labels = { today:'today', week:'this week', month:'this month', custom:'the selected range', all:'' };
+      emptyEl.textContent = `No activity${labels[_activityPeriod] ? ' ' + labels[_activityPeriod] : ''}.`;
+      emptyEl.style.display = '';
+    } else if (emptyEl) {
+      emptyEl.style.display = 'none';
+    }
+  }
+
+  // Expose so logActivity can re-filter after each new entry
+  window._filterActivityFeed = filterActivityFeed;
+
+  const periodTabs = document.getElementById('activityPeriodTabs');
+  const calWrap    = document.getElementById('activityCalendarWrap');
+
+  function openCalPopover() {
+    calWrap.style.display = '';
+    if (!_activityCalendar && window.VanillaCalendarPro) {
+      const { Calendar } = window.VanillaCalendarPro;
+      _activityCalendar = new Calendar('#activityCalendar', {
+        selectionDatesMode: 'multiple-ranged',
+        selectedTheme: document.body.classList.contains('dark') ? 'dark' : 'light',
+        onClickDate(self) {
+          const dates = self.context.selectedDates;
+          if (dates.length >= 2) {
+            const sorted = [...dates].sort();
+            _activityCustomRange = {
+              from: new Date(sorted[0] + 'T00:00:00').getTime(),
+              to:   new Date(sorted[sorted.length - 1] + 'T00:00:00').setHours(23, 59, 59, 999),
+            };
+            closeCalPopover();
+            filterActivityFeed();
+          }
+        },
+      });
+      _activityCalendar.init();
+    }
+  }
+
+  function closeCalPopover() {
+    calWrap.style.display = 'none';
+  }
+
+  // Close popover when clicking outside
+  document.addEventListener('click', e => {
+    if (calWrap.style.display === 'none') return;
+    if (calWrap.contains(e.target)) return;
+    if (e.target.closest('#customPeriodTab')) return;
+    // Clicked outside — revert to 'all' if no range was picked
+    if (!_activityCustomRange) {
+      _activityPeriod = 'all';
+      periodTabs.querySelectorAll('.activity-period-tab').forEach(b =>
+        b.classList.toggle('active', b.dataset.period === 'all')
+      );
+      filterActivityFeed();
+    }
+    closeCalPopover();
+  }, true);
+
+  if (periodTabs) {
+    periodTabs.addEventListener('click', e => {
+      const btn = e.target.closest('.activity-period-tab');
+      if (!btn) return;
+      periodTabs.querySelectorAll('.activity-period-tab').forEach(b => b.classList.remove('active'));
+      btn.classList.add('active');
+      _activityPeriod = btn.dataset.period;
+
+      if (_activityPeriod === 'custom') {
+        _activityCustomRange = null;
+        openCalPopover();
+      } else {
+        closeCalPopover();
+        filterActivityFeed();
+      }
+    });
+  }
+
+  // Filter on initial load
+  filterActivityFeed();
+
   // ── Dark / light mode toggle ─────────────────────────────────────────────
   const themeBtn = document.getElementById('themeToggleBtn');
   function applyTheme(dark) {
@@ -240,6 +380,10 @@ document.addEventListener('DOMContentLoaded', () => {
     themeBtn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
     themeBtn.classList.toggle('active', dark);
     if (window.Coloris) Coloris({ themeMode: dark ? 'dark' : 'light' });
+    if (_activityCalendar) {
+      _activityCalendar.context.selectedTheme = dark ? 'dark' : 'light';
+      _activityCalendar.update({ dates: true });
+    }
   }
   applyTheme(localStorage.getItem('theme') === 'dark');
   themeBtn.addEventListener('click', () => {
@@ -430,6 +574,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const participantAddCancel  = document.getElementById('participantAddCancel');
 
   function openParticipantPopover() {
+    closeAllPopups(['participantPopover']);
     participantEmail.value = '';
     participantMsg.textContent = '';
     participantMsg.className = 'participant-popover__msg';
@@ -496,7 +641,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   boardOptionsBtn.addEventListener('click', e => {
     e.stopPropagation();
-    boardDropdown.classList.toggle('open');
+    const willOpen = !boardDropdown.classList.contains('open');
+    closeAllPopups(['boardDropdown']);
+    boardDropdown.classList.toggle('open', willOpen);
   });
   document.addEventListener('click', e => {
     if (!boardDropdown.contains(e.target) && e.target !== boardOptionsBtn) {
@@ -588,12 +735,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const boardComboMenu    = document.getElementById('boardComboMenu');
   boardComboTrigger.addEventListener('click', e => {
     e.stopPropagation();
-    // Close tags popup if open
-    const tagsPopup = document.getElementById('tagsPopup');
-    const tagsBtn   = document.getElementById('tagsBtn');
-    if (tagsPopup) { tagsPopup.classList.remove('open'); tagsBtn?.classList.remove('open'); }
-    const isOpen = boardComboMenu.classList.toggle('open');
-    boardComboTrigger.classList.toggle('open', isOpen);
+    const willOpen = !boardComboMenu.classList.contains('open');
+    closeAllPopups(['boardComboMenu']);
+    boardComboMenu.classList.toggle('open', willOpen);
+    boardComboTrigger.classList.toggle('open', willOpen);
   });
   document.addEventListener('click', e => {
     if (!document.getElementById('boardCombo').contains(e.target)) {
@@ -759,11 +904,18 @@ document.addEventListener('DOMContentLoaded', () => {
       return (months[am] * 31 + +ad) - (months[bm] * 31 + +bd);
     });
     allEntries.forEach(e => {
-      if ((e.type || 'edit') === 'create') return;
+      // Parse the stored date label ("Mar 1", "Feb 28") into an epoch timestamp
+      const year = new Date().getFullYear();
+      const parsed = new Date(`${e.date} ${year}`);
+      // If the parsed date is in the future it likely belongs to last year
+      const entryTs = (!isNaN(parsed) && parsed <= Date.now())
+        ? parsed.getTime()
+        : (!isNaN(parsed) ? new Date(`${e.date} ${year - 1}`).getTime() : Date.now());
       logActivity(
         e.type || 'edit',
         `<b>${e.author}</b> ${e.text} — <em>${e.cardTitle}</em>`,
-        e.date
+        e.date,
+        entryTs
       );
     });
   }
@@ -1157,7 +1309,9 @@ document.addEventListener('DOMContentLoaded', () => {
   const topbarTrigger = document.getElementById('topbarUserTrigger');
   topbarTrigger.addEventListener('click', e => {
     e.stopPropagation();
-    topbarUser.classList.toggle('open');
+    const willOpen = !topbarUser.classList.contains('open');
+    closeAllPopups(['topbarUser']);
+    topbarUser.classList.toggle('open', willOpen);
   });
   document.addEventListener('click', e => {
     if (!topbarUser.contains(e.target)) topbarUser.classList.remove('open');
