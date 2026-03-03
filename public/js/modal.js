@@ -361,6 +361,7 @@
     // ── Edit existing card ──
     if (_editingCard) {
       const card = _editingCard;
+      const oldText = card.querySelector('p')?.textContent || '';
       card.querySelector('p').textContent = text;
       const tagSpan = card.querySelector('.task__tag');
       tagSpan.className   = `task__tag task__tag--${tag}`;
@@ -402,7 +403,12 @@
       }
       if (newDeadline) card.dataset.deadline = newDeadline; else delete card.dataset.deadline;
       if (newAssignee) card.dataset.assignee = newAssignee; else delete card.dataset.assignee;
-      logActivity('edit', `<b>${currentUser?.displayName || 'Someone'}</b> edited "${text.slice(0, 40)}"`);
+      const _editAuthor = currentUser?.displayName || 'Someone';
+      if (oldText !== text) {
+        logActivity('edit', `<b>${_editAuthor}</b> edited "<em>${oldText.slice(0, 40)}</em>"<br><span class='activity-diff'><s>${oldText.slice(0, 60)}${oldText.length > 60 ? '…' : ''}</s> → ${text.slice(0, 60)}${text.length > 60 ? '…' : ''}</span>`);
+      } else {
+        logActivity('edit', `<b>${_editAuthor}</b> edited "<em>${text.slice(0, 40)}</em>"`);
+      }
       saveChanges();
       closeModal();
       return;
@@ -410,7 +416,7 @@
 
     // ── Create new card ──
     const colEl    = document.querySelectorAll('.project-column')[selectedColIdx];
-    const today    = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    const today    = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
     const authorName  = currentUser?.displayName || currentUser?.email || 'You';
     const authorPhoto = currentUser?.photoURL    || '';
@@ -449,7 +455,7 @@
       ${linkHTML}
       ${statsHTML}`;
 
-    card.dataset.id             = 'task-' + Date.now();
+    card.dataset.id             = db.collection(`boards/${BOARD_ID}/tasks`).doc().id;
     card.dataset.created        = new Date().toISOString().split('T')[0];
     card.dataset.createdByUid   = currentUser?.uid         || '';
     card.dataset.createdByName  = authorName;
@@ -458,15 +464,15 @@
     if (assignee) card.dataset.assignee = assignee;
     addUpdateWidget(card);
     // Insert "created by" timeline entry (always last → visible when collapsed)
-    const createdDate = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' });
-    const createTL = buildTimeline([{ type: 'create', author: authorName, authorPhoto: authorPhoto, text: 'Card Created', date: createdDate }], { createOnly: true });
+    const createdDate = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const createTL = buildTimeline([{ type: 'create', author: currentUser?.uid || '', text: 'Card Created', date: createdDate, ts: Date.now() }], { createOnly: true });
     card.querySelector('.task__footer').insertAdjacentHTML('beforebegin', createTL);
     refreshExpandBtn(card);
 
     const zone = colEl.querySelector('.drop-zone');
     zone ? colEl.insertBefore(card, zone) : colEl.appendChild(card);
 
-    logActivity('create', `<b>${authorName}</b> created "${text.slice(0, 40)}" in <b>${colLabel.textContent}</b>`);
+    logActivity('create', `<b>${authorName}</b> created the card - "${text.slice(0, 40)}"`);
     saveChanges(true);
     closeModal();
   });

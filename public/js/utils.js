@@ -1,14 +1,14 @@
-// ── Shared tag labels ──
+// ── Shared tag labels (keys must match DEFAULT_TAGS ids in tags.js) ──
 const tagLabels = {
   urgent:      'Urgent',
   onhold:      'On Hold',
   task:        'Task',
   maintenance: 'Maintenance',
-  operations:  'Operations',
+  operation:   'Operation',
   support:     'Support',
   design:      'Design',
   feature:     'Feature',
-  issues:      'Issues',
+  issue:       'Issue',
   report:      'Report'
 };
 
@@ -25,26 +25,30 @@ function showToast(msg, isError) {
 }
 
 // ── Activity feed ──
-const MAX_ACTIVITY = 20;
-function logActivity(type, text, timeLabel, ts) {
+const MAX_ACTIVITY = 50;
+function logActivity(type, text, timeLabel, ts, skipPersist) {
   const feed = document.getElementById('activityFeed');
   if (!feed) return;
   const icons = {
-    comment: { cls: 'task-icon--comment',    icon: 'fas fa-comment'     },
-    edit:    { cls: 'task-icon--edit',       icon: 'fas fa-pencil-alt'  },
-    create:  { cls: 'task-icon--edit',       icon: 'fas fa-plus'        },
-    delete:  { cls: 'task-icon--delete',     icon: 'fas fa-trash-alt'   },
-    move:    { cls: 'task-icon--move',       icon: 'fas fa-arrows-alt'  },
-    attach:  { cls: 'task-icon--attachment', icon: 'fas fa-paperclip'   },
+    comment:     { cls: 'task-icon--comment',     icon: 'fas fa-comment'     },
+    edit:        { cls: 'task-icon--edit',         icon: 'fas fa-pencil-alt'  },
+    create:      { cls: 'task-icon--edit',         icon: 'fas fa-plus'        },
+    delete:      { cls: 'task-icon--delete',       icon: 'fas fa-trash-alt'   },
+    move:        { cls: 'task-icon--move',         icon: 'fas fa-arrows-alt'  },
+    attach:      { cls: 'task-icon--attachment',   icon: 'fas fa-paperclip'   },
+    todo:        { cls: 'task-icon--todo',         icon: 'fas fa-check-square'},
+    participant: { cls: 'task-icon--participant',  icon: 'fas fa-user-plus'   },
   };
   const { cls, icon } = icons[type] || icons.edit;
-  const now = timeLabel || new Date().toLocaleTimeString('en-US', { hour: 'numeric', minute: '2-digit' });
+  const finalTs = ts || Date.now();
+  const now = timeLabel || new Date(finalTs).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
   const li  = document.createElement('li');
-  li.dataset.ts = ts || Date.now();
+  li.dataset.ts = finalTs;
   li.innerHTML = `<span class='task-icon ${cls}'><i class='${icon}'></i></span>${text}<time>${now}</time>`;
   feed.prepend(li);
   while (feed.children.length > MAX_ACTIVITY) feed.lastElementChild.remove();
   if (window._filterActivityFeed) window._filterActivityFeed();
+  if (!skipPersist && window._persistActivity) window._persistActivity(type, text, now, finalTs);
 }
 
 // ── Days-since helper ──
@@ -63,26 +67,29 @@ function buildTimeline(entries, opts) {
   return `<div class="task__timeline${createOnly ? ' task__timeline--create-only' : ''}">
     ${entries.map(e => {
       const isComment   = e.type === 'comment';
-      const authorPhoto = e.authorPhoto || '';
-      const authorName  = e.author      || 'User';
+      // Resolve UID → display name/photo; fall back gracefully for legacy display-name entries
+      const _resolved   = (window._uidMap && e.author) ? window._uidMap[e.author] : null;
+      const authorName  = _resolved ? _resolved.name  : (e.author || 'User');
+      const authorPhoto = _resolved ? _resolved.photo : (window._userPhotoMap && e.author ? (window._userPhotoMap[e.author] || '') : '');
       const initial     = authorName[0].toUpperCase();
       const avatarFallback = `this.replaceWith(Object.assign(document.createElement('span'),{className:'tl-avatar tl-avatar--initial',title:'${authorName}',textContent:'${initial}'}))`;
       const avatarHTML  = authorPhoto
         ? `<img class='tl-avatar' src='${authorPhoto}' alt='${authorName}' title='${authorName}' onerror="${avatarFallback}">`
         : `<span class='tl-avatar tl-avatar--initial' title='${authorName}'>${initial}</span>`;
-      const editBtn = '';
       const textDiv = isComment
-        ? `<div class="task__tl-text" data-comment="${e.text.replace(/"/g, '&quot;')}" data-author-photo="${authorPhoto}">${e.text}<div class="task__tl-meta"><time>${e.date}</time><b>${authorName}</b></div></div>`
+        ? `<div class="task__tl-text" data-comment="${e.text.replace(/"/g, '&quot;')}">${e.text}<div class="task__tl-meta"><time>${e.date}</time><b>${authorName}</b></div></div>`
         : e.type === 'create'
-          ? `<div class="task__tl-text" data-author-photo="${authorPhoto}">${e.text}<time>${e.date}</time></div>`
-          : `<div class="task__tl-text" data-author-photo="${authorPhoto}"><b>${authorName}</b> ${e.text}<time>${e.date}</time></div>`;
+          ? `<div class="task__tl-text">${e.text}<div class="task__tl-meta"><time>${e.date}</time><b>${authorName}</b></div></div>`
+          : `<div class="task__tl-text"><b>${authorName}</b> ${e.text}<time>${e.date}</time></div>`;
       const createClass = (e.type === 'create') ? ' task__tl-entry--create' : '';
-      return `<div class="task__tl-entry${createClass}"><span class="task__tl-dot task__tl-dot--${e.type || 'create'}">${avatarHTML}</span>${textDiv}</div>`;
+      return `<div class="task__tl-entry${createClass}" data-ts="${e.ts || ''}" data-author-uid="${e.author || ''}"><span class="task__tl-dot task__tl-dot--${e.type || 'create'}">${avatarHTML}</span>${textDiv}</div>`;
     }).join('')}
   </div>`;
 }
 // ── Per-user photo cache (name → photoURL) ──
 window._userPhotoMap = window._userPhotoMap || {};
+// ── Per-user UID cache (uid → { name, photo }) ──
+window._uidMap = window._uidMap || {};
 
 // ── Resolve an assignee name → avatar HTML (img or initial circle) with tooltip ──
 function resolveAssigneeAvatar(name) {

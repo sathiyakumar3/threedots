@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/layout.css">
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/themes/light.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css">
-  <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="css/styles.css?v=6">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
@@ -82,7 +82,33 @@
             </div>
           </div>
           <div class="topbar-divider"></div>
-          <button class="topbar-icon-btn" id="themeToggleBtn" title="Toggle dark mode"><i class="fas fa-moon"></i></button>
+                    <div class="project-participants" id="projectParticipants">
+            <!-- avatars injected by renderParticipants() -->
+            <button class="project-participants__add" id="addParticipantBtn" title="Manage team">
+              <i class="fas fa-users"></i>
+            </button>
+            <div class="team-panel" id="teamPanel">
+              <div class="team-panel__hdr">
+                <span class="team-panel__title"><i class="fas fa-users"></i> Team <span class="team-panel__count" id="teamPanelCount"></span></span>
+                <button class="team-panel__close" id="teamPanelClose"><i class="fas fa-times"></i></button>
+              </div>
+              <div class="team-panel__search-wrap">
+                <i class="fas fa-search"></i>
+                <input type="text" id="teamSearch" placeholder="Search users…" autocomplete="off">
+              </div>
+              <div class="team-panel__body" id="teamPanelBody">
+                <!-- injected by renderTeamPanel() -->
+              </div>
+              <div class="team-panel__footer">
+                <div class="team-panel__add-row">
+                  <input type="email" id="participantEmail" placeholder="Add member by email…" autocomplete="off">
+                  <button id="participantAddConfirm" title="Add member"><i class="fas fa-user-plus"></i></button>
+                </div>
+                <p class="team-panel__msg" id="participantMsg"></p>
+              </div>
+            </div>
+          </div>
+  
         </div>
 
         <!-- Right group -->
@@ -92,22 +118,11 @@
             <input type="text" id="boardSearch" placeholder="Search cards&hellip;" autocomplete="off">
             <button class="topbar-search__clear" id="searchClear" title="Clear"><i class="fas fa-times"></i></button>
           </div>
+           <div class="topbar-divider"></div>
+          <button class="topbar-icon-btn" id="themeToggleBtn" title="Toggle dark mode"><i class="fas fa-moon"></i></button>
 
-          <div class="topbar-divider"></div>
+     
 
-          <div class="project-participants" id="projectParticipants">
-            <!-- avatars injected by renderParticipants() -->
-            <button class="project-participants__add" id="addParticipantBtn" title="Add participant"></button>
-            <div class="participant-popover" id="participantPopover">
-              <input type="email" id="participantEmail" placeholder="User's email address" autocomplete="off">
-              <div class="participant-popover__actions">
-                <button id="participantAddConfirm">Add</button>
-                <button id="participantAddCancel">Cancel</button>
-              </div>
-              <p class="participant-popover__msg" id="participantMsg"></p>
-            </div>
-          </div>
-   <div class="topbar-divider"></div>
           <button class="topbar-icon-btn" id="archiveBtn" title="Archive"><i class="fas fa-archive"></i></button>
           <button class="topbar-icon-btn" id="activityToggle" title="Activity"><i class="fas fa-stream"></i></button>
 
@@ -149,14 +164,17 @@
         <aside class="task-details collapsed" id="activityPanel">
           <div class="task-activity">
             <div class="activity-header">
-              <h2>Activity</h2>
+              <div class="activity-header__top">
+                <h2>Activity</h2>
+                <button class="activity-clear-btn" id="activityClearBtn" title="Clear all logs"><i class="fas fa-trash-alt"></i> Clear logs</button>
+              </div>
               <div class="activity-tabs-wrap">
                 <div class="activity-period-tabs" id="activityPeriodTabs">
                   <button class="activity-period-tab active" data-period="today">Today</button>
                   <button class="activity-period-tab" data-period="week">Week</button>
                   <button class="activity-period-tab" data-period="month">Month</button>
                   <button class="activity-period-tab" data-period="all">All</button>
-                  <button class="activity-period-tab" data-period="custom" id="customPeriodTab"><i class="fas fa-calendar-alt"></i></button>
+                  <button class="activity-period-tab activity-period-tab--custom" data-period="custom" id="customPeriodTab"><i class="fas fa-calendar-alt"></i> Custom</button>
                 </div>
                 <div class="activity-calendar-popover" id="activityCalendarWrap" style="display:none;">
                   <p class="cal-hint">Select a start and end date</p>

@@ -1,4 +1,4 @@
-// ── Serialize the entire board DOM to a plain object for Firestore ──
+// ── Serialize board-level data (name + columns only, no task bodies) ──
 function serializeBoard() {
   const cols = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
   const name = document.querySelector('#boardComboMenu .board-combo__item.active')?.textContent
@@ -14,19 +14,29 @@ function serializeBoard() {
         users:    col.dataset.users ? JSON.parse(col.dataset.users) : [],
         ...(col.classList.contains('project-column--archive') ? { archive: true } : {})
       }))
-    },
-    tasks: {
-      columns: cols.map((col, i) => ({
-        id:    +col.dataset.columnId || i,
-        tasks: [...col.querySelectorAll(':scope > .task')].map(serializeTask)
-      }))
     }
   };
 }
 
 // ── Persist board to Firestore ──
+// Tasks are stored as a subcollection: boards/{id}/tasks/{taskId}
 function saveChanges(silent) {
-  return db.doc(`boards/${BOARD_ID}`).set(serializeBoard(), { merge: true })
+  const cols  = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
+  const batch = db.batch();
+
+  cols.forEach((col, i) => {
+    const columnId = +col.dataset.columnId || i;
+    [...col.querySelectorAll(':scope > .task')].forEach((cardEl, order) => {
+      const taskData = serializeTask(cardEl);
+      const taskRef  = db.collection(`boards/${BOARD_ID}/tasks`).doc(taskData.id);
+      batch.set(taskRef, { ...taskData, boardId: BOARD_ID, columnId, order }, { merge: true });
+    });
+  });
+
+  const boardData = serializeBoard();
+  batch.set(db.doc(`boards/${BOARD_ID}`), boardData, { merge: true });
+
+  return batch.commit()
     .then(() => { if (!silent) showToast('Saved ✓'); })
     .catch(err => { console.error('Save failed:', err); showToast('Save failed', true); });
 }

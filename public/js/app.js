@@ -1,10 +1,27 @@
+// ── _uidMap sessionStorage helpers ──────────────────────────────────────────
+let _uidCacheKey = '';
+function _uidMapInit(uid) {
+  _uidCacheKey = `uidmap_${uid}`;
+  try {
+    const stored = sessionStorage.getItem(_uidCacheKey);
+    if (stored) window._uidMap = JSON.parse(stored);
+  } catch (_) {}
+  window._uidMap = window._uidMap || {};
+}
+function _uidMapSet(uid, data) {
+  window._uidMap = window._uidMap || {};
+  window._uidMap[uid] = data;
+  if (!_uidCacheKey) return;
+  try { sessionStorage.setItem(_uidCacheKey, JSON.stringify(window._uidMap)); } catch (_) {}
+}
+
 // ── Mutual-exclusion: only one popup/dropdown open at a time ───────────────
 window.closeAllPopups = function(skip = []) {
   const all = [
     { id: 'boardDropdown',        cls: 'open', extra: null },
     { id: 'boardComboMenu',       cls: 'open', extra: 'boardComboTrigger' },
     { id: 'tagsPopup',            cls: 'open', extra: 'tagsBtn' },
-    { id: 'participantPopover',   cls: 'open', extra: null },
+    { id: 'teamPanel',            cls: 'open', extra: null },
     { id: 'topbarUser',           cls: 'open', extra: null },
   ];
   all.forEach(({ id, cls, extra }) => {
@@ -28,6 +45,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Show / hide app ──
   function showApp(user) {
     currentUser = user;
+    // Restore _uidMap from sessionStorage for this user (avoids repeat reads)
+    _uidMapInit(user.uid);
     // Read user doc first to get favourite, then merge-update lastLogin
     db.collection('users').doc(user.uid).get()
       .then(userSnap => {
@@ -50,6 +69,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('navUserName').textContent  = user.displayName || user.email;
     document.getElementById('navUserEmail').textContent = user.email;
     // Seed photo map with the logged-in user
+    // Seed UID map with logged-in user
+    _uidMapSet(user.uid, { name: user.displayName || user.email || '', photo: user.photoURL || '', email: user.email || '' });
     if (user.displayName && user.photoURL) {
       window._userPhotoMap = window._userPhotoMap || {};
       window._userPhotoMap[user.displayName] = user.photoURL;
@@ -72,8 +93,18 @@ document.addEventListener('DOMContentLoaded', () => {
     board.innerHTML = '';
     document.getElementById('boardComboList').innerHTML = '';
     document.getElementById('boardComboLabel').textContent = 'Select board';
-    db.collection('boards').where('users', 'array-contains', uid).get()
-      .then(snapshot => {
+    // Query boards where user is an admin OR a member (two queries merged)
+    Promise.all([
+      db.collection('boards').where('users.admins',  'array-contains', uid).get(),
+      db.collection('boards').where('users.members', 'array-contains', uid).get()
+    ]).then(([adminSnap, memberSnap]) => {
+      const seen = new Set();
+      const allDocs = [];
+      [...adminSnap.docs, ...memberSnap.docs].forEach(d => {
+        if (!seen.has(d.id)) { seen.add(d.id); allDocs.push(d); }
+      });
+      return { empty: allDocs.length === 0, docs: allDocs };
+    }).then(snapshot => {
         if (snapshot.empty) {
           Swal.fire({
             title: 'Welcome! 👋',
@@ -254,6 +285,41 @@ document.addEventListener('DOMContentLoaded', () => {
     activityToggle.title = collapsed ? 'Show activity' : 'Hide activity';
   });
 
+  // ── Clear activity logs ──────────────────────────────────────────────────
+  document.getElementById('activityClearBtn').addEventListener('click', () => {
+    if (!BOARD_ID) return;
+    Swal.fire({
+      title: 'Clear all activity logs?',
+      text: 'This will permanently delete all activity entries for this board.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, clear all',
+      confirmButtonColor: '#e05252',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true
+    }).then(result => {
+      if (!result.isConfirmed) return;
+      const btn = document.getElementById('activityClearBtn');
+      btn.innerHTML = '<i class="fas fa-spinner"></i> Clearing…';
+      btn.disabled = true;
+      db.doc(`boards/${BOARD_ID}`)
+        .update({ activity: [] })
+        .then(() => {
+          window._activityCache = [];
+          document.getElementById('activityFeed').innerHTML = '';
+          btn.innerHTML = '<i class="fas fa-trash-alt"></i> Clear logs';
+          btn.disabled = false;
+          showToast('Activity logs cleared');
+        })
+        .catch(err => {
+          console.error('Clear activity error:', err);
+          btn.innerHTML = '<i class="fas fa-trash-alt"></i> Clear logs';
+          btn.disabled = false;
+          showToast('Could not clear logs', true);
+        });
+    });
+  });
+
   // ── Activity period filter ───────────────────────────────────────────────
   let _activityPeriod = 'today';
   let _activityCustomRange = null; // { from: Date, to: Date }
@@ -427,6 +493,16 @@ document.addEventListener('DOMContentLoaded', () => {
     BOARD_ID = id;
     board.innerHTML = '';
     document.getElementById('activityFeed').innerHTML = '';
+    // ── Set up Firestore activity persistence hook ──
+    window._activityCache = [];
+    window._persistActivity = (type, text, date, ts) => {
+      window._activityCache.push({ type, text, date, ts });
+      if (window._activityCache.length > 50)
+        window._activityCache.splice(0, window._activityCache.length - 50);
+      db.doc(`boards/${BOARD_ID}`)
+        .update({ activity: window._activityCache })
+        .catch(err => console.error('Activity persist error:', err));
+    };
     const srch = document.getElementById('boardSearch');
     if (srch) { srch.value = ''; searchClear.classList.remove('visible'); }
     // Highlight active item in combo
@@ -453,11 +529,60 @@ document.addEventListener('DOMContentLoaded', () => {
           if (item) { item.textContent = name; }
           document.getElementById('boardComboLabel').textContent = name;
           if (data.tags && window._applyBoardTags) window._applyBoardTags(data.tags);
-          if (data.columns && data.tasks) {
-            buildColumnsFromData(data.columns);
-            buildTasksFromData(data.tasks);
-          }
-          renderParticipants(data.owner || '', data.users || []);
+          const _adminUids  = data.users?.admins  || (data.admins ? data.admins : (data.owner ? [data.owner] : []));
+          const _memberUids = data.users?.members || [];
+          const _boardUsers = [...new Set([..._adminUids, ..._memberUids])];
+          // Set current user's role for this board
+          window._boardRole = _adminUids.includes(currentUser?.uid) ? 'admin' : 'member';
+          document.getElementById('appShell').dataset.role = window._boardRole;
+          // Prefetch all board member profiles into _uidMap before rendering cards
+          const _uidsNeeded = _boardUsers.filter(uid => !(window._uidMap && window._uidMap[uid]));
+          Promise.all(_uidsNeeded.map(uid =>
+            db.collection('users').doc(uid).get().then(s => ({ uid, s })).catch(() => null)
+          )).then(results => {
+            window._uidMap = window._uidMap || {};
+            results.forEach(r => {
+              if (!r || !r.s || !r.s.exists) return;
+              const u = r.s.data();
+              _uidMapSet(r.uid, { name: u.displayName || u.email || 'User', photo: u.photoURL || '', email: u.email || '' });
+            });
+            if (data.columns) {
+              buildColumnsFromData(data.columns);
+              // Load tasks from subcollection boards/{id}/tasks
+              db.collection(`boards/${id}/tasks`)
+                .get()
+                .then(snap => {
+                  if (!snap.empty) {
+                    const tasks = snap.docs
+                      .map(d => d.data())
+                      .sort((a, b) => (a.order || 0) - (b.order || 0));
+                    buildTasksFromFlatData(tasks);
+                  } else if (Array.isArray(data.tasks) && data.tasks.length > 0) {
+                    // Migration: old boards stored task IDs in board doc, tasks in top-level collection
+                    Promise.all(data.tasks.map(tid => db.collection('tasks').doc(tid).get()))
+                      .then(snaps => {
+                        const tasks = snaps
+                          .filter(s => s.exists)
+                          .map(s => s.data())
+                          .sort((a, b) => (a.order || 0) - (b.order || 0));
+                        buildTasksFromFlatData(tasks);
+                      })
+                      .catch(err => console.error('Could not migrate tasks:', err));
+                  } else if (data.tasks && !Array.isArray(data.tasks)) {
+                    // Legacy format: tasks is an object with a `columns` array (full task bodies)
+                    buildTasksFromData(data.tasks);
+                  }
+                })
+                .catch(err => console.error('Could not load tasks:', err));
+            }
+            renderParticipants(_adminUids, _boardUsers);
+            // ── Load persisted activity feed ──
+            const storedActivity = data.activity || [];
+            window._activityCache = [...storedActivity];
+            storedActivity.forEach(a => {
+              logActivity(a.type, a.text, a.date, a.ts, true /* skipPersist */);
+            });
+          });
           // sync favourite star + dropdown button
           const isFav = userFavouriteBoard === id;
           const favStar = document.getElementById('boardFavStar');
@@ -476,56 +601,62 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Participants avatars ─────────────────────────────────────────────────────
-  function renderParticipants(ownerUid, userUids) {
+  function renderParticipants(adminUids, allUids) {
     const container = document.getElementById('projectParticipants');
-    container.querySelectorAll('.participant-avatar').forEach(el => el.remove());
+    container.querySelectorAll('.participant-avatar, .participants-sep').forEach(el => el.remove());
     const addBtn = document.getElementById('addParticipantBtn');
-    const members = userUids.filter(uid => uid !== ownerUid);
-    const fetches = members.map(uid =>
+
+    const makeAvatar = (uid, isAdmin) => {
+      const cached = (window._uidMap && window._uidMap[uid]) || {};
+      const name   = cached.name  || uid;
+      const photo  = cached.photo || '';
+      const av     = document.createElement('div');
+      av.className = 'participant-avatar' + (isAdmin ? ' participant-avatar--admin' : '');
+      av.dataset.uid = uid;
+      const inner = photo
+        ? `<img src='${photo}' alt='${name}'>`
+        : `<span>${name[0].toUpperCase()}</span>`;
+      const crown = isAdmin ? `<span class='pa-crown'><i class='fas fa-crown'></i></span>` : '';
+      const roleClass = isAdmin ? 'pcard__title--admin' : 'pcard__title--member';
+      const roleLabel = isAdmin ? '<i class="fas fa-shield-alt"></i> Admin' : '<i class="fas fa-user"></i> Member';
+      av.innerHTML = `${inner}${crown}
+        <div class='participant-card'>
+          <div class='pcard__title ${roleClass}'>${roleLabel}</div>
+          <div class='pcard__info'>
+            <div class='pcard__row'><div class='pcard__name'>${name}</div></div>
+            <div class='pcard__row'><div class='pcard__email'>${cached.email || ''}</div></div>
+          </div>
+        </div>`;
+      return av;
+    };
+
+    const memberUids = allUids.filter(uid => !adminUids.includes(uid));
+
+    // Fetch any profiles not yet in _uidMap
+    const unknown = allUids.filter(uid => !(window._uidMap && window._uidMap[uid]));
+    Promise.all(unknown.map(uid =>
       db.collection('users').doc(uid).get().catch(() => null)
-    );
-    Promise.all(fetches).then(snaps => {
-      snaps.forEach(snap => {
-        if (!snap || !snap.exists) return;
-        const u    = snap.data();
-        const uid  = snap.id;
-        const name  = u.displayName || u.email || 'User';
-        const email = u.email || '';
-        const photo = u.photoURL || '';
-        // Populate the photo map so avatars resolve correctly
-        if (name && photo) {
-          window._userPhotoMap = window._userPhotoMap || {};
-          window._userPhotoMap[name] = photo;
-        }
-        const av   = document.createElement('div');
-        av.className = 'participant-avatar';
-        av.dataset.uid = uid;
-        const avatarInner = photo
-          ? `<img src='${photo}' alt='${name}'>`
-          : `<span>${name[0].toUpperCase()}</span>`;
-        av.innerHTML = `${avatarInner}
-          <div class='participant-card'>
-            <div class='pcard__title'>Participant</div>
-            <div class='pcard__info'>
-              <div class='pcard__row'><div class='pcard__name'>${name}</div></div>
-              <div class='pcard__row'><div class='pcard__email'>${email}</div></div>
-            </div>
-            <div class='pcard__footer'>
-              <button class='pcard__remove' data-uid='${uid}'><i class='fas fa-user-minus'></i> Remove access</button>
-            </div>
-          </div>`;
-        container.insertBefore(av, addBtn);
+    )).then(snaps => {
+      window._uidMap = window._uidMap || {};
+      snaps.forEach(s => {
+        if (!s || !s.exists) return;
+        const u = s.data();
+        _uidMapSet(s.id, { name: u.displayName || u.email || 'User', photo: u.photoURL || '', email: u.email || '' });
       });
-      // Refresh all card assignee avatars now that photos are known
+      adminUids.forEach(uid  => container.insertBefore(makeAvatar(uid, true),  addBtn));
+      if (adminUids.length && memberUids.length) {
+        const sep = document.createElement('div');
+        sep.className = 'participants-sep';
+        container.insertBefore(sep, addBtn);
+      }
+      memberUids.forEach(uid => container.insertBefore(makeAvatar(uid, false), addBtn));
       if (typeof refreshAllAssigneeAvatars === 'function') refreshAllAssigneeAvatars();
     });
   }
 
-  // Toggle participant card on click, close on outside click
+  // Toggle participant mini-card on click, close on outside click
   document.getElementById('projectParticipants').addEventListener('click', e => {
-    const btn = e.target.closest('.pcard__remove');
-    const av  = e.target.closest('.participant-avatar');
-    if (btn) return; // handled by remove listener below
+    const av = e.target.closest('.participant-avatar');
     if (!av) return;
     e.stopPropagation();
     const isOpen = av.classList.contains('open');
@@ -536,74 +667,204 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.participant-avatar.open').forEach(el => el.classList.remove('open'));
   });
 
-  // Remove participant via card
-  document.getElementById('projectParticipants').addEventListener('click', e => {
-    const btn = e.target.closest('.pcard__remove');
-    if (!btn) return;
-    e.stopPropagation();
-    const uid  = btn.dataset.uid;
-    const av   = btn.closest('.participant-avatar');
-    const name = av.querySelector('.pcard__name')?.textContent || 'this user';
-    Swal.fire({
-      title: 'Remove access?',
-      html: `Remove <b>${name}</b> from this board?`,
-      icon: 'warning',
-      showCancelButton: true,
-      confirmButtonText: 'Remove',
-      confirmButtonColor: '#e05252',
-      cancelButtonText: 'Cancel',
-      reverseButtons: true
-    }).then(result => {
-      if (!result.isConfirmed) return;
-      db.doc(`boards/${BOARD_ID}`).get().then(snap => {
-        if (!snap.exists) return;
-        const newUsers = (snap.data().users || []).filter(u => u !== uid);
-        db.doc(`boards/${BOARD_ID}`).update({ users: newUsers }).then(() => {
-          av.remove();
-        });
-      }).catch(() => showToast('Could not remove user', true));
-    });
-  });
-
-  // ── Add-participant popover ───────────────────────────────────────────────
-  const addParticipantBtn    = document.getElementById('addParticipantBtn');
-  const participantPopover   = document.getElementById('participantPopover');
-  const participantEmail     = document.getElementById('participantEmail');
-  const participantMsg       = document.getElementById('participantMsg');
+  // ── Team management panel ─────────────────────────────────────────────────
+  const addParticipantBtn = document.getElementById('addParticipantBtn');
+  const teamPanel         = document.getElementById('teamPanel');
+  const participantEmail  = document.getElementById('participantEmail');
+  const participantMsg    = document.getElementById('participantMsg');
   const participantAddConfirm = document.getElementById('participantAddConfirm');
-  const participantAddCancel  = document.getElementById('participantAddCancel');
 
-  function openParticipantPopover() {
-    closeAllPopups(['participantPopover']);
+  function openTeamPanel() {
+    closeAllPopups(['teamPanel']);
     participantEmail.value = '';
     participantMsg.textContent = '';
-    participantMsg.className = 'participant-popover__msg';
-    participantPopover.classList.add('open');
+    participantMsg.className = 'team-panel__msg';
+    teamPanel.classList.add('open');
+    // Load and render team from Firestore
+    db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+      if (!snap.exists) return;
+      const bd      = snap.data();
+      const admins  = bd.users?.admins  || (bd.admins ? bd.admins : (bd.owner ? [bd.owner] : []));
+      const members = bd.users?.members || [];
+      const allUids = [...new Set([...admins, ...members])];
+      const unknown = allUids.filter(uid => !(window._uidMap && window._uidMap[uid]));
+      Promise.all(unknown.map(uid =>
+        db.collection('users').doc(uid).get().catch(() => null)
+      )).then(snaps => {
+        window._uidMap = window._uidMap || {};
+        snaps.forEach(s => {
+          if (!s || !s.exists) return;
+          const u = s.data();
+          _uidMapSet(s.id, { name: u.displayName || u.email || 'User', photo: u.photoURL || '', email: u.email || '' });
+        });
+        renderTeamPanel(admins, members);
+        document.getElementById('teamPanelCount').textContent = allUids.length;
+      });
+    });
     participantEmail.focus();
   }
-  function closeParticipantPopover() {
-    participantPopover.classList.remove('open');
+
+  function closeTeamPanel() {
+    teamPanel.classList.remove('open');
+  }
+
+  function renderTeamPanel(admins, members, filter = '') {
+    const body = document.getElementById('teamPanelBody');
+    const q    = filter.toLowerCase();
+
+    const buildRow = (uid, isAdmin, adminCount) => {
+      const info  = window._uidMap?.[uid] || {};
+      const name  = info.name  || uid;
+      const email = info.email || '';
+      const photo = info.photo || '';
+      if (q && !name.toLowerCase().includes(q) && !email.toLowerCase().includes(q)) return '';
+      const avatarHTML = photo
+        ? `<img src='${photo}' alt='${name}'>`
+        : name[0].toUpperCase();
+      const isCurrentUser   = uid === currentUser?.uid;
+      const viewerIsAdmin   = window._boardRole === 'admin';
+      let actions = '';
+      if (viewerIsAdmin) {
+        if (isAdmin) {
+          if (adminCount > 1 && !isCurrentUser) {
+            actions = `<button class='tmr-demote' data-uid='${uid}'>Demote</button>`;
+          }
+        } else {
+          actions = `<button class='tmr-promote' data-uid='${uid}'>Make Admin</button>
+                     <button class='tmr-remove'  data-uid='${uid}'><i class='fas fa-times'></i></button>`;
+        }
+      }
+      return `<div class='team-member-row' data-uid='${uid}'>
+        <div class='team-member-row__avatar'>${avatarHTML}</div>
+        <div class='team-member-row__info'>
+          <div class='team-member-row__name'>${name}</div>
+          <div class='team-member-row__email'>${email}</div>
+        </div>
+        <div class='team-member-row__actions'>${actions}</div>
+      </div>`;
+    };
+
+    const adminRows  = admins.map(uid  => buildRow(uid, true,  admins.length)).filter(Boolean);
+    const memberRows = members.map(uid => buildRow(uid, false, admins.length)).filter(Boolean);
+
+    if (!adminRows.length && !memberRows.length) {
+      body.innerHTML = `<div class='team-panel__empty'>No members found.</div>`;
+      return;
+    }
+
+    body.innerHTML = [
+      adminRows.length  ? `<div class='team-section__hdr team-section__hdr--admin'><i class='fas fa-shield-alt'></i> Admins</div>${adminRows.join('')}` : '',
+      memberRows.length ? `<div class='team-section__hdr team-section__hdr--member'><i class='fas fa-user'></i> Members</div>${memberRows.join('')}` : ''
+    ].join('');
   }
 
   addParticipantBtn.addEventListener('click', e => {
     e.stopPropagation();
-    participantPopover.classList.contains('open') ? closeParticipantPopover() : openParticipantPopover();
+    teamPanel.classList.contains('open') ? closeTeamPanel() : openTeamPanel();
   });
-  participantAddCancel.addEventListener('click', closeParticipantPopover);
+  document.getElementById('teamPanelClose').addEventListener('click', closeTeamPanel);
+
   document.addEventListener('click', e => {
-    if (!participantPopover.contains(e.target) && e.target !== addParticipantBtn) {
-      closeParticipantPopover();
+    if (!teamPanel.contains(e.target) && e.target !== addParticipantBtn) closeTeamPanel();
+  });
+
+  document.getElementById('teamSearch').addEventListener('input', e => {
+    db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+      if (!snap.exists) return;
+      const bd      = snap.data();
+      const admins  = bd.users?.admins  || (bd.admins ? bd.admins : (bd.owner ? [bd.owner] : []));
+      const members = bd.users?.members || [];
+      renderTeamPanel(admins, members, e.target.value.trim());
+    });
+  });
+
+  // Promote / demote / remove via panel
+  document.getElementById('teamPanelBody').addEventListener('click', e => {
+    const promoteBtn = e.target.closest('.tmr-promote');
+    const demoteBtn  = e.target.closest('.tmr-demote');
+    const removeBtn  = e.target.closest('.tmr-remove');
+
+    if (promoteBtn) {
+      const uid = promoteBtn.dataset.uid;
+      db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+        if (!snap.exists) return;
+        const bd      = snap.data();
+        const admins  = bd.users?.admins  || [];
+        const members = (bd.users?.members || []).filter(u => u !== uid);
+        const newAdmins = [...admins, uid];
+        db.doc(`boards/${BOARD_ID}`).update({ 'users.admins': newAdmins, 'users.members': members })
+          .then(() => {
+            renderParticipants(newAdmins, [...newAdmins, ...members]);
+            renderTeamPanel(newAdmins, members, document.getElementById('teamSearch').value.trim());
+            document.getElementById('teamPanelCount').textContent = newAdmins.length + members.length;
+            const name = window._uidMap?.[uid]?.name || uid;
+            logActivity('participant', `<b>${_authorName()}</b> promoted <b>${name}</b> to Admin`);
+          });
+      });
+      return;
+    }
+
+    if (demoteBtn) {
+      const uid = demoteBtn.dataset.uid;
+      db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+        if (!snap.exists) return;
+        const bd      = snap.data();
+        const admins  = (bd.users?.admins  || []).filter(u => u !== uid);
+        const members = [...(bd.users?.members || []), uid];
+        db.doc(`boards/${BOARD_ID}`).update({ 'users.admins': admins, 'users.members': members })
+          .then(() => {
+            renderParticipants(admins, [...admins, ...members]);
+            renderTeamPanel(admins, members, document.getElementById('teamSearch').value.trim());
+            document.getElementById('teamPanelCount').textContent = admins.length + members.length;
+            const name = window._uidMap?.[uid]?.name || uid;
+            logActivity('participant', `<b>${_authorName()}</b> demoted <b>${name}</b> to Member`);
+          });
+      });
+      return;
+    }
+
+    if (removeBtn) {
+      const uid  = removeBtn.dataset.uid;
+      const name = window._uidMap?.[uid]?.name || 'this user';
+      Swal.fire({
+        title: 'Remove access?',
+        html: `Remove <b>${name}</b> from this board?`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Remove',
+        confirmButtonColor: '#e05252',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+      }).then(result => {
+        if (!result.isConfirmed) return;
+        db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+          if (!snap.exists) return;
+          const bd      = snap.data();
+          const admins  = bd.users?.admins  || [];
+          const members = (bd.users?.members || []).filter(u => u !== uid);
+          db.doc(`boards/${BOARD_ID}`).update({ 'users.members': members }).then(() => {
+            renderParticipants(admins, [...admins, ...members]);
+            renderTeamPanel(admins, members, document.getElementById('teamSearch').value.trim());
+            document.getElementById('teamPanelCount').textContent = admins.length + members.length;
+            logActivity('participant', `<b>${_authorName()}</b> removed <b>${name}</b> from the board`);
+            // Remove avatar from topbar if present
+            document.querySelector(`.participant-avatar[data-uid='${uid}']`)?.remove();
+          });
+        }).catch(() => showToast('Could not remove user', true));
+      });
+      return;
     }
   });
+
   participantEmail.addEventListener('keydown', e => {
     if (e.key === 'Enter')  participantAddConfirm.click();
-    if (e.key === 'Escape') closeParticipantPopover();
+    if (e.key === 'Escape') closeTeamPanel();
   });
 
   participantAddConfirm.addEventListener('click', () => {
     const email = participantEmail.value.trim().toLowerCase();
     if (!email) { participantMsg.textContent = 'Please enter an email address.'; return; }
-    participantMsg.className = 'participant-popover__msg';
+    participantMsg.className = 'team-panel__msg';
     participantMsg.textContent = 'Searching…';
     db.collection('users').where('email', '==', email).get()
       .then(snap => {
@@ -614,18 +875,30 @@ document.addEventListener('DOMContentLoaded', () => {
         const foundUid = snap.docs[0].id;
         return db.doc(`boards/${BOARD_ID}`).get().then(boardSnap => {
           if (!boardSnap.exists) return;
-          const users = boardSnap.data().users || [];
-          if (users.includes(foundUid)) {
+          const boardData  = boardSnap.data();
+          const admins  = boardData.users?.admins  || (boardData.admins ? boardData.admins : (boardData.owner ? [boardData.owner] : []));
+          const members = boardData.users?.members || [];
+          if (admins.includes(foundUid) || members.includes(foundUid)) {
             participantMsg.textContent = 'User is already a participant.';
             return;
           }
-          const owner = boardSnap.data().owner || '';
-          const newUsers = [...users, foundUid];
-          return db.doc(`boards/${BOARD_ID}`).update({ users: newUsers }).then(() => {
-            participantMsg.className = 'participant-popover__msg ok';
-            participantMsg.textContent = 'Participant added!';
-            renderParticipants(owner, newUsers);
-            setTimeout(closeParticipantPopover, 1200);
+          const newMembers = [...members, foundUid];
+          return db.doc(`boards/${BOARD_ID}`).update({ 'users.members': newMembers }).then(() => {
+            participantMsg.className = 'team-panel__msg ok';
+            participantMsg.textContent = 'Member added!';
+            participantEmail.value = '';
+            renderParticipants(admins, [...admins, ...newMembers]);
+            // Cache the new user's profile
+            const addedData = snap.docs[0].data();
+            _uidMapSet(foundUid, {
+              name:  addedData.displayName || addedData.email || 'User',
+              photo: addedData.photoURL || '',
+              email: addedData.email || ''
+            });
+            renderTeamPanel(admins, newMembers, document.getElementById('teamSearch').value.trim());
+            document.getElementById('teamPanelCount').textContent = admins.length + newMembers.length;
+            const addedName = addedData.displayName || addedData.email || email;
+            logActivity('participant', `<b>${_authorName()}</b> added <b>${addedName}</b> as a member`);
           });
         });
       })
@@ -768,8 +1041,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const tags = window._getDefaultTags ? window._getDefaultTags() : [];
     const data = {
       name,
-      owner: uid,
-      users: uid ? [uid] : [],
+      users: { admins: uid ? [uid] : [], members: [] },
       tags,
       columns: { columns: [
         { id: 1,  title: 'To Do'       },
@@ -777,13 +1049,17 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 3,  title: 'Review'      },
         { id: 98, title: 'Done'        },
         { id: 99, title: 'Archive', archive: true }
-      ]},
-      tasks: { columns: [
-        { id: 1,  tasks: [] }, { id: 2, tasks: [] },
-        { id: 3,  tasks: [] }, { id: 98, tasks: [] },
-        { id: 99, tasks: [] }
       ]}
     };
+    const ts     = Date.now();
+    const author = _authorName();
+    const now    = new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    data.activity = [{
+      type: 'create',
+      text: `<b>${author}</b> created this board — "<em>${name}</em>"`,
+      date: now,
+      ts
+    }];
     return db.collection('boards').add(data)
       .then(docRef => {
         addBoardSelectOption(docRef.id, name);
@@ -855,12 +1131,42 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     dragSrcEl.style.opacity = '1';
     clearHighlights();
+
+    // ── Single-document drag save (fractional order) ──
+    const taskId    = dragSrcEl.dataset.id;
+    const newColId  = col ? +col.dataset.columnId : null;
+    if (taskId && newColId !== null) {
+      const siblings = [...col.querySelectorAll(':scope > .task')];
+      const idx      = siblings.indexOf(dragSrcEl);
+      const prevOrder = idx > 0                    ? parseFloat(siblings[idx - 1].dataset.order ?? (idx - 1)) : null;
+      const nextOrder = idx < siblings.length - 1  ? parseFloat(siblings[idx + 1].dataset.order ?? (idx + 1)) : null;
+      let newOrder;
+      if      (prevOrder === null && nextOrder === null) newOrder = 0;
+      else if (prevOrder === null) newOrder = nextOrder - 1;
+      else if (nextOrder === null) newOrder = prevOrder + 1;
+      else                         newOrder = (prevOrder + nextOrder) / 2;
+      dragSrcEl.dataset.order = newOrder;
+      db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId)
+        .update({ columnId: newColId, order: newOrder })
+        .catch(err => console.error('Drag save failed:', err));
+    }
     dragSrcEl = null;
-    saveChanges(true);
   });
 
   // ── Build board from Firestore data ─────────────────────────────────────
   const months       = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
+  function legacyDateToTs(dateStr) {
+    if (!dateStr) return Date.now();
+    // Try ISO / browser-recognised formats first
+    let d = new Date(dateStr);
+    if (!isNaN(d)) return d.getTime();
+    // 'Mar 3' or 'Mar 3, 2026' – strip any time portion after comma
+    const base = dateStr.replace(/,?\s*\d+:\d+.*$/, '').trim();
+    const year = new Date().getFullYear();
+    d = new Date(`${base} ${year}`);
+    if (!isNaN(d) && d.getTime() <= Date.now()) return d.getTime();
+    return new Date(`${base} ${year - 1}`).getTime() || Date.now();
+  }
   let   nextColId    = 100;
 
   function buildColumnsFromData(colData) {
@@ -877,7 +1183,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
       board.appendChild(div);
       setupColDropdown(div);
-      if (!col.archive && col.id > maxId) maxId = col.id;
+      if (!col.archive && col.id < 97 && col.id > maxId) maxId = col.id;
     });
     nextColId = maxId + 1;
     syncGrid();
@@ -890,33 +1196,15 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!colEl) return;
       col.tasks.forEach(taskData => colEl.appendChild(renderCard(taskData)));
     });
-    const allEntries = [];
-    data.columns.forEach(col => {
-      col.tasks.forEach(taskData => {
-        (taskData.timeline || []).forEach(entry =>
-          allEntries.push({ ...entry, cardTitle: taskData.text.slice(0, 45) })
-        );
-      });
-    });
-    allEntries.sort((a, b) => {
-      const [am, ad] = a.date.split(' ');
-      const [bm, bd] = b.date.split(' ');
-      return (months[am] * 31 + +ad) - (months[bm] * 31 + +bd);
-    });
-    allEntries.forEach(e => {
-      // Parse the stored date label ("Mar 1", "Feb 28") into an epoch timestamp
-      const year = new Date().getFullYear();
-      const parsed = new Date(`${e.date} ${year}`);
-      // If the parsed date is in the future it likely belongs to last year
-      const entryTs = (!isNaN(parsed) && parsed <= Date.now())
-        ? parsed.getTime()
-        : (!isNaN(parsed) ? new Date(`${e.date} ${year - 1}`).getTime() : Date.now());
-      logActivity(
-        e.type || 'edit',
-        `<b>${e.author}</b> ${e.text} — <em>${e.cardTitle}</em>`,
-        e.date,
-        entryTs
-      );
+  }
+
+  // New format: tasks is a pre-sorted flat array; each task has a `columnId` field
+  function buildTasksFromFlatData(tasks) {
+    const colEls = [...document.querySelectorAll('.project-column')];
+    tasks.forEach(taskData => {
+      const colEl = colEls.find(c => +c.dataset.columnId === taskData.columnId)
+                 || colEls[0];
+      if (colEl) colEl.appendChild(renderCard(taskData));
     });
   }
 
@@ -973,6 +1261,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const task = e.target.closest('.task');
       task.querySelector('.task__dropdown').classList.remove('open');
       openDropdown = null;
+      if (window._boardRole === 'member' && task.dataset.createdByUid && task.dataset.createdByUid !== currentUser?.uid) {
+        showToast('You can only edit your own tasks.', true);
+        return;
+      }
       if (window._openEditModal) window._openEditModal(task);
       return;
     }
@@ -980,6 +1272,13 @@ document.addEventListener('DOMContentLoaded', () => {
     // Delete
     if (e.target.closest('.task__opt-delete')) {
       const task     = e.target.closest('.task');
+      if (window._boardRole === 'member' && task.dataset.createdByUid && task.dataset.createdByUid !== currentUser?.uid) {
+        showToast('You can only delete your own tasks.', true);
+        task.querySelector('.task__dropdown')?.classList.remove('open');
+        openDropdown = null;
+        return;
+      }
+      const taskId   = task.dataset.id;
       const cardText = task.querySelector('p')?.textContent.slice(0, 40) || 'Card';
       Swal.fire({
         title: 'Are you sure?',
@@ -994,7 +1293,14 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!result.isConfirmed) return;
         task.style.transition = 'opacity .2s';
         task.style.opacity    = '0';
-        setTimeout(() => { task.remove(); saveChanges(true); }, 200);
+        // Remove task doc from subcollection, then save board
+        const deleteDoc = taskId
+          ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(err => console.warn('Could not delete task doc:', err))
+          : Promise.resolve();
+        setTimeout(() => {
+          task.remove();
+          deleteDoc.then(() => saveChanges(true));
+        }, 200);
         logActivity('delete', `<b>${_authorName()}</b> deleted "${cardText}"`);
         openDropdown = null;
       });
@@ -1009,6 +1315,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!entry || !entry.closest('.task--expanded')) return;
       const textDiv = entry.querySelector('.task__tl-text');
       if (!textDiv.dataset.comment && textDiv.dataset.comment !== '') return; // not a comment entry
+      // Members can only edit their own comments
+      const entryAuthor = entry.dataset.authorUid;
+      if (window._boardRole === 'member' && entryAuthor && entryAuthor !== currentUser?.uid) return;
       const current = textDiv.dataset.comment || '';
       const metaTime = textDiv.querySelector('.task__tl-meta time')?.textContent || '';
       // Close any other open edits in the same card
@@ -1047,6 +1356,11 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     if (e.target.closest('.task__tl-edit-delete')) {
       const entry = e.target.closest('.task__tl-entry');
+      const entryAuthor = entry.dataset.authorUid;
+      if (window._boardRole === 'member' && entryAuthor && entryAuthor !== currentUser?.uid) {
+        showToast('You can only delete your own comments.', true);
+        return;
+      }
       const cardText = entry.closest('.task')?.querySelector('p')?.textContent.slice(0, 40) || 'Card';
       Swal.fire({
         title: 'Are you sure?',
@@ -1080,12 +1394,13 @@ document.addEventListener('DOMContentLoaded', () => {
       const input   = textDiv.querySelector('.task__tl-edit-input');
       const newText = input.value.trim();
       if (!newText) { input.focus(); return; }
+      const oldText = textDiv.dataset.comment || '';
       const time = textDiv._savedTime || '';
       entry.classList.remove('task__tl-entry--editing');
       textDiv.dataset.comment = newText;
       textDiv.innerHTML = `${newText}<div class='task__tl-meta'><time>${time}</time><b>${textDiv._savedAuthor || _authorName()}</b></div>`;
       const cardText = entry.closest('.task')?.querySelector('p')?.textContent.slice(0, 40) || 'Card';
-      logActivity('edit', `<b>${_authorName()}</b> edited a comment on "${cardText}"`);
+      logActivity('edit', `<b>${_authorName()}</b> edited a comment on "<em>${cardText}</em>"<br><span class='activity-diff'><s>${oldText.slice(0, 60)}${oldText.length > 60 ? '…' : ''}</s> → ${newText.slice(0, 60)}${newText.length > 60 ? '…' : ''}</span>`);
       saveChanges();
       return;
     }
@@ -1107,11 +1422,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const comment = input.value.trim();
       if (!comment) { input.focus(); return; }
 
-      const today = new Date().toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+      const _now    = Date.now();
+      const today   = new Date(_now).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
       const entry = document.createElement('div');
       entry.className = 'task__tl-entry';
+      entry.dataset.ts = _now;
+      entry.dataset.authorUid = currentUser?.uid || '';
       entry.innerHTML = `<span class='task__tl-dot task__tl-dot--comment'>${_authorAvatar()}</span>
-        <div class='task__tl-text' data-comment="${comment.replace(/"/g, '&quot;')}" data-author-photo='${_authorPhoto()}'>${comment}<div class='task__tl-meta'><time>${today}</time><b>${_authorName()}</b></div></div>`;
+        <div class='task__tl-text' data-comment="${comment.replace(/"/g, '&quot;')}">${comment}<div class='task__tl-meta'><time>${today}</time><b>${_authorName()}</b></div></div>`;
 
       let tl = task.querySelector('.task__timeline');
       if (!tl) {
@@ -1184,6 +1502,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Rename column
     if (e.target.closest('.col-opt-rename')) {
+      if (window._boardRole === 'member') { showToast('Contact an admin to make changes to columns.', true); return; }
       const colEl   = e.target.closest('.project-column');
       if (colEl.classList.contains('project-column--archive')) return;
       const dd      = colEl.querySelector('.col-dropdown');
@@ -1194,6 +1513,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Add column before
     if (e.target.closest('.col-opt-add-before')) {
+      if (window._boardRole === 'member') { showToast('Contact an admin to make changes to columns.', true); return; }
       const colEl = e.target.closest('.project-column');
       if (colEl.classList.contains('project-column--archive')) return;
       colEl.querySelector('.col-dropdown').classList.remove('open'); openColDropdown = null;
@@ -1217,6 +1537,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Add column after
     if (e.target.closest('.col-opt-add-after')) {
+      if (window._boardRole === 'member') { showToast('Contact an admin to make changes to columns.', true); return; }
       const colEl = e.target.closest('.project-column');
       if (colEl.classList.contains('project-column--archive')) return;
       colEl.querySelector('.col-dropdown').classList.remove('open'); openColDropdown = null;
@@ -1240,6 +1561,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     // Delete column
     if (e.target.closest('.col-opt-delete')) {
+      if (window._boardRole === 'member') { showToast('Contact an admin to make changes to columns.', true); return; }
       const colEl    = e.target.closest('.project-column');
       colEl.querySelector('.col-dropdown').classList.remove('open'); openColDropdown = null;
       const taskCount = colEl.querySelectorAll(':scope > .task').length;
@@ -1283,6 +1605,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!cb) return;
     const span = cb.nextElementSibling;
     if (span) span.classList.toggle('task__todo-text--done', cb.checked);
+    const todoText  = span?.textContent?.trim().slice(0, 50) || 'item';
+    const cardText  = cb.closest('.task')?.querySelector('p')?.textContent.slice(0, 40) || 'Card';
+    logActivity('todo', `<b>${_authorName()}</b> ${cb.checked ? 'completed' : 'unchecked'} "${todoText}" on <em>${cardText}</em>`);
     const todosWrap = cb.closest('.task__todos');
     if (todosWrap) {
       const all  = [...todosWrap.querySelectorAll('.task__todo-cb')];

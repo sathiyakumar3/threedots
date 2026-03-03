@@ -122,6 +122,7 @@
       colorInput.addEventListener('change', e => {
         activeTags[idx].color = e.target.value;
         saveToFirestore();
+        logActivity('edit', `Changed colour of tag "${tag.label}" to ${e.target.value}`);
         applyAll([...activeTags]);
         renderList();
       });
@@ -147,7 +148,9 @@
 
         const commit = () => {
           const val = inp.value.trim();
+          const oldLabel = tag.label;
           if (val) activeTags[idx].label = val;
+          if (val && val !== oldLabel) logActivity('edit', `Renamed tag "${oldLabel}" → "${val}"`);
           saveToFirestore();
           applyAll([...activeTags]);
           renderList();
@@ -177,6 +180,7 @@
           reverseButtons: true
         }).then(result => {
           if (!result.isConfirmed) return;
+          logActivity('delete', `Deleted tag "${tag.label}"`);
           activeTags.splice(idx, 1);
           saveToFirestore();
           applyAll([...activeTags]);
@@ -210,6 +214,7 @@
       if (activeTags[i]) activeTags[i].color = color;
     });
     saveToFirestore();
+    logActivity('edit', `Applied colour theme "${theme.name}"`);
     applyAll([...activeTags]);
     renderList();
     renderThemes();
@@ -286,6 +291,7 @@
     const color = pool[activeTags.length % pool.length];
     activeTags.push({ id, label: name, color });
     saveToFirestore();
+    logActivity('create', `Added tag "${name}"`);
     applyAll([...activeTags]);
     renderList();
     newInput.value = '';
@@ -337,6 +343,28 @@
   window._applyBoardTags = tags => {
     if (Array.isArray(tags) && tags.length) applyAll(JSON.parse(JSON.stringify(tags)));
   };
+
+  // ── Shared factory: add-new-tag logic reused by both picker instances ──
+  const _PICKER_PALETTE = ['#e91e63','#9c27b0','#3f51b5','#2196f3','#00bcd4','#4caf50','#ff9800','#795548'];
+  function _makeAddNewTag(newInput, listEl, renderFn, afterPushFn) {
+    return function addNewTag() {
+      const name = newInput.value.trim();
+      if (!name) { newInput.focus(); return; }
+      const raw = name.toLowerCase().replace(/[^a-z0-9]/g, '');
+      const tid = raw || ('tag' + Date.now());
+      if (activeTags.find(t => t.id === tid)) { newInput.select(); return; }
+      const color = _PICKER_PALETTE[activeTags.length % _PICKER_PALETTE.length];
+      activeTags.push({ id: tid, label: name, color });
+      if (afterPushFn) afterPushFn(tid);
+      saveToFirestore();
+      logActivity('create', `Added tag "${name}"`);
+      applyAll([...activeTags]);
+      renderFn();
+      newInput.value = '';
+      newInput.focus();
+      listEl.scrollTop = listEl.scrollHeight;
+    };
+  }
 
   // ── Custom tag picker ──
   window._createTagPicker = function(initialId, containerEl) {
@@ -419,6 +447,7 @@
         colorInput.addEventListener('change', e => {
           activeTags[idx].color = e.target.value;
           saveToFirestore();
+          logActivity('edit', `Changed colour of tag "${tag.label}" to ${e.target.value}`);
           applyAll([...activeTags]);
           updateTrigger();
           renderPickerList();
@@ -448,7 +477,9 @@
           inp.focus(); inp.select();
           const commit = () => {
             const val = inp.value.trim();
+            const oldLabel = tag.label;
             if (val) activeTags[idx].label = val;
+            if (val && val !== oldLabel) logActivity('edit', `Renamed tag "${oldLabel}" → "${val}"`);
             saveToFirestore();
             applyAll([...activeTags]);
             updateTrigger();
@@ -471,6 +502,7 @@
           e.stopPropagation();
           if (activeTags.length <= 1) return;
           if (picker.dataset.value === tag.id) picker.dataset.value = activeTags.find(t => t.id !== tag.id)?.id || '';
+          logActivity('delete', `Deleted tag "${tag.label}"`);
           activeTags.splice(idx, 1);
           saveToFirestore();
           applyAll([...activeTags]);
@@ -487,24 +519,10 @@
       if (window.Coloris) Coloris({ el: '.tags-color-input' });
     }
 
-    function addNewTag() {
-      const name = newInput.value.trim();
-      if (!name) { newInput.focus(); return; }
-      const raw = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const tid = raw || ('tag' + Date.now());
-      if (activeTags.find(t => t.id === tid)) { newInput.select(); return; }
-      const PALETTE = ['#e91e63','#9c27b0','#3f51b5','#2196f3','#00bcd4','#4caf50','#ff9800','#795548'];
-      const color = PALETTE[activeTags.length % PALETTE.length];
-      activeTags.push({ id: tid, label: name, color });
+    const addNewTag = _makeAddNewTag(newInput, listEl, renderPickerList, tid => {
       picker.dataset.value = tid;
-      saveToFirestore();
-      applyAll([...activeTags]);
       updateTrigger();
-      renderPickerList();
-      newInput.value = '';
-      newInput.focus();
-      listEl.scrollTop = listEl.scrollHeight;
-    }
+    });
 
     newAdd.addEventListener('click', e => { e.stopPropagation(); addNewTag(); });
     newInput.addEventListener('keydown', e => {
@@ -594,6 +612,7 @@
         colorInput.addEventListener('change', e => {
           activeTags[idx].color = e.target.value;
           saveToFirestore();
+          logActivity('edit', `Changed colour of tag "${tag.label}" to ${e.target.value}`);
           applyAll([...activeTags]);
           renderList();
         });
@@ -619,7 +638,9 @@
           inp.focus(); inp.select();
           const commit = () => {
             const val = inp.value.trim();
+            const oldLabel = tag.label;
             if (val) activeTags[idx].label = val;
+            if (val && val !== oldLabel) logActivity('edit', `Renamed tag "${oldLabel}" → "${val}"`);
             saveToFirestore();
             applyAll([...activeTags]);
             renderList();
@@ -640,6 +661,7 @@
           e.stopPropagation();
           if (activeTags.length <= 1) return;
           if (picker.dataset.value === tag.id) picker.dataset.value = activeTags.find(t => t.id !== tag.id)?.id || '';
+          logActivity('delete', `Deleted tag "${tag.label}"`);
           activeTags.splice(idx, 1);
           saveToFirestore();
           applyAll([...activeTags]);
@@ -654,23 +676,9 @@
       if (window.Coloris) Coloris({ el: '.tags-color-input' });
     }
 
-    function addNewTag() {
-      const name = newInput.value.trim();
-      if (!name) { newInput.focus(); return; }
-      const raw = name.toLowerCase().replace(/[^a-z0-9]/g, '');
-      const tid = raw || ('tag' + Date.now());
-      if (activeTags.find(t => t.id === tid)) { newInput.select(); return; }
-      const PALETTE = ['#e91e63','#9c27b0','#3f51b5','#2196f3','#00bcd4','#4caf50','#ff9800','#795548'];
-      const color = PALETTE[activeTags.length % PALETTE.length];
-      activeTags.push({ id: tid, label: name, color });
+    const addNewTag = _makeAddNewTag(newInput, listEl, renderList, tid => {
       picker.dataset.value = tid;
-      saveToFirestore();
-      applyAll([...activeTags]);
-      renderList();
-      newInput.value = '';
-      newInput.focus();
-      listEl.scrollTop = listEl.scrollHeight;
-    }
+    });
 
     newAdd.addEventListener('click', e => { e.stopPropagation(); addNewTag(); });
     newInput.addEventListener('keydown', e => {

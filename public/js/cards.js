@@ -81,20 +81,18 @@ function serializeTask(cardEl) {
         .map(n => n.textContent.trim())
         .filter(Boolean).join(' ');
     }
-    const authorPhoto = textDiv.dataset.authorPhoto || '';
-    timeline.push({ type, author, authorPhoto, text: entryText, date });
+    // author is stored as UID (new) or display name (legacy); either way keep as-is for look-up
+    const authorUid = entry.dataset.authorUid || author;
+    const ts = entry.dataset.ts ? +entry.dataset.ts : undefined;
+    timeline.push({ type, author: authorUid, text: entryText, date, ...(ts ? { ts } : {}) });
   });
   return {
-    id:          cardEl.dataset.id || ('task-' + Date.now()),
+    id:          cardEl.dataset.id || db.collection(`boards/${BOARD_ID}/tasks`).doc().id,
     tag, text, flagDate, comments, attachments, todos, link,
     deadline:  cardEl.dataset.deadline || '',
     assignee:  cardEl.dataset.assignee || '',
     created:     cardEl.dataset.created || '',
-    createdBy: {
-      uid:         cardEl.dataset.createdByUid   || '',
-      displayName: cardEl.dataset.createdByName  || '',
-      photoURL:    cardEl.dataset.createdByPhoto || ''
-    },
+    author:      cardEl.dataset.createdByUid || '',
     timeline
   };
 }
@@ -105,15 +103,18 @@ function renderCard(taskData) {
   card.className   = 'task';
   card.draggable   = true;
   card.dataset.id  = taskData.id;
+  if (taskData.order !== undefined) card.dataset.order = taskData.order;
   if (taskData.created) card.dataset.created = taskData.created;
   if (taskData.deadline) card.dataset.deadline = taskData.deadline;
   if (taskData.assignee) card.dataset.assignee = taskData.assignee;
-  const cb = taskData.createdBy || {};
-  card.dataset.createdByUid   = cb.uid         || '';
-  card.dataset.createdByName  = cb.displayName || '';
-  card.dataset.createdByPhoto = cb.photoURL    || '';
-  const ownerName  = cb.displayName || '';
-  const ownerPhoto = cb.photoURL    || '';
+  // Support new `author` field (UID string) and legacy `createdBy: { uid }` object
+  const authorUid  = taskData.author || taskData.createdBy?.uid || '';
+  const _cbResolved = (window._uidMap && authorUid) ? window._uidMap[authorUid] : null;
+  const ownerName  = _cbResolved ? _cbResolved.name  : '';
+  const ownerPhoto = _cbResolved ? _cbResolved.photo : '';
+  card.dataset.createdByUid   = authorUid;
+  card.dataset.createdByName  = ownerName;
+  card.dataset.createdByPhoto = ownerPhoto;
   const ownerHTML  = ownerName
     ? (ownerPhoto
         ? `<img class='tl-avatar' src='${ownerPhoto}' alt='${ownerName}' title='${ownerName}'>`
@@ -148,12 +149,12 @@ function renderCard(taskData) {
     const others  = (taskData.timeline || []).filter(e => e.type !== 'create');
     // Synthesise a create entry from createdBy metadata when none is stored
     const createEntries = creates.length ? creates : (() => {
-      const name  = cb.displayName || cb.uid;
-      if (!name) return [];
-      const date  = taskData.created
+      if (!authorUid) return [];
+      const ts   = taskData.created ? new Date(taskData.created).getTime() : Date.now();
+      const date = taskData.created
         ? new Date(taskData.created).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
         : '';
-      return [{ type: 'create', author: name, authorPhoto: cb.photoURL || '', text: 'Card Created', date }];
+      return [{ type: 'create', author: authorUid, text: 'Card Created', date, ts }];
     })();
     // create entries go FIRST → never :last-of-type → hidden when collapsed
     const ordered = [...createEntries, ...others];
