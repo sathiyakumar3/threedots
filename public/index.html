@@ -6,7 +6,7 @@
   <title>Taskbz</title>
   <link rel="icon" type="image/svg+xml" href="images/favicon.svg">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
-  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Plus+Jakarta+Sans:wght@800;900&display=swap" rel="stylesheet">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/layout.css">
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/themes/light.css">
@@ -31,11 +31,9 @@
             <img class="logo-mode-light" src="images/logo-light.svg" width="160" height="42" alt="Taskbz logo">
             <img class="logo-mode-dark"  src="images/logo-dark.svg"  width="160" height="42" alt="Taskbz logo">
           </div>
-          <span class="topbar-breadcrumb__sep">/</span>
           <div class="board-title-wrap">
             <div class="board-combo" id="boardCombo">
               <button class="board-combo__trigger" id="boardComboTrigger">
-                <i class="fas fa-columns board-combo__icon"></i>
                 <span id="boardComboLabel">Select board</span>
                 <i class="fas fa-star board-combo__fav-star" id="boardFavStar"></i>
                 <i class="fas fa-chevron-down board-combo__chevron"></i>
@@ -133,14 +131,12 @@
             <div class="topbar-user__trigger" id="topbarUserTrigger">
               <div class="topbar-avatar-wrap">
                 <div class="nav-user__avatar" id="navAvatar"><i class="fas fa-user"></i></div>
-                <span class="topbar-status-dot"></span>
               </div>
             </div>
             <div class="topbar-user__dropdown" id="topbarUserDropdown">
               <div class="topbar-user__header">
                 <div class="topbar-user__hd-avatar">
                   <div class="nav-user__avatar nav-user__avatar--lg" id="navAvatarDrop"><i class="fas fa-user"></i></div>
-                  <span class="topbar-status-dot"></span>
                 </div>
                 <div class="topbar-user__hd-info">
                   <div class="topbar-user__hd-name" id="navUserName">Guest</div>
@@ -197,7 +193,6 @@
         <div class="modal">
           <div class="modal__header">
             <div class="modal__header-brand">
-              <img src="images/favicon.svg" width="28" height="28" alt="Taskbz mark">
               <h3 id="modalTitle">Add New Card</h3>
             </div>
             <div class="modal__header-bar"></div>

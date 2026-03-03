@@ -1223,15 +1223,15 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.task__tl-edit-input'))    return;
     if (e.target.closest('.task__tl-entry--editing')) return;
     if (task.classList.contains('task--expanded') && e.target.closest('.task__tl-text')) return;
-    task.classList.toggle('task--expanded');
-    // Close any open comment edits
-    task.querySelectorAll('.task__tl-entry--editing').forEach(entry => {
+    // Close any open timeline edit inputs across the whole board before toggling
+    board.querySelectorAll('.task__tl-entry--editing').forEach(entry => {
       entry.classList.remove('task__tl-entry--editing');
       const textDiv = entry.querySelector('.task__tl-text');
       if (!textDiv) return;
       const t = textDiv._savedTime || '';
       textDiv.innerHTML = `${textDiv.dataset.comment || ''}<div class='task__tl-meta'><time>${t}</time><b>${textDiv._savedAuthor || ''}</b></div>`;
     });
+    task.classList.toggle('task--expanded');
     refreshExpandBtn(task);
   });
 
@@ -1320,8 +1320,8 @@ document.addEventListener('DOMContentLoaded', () => {
       if (window._boardRole === 'member' && entryAuthor && entryAuthor !== currentUser?.uid) return;
       const current = textDiv.dataset.comment || '';
       const metaTime = textDiv.querySelector('.task__tl-meta time')?.textContent || '';
-      // Close any other open edits in the same card
-      entry.closest('.task__timeline')?.querySelectorAll('.task__tl-entry--editing').forEach(other => {
+      // Close any other open edits across the whole board
+      board.querySelectorAll('.task__tl-entry--editing').forEach(other => {
         if (other === entry) return;
         other.classList.remove('task__tl-entry--editing');
         const otherDiv = other.querySelector('.task__tl-text');
