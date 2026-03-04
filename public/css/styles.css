@@ -1384,12 +1384,25 @@ body.dark .team-panel__count { background:#2d2d2d; color:#9ca3af; }
 body.dark .team-panel__footer { border-color:#2d2d2d; }
 body.dark .team-panel__add-row input { border-color:#3d3d4d; background:#161622; }
 
-/* ── Role-based UX restrictions (member = limited access) ── */
+/* ── Role-based UX restrictions ── */
+
+/* Members: hide rename, delete, generic divider, activity clear, column options */
 #appShell[data-role="member"] #boardOptRename,
 #appShell[data-role="member"] #boardOptDelete,
-#appShell[data-role="member"] .board-dropdown__divider,
+#appShell[data-role="member"] .board-dropdown__divider:not(#boardOptLeaveDivider),
 #appShell[data-role="member"] #activityClearBtn,
 #appShell[data-role="member"] .project-column-heading__options:not(#boardOptionsBtn) { display:none !important; }
+
+/* Non-primary admins: also hide rename, delete, and their divider */
+#appShell[data-role="admin"][data-is-primary="false"] #boardOptRename,
+#appShell[data-role="admin"][data-is-primary="false"] #boardOptDelete,
+#appShell[data-role="admin"][data-is-primary="false"] .board-dropdown__divider:not(#boardOptLeaveDivider) { display:none !important; }
+
+/* Leave button: hidden by default, shown for non-primary admins and members */
+#boardOptLeave,
+#boardOptLeaveDivider { display:none; }
+#appShell[data-is-primary="false"] #boardOptLeave { display:flex; }
+#appShell[data-is-primary="false"] #boardOptLeaveDivider { display:block; }
 
 /* member role indicator — lock icon inside board selector */
 #appShell[data-role="member"] .board-combo__trigger::after {
@@ -1669,10 +1682,9 @@ body.view-roomy .task__tl-entry:not(:last-of-type)::after { content:''; position
 
 .project-column {
   min-height:200px;
-  height:96%;
   background:#f4f4f5;
   border-radius:12px;
-  padding:.5rem .5rem 1rem;
+  padding:.5rem .5rem 1.25rem;
 }
 
 .column-drag-over {

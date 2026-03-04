@@ -27,9 +27,9 @@ function saveChanges(silent) {
   cols.forEach((col, i) => {
     const columnId = +col.dataset.columnId || i;
     [...col.querySelectorAll(':scope > .task')].forEach((cardEl, order) => {
-      const taskData = serializeTask(cardEl);
-      const taskRef  = db.collection(`boards/${BOARD_ID}/tasks`).doc(taskData.id);
-      batch.set(taskRef, { ...taskData, boardId: BOARD_ID, columnId, order }, { merge: true });
+      const { id: taskId, ...taskFields } = serializeTask(cardEl);
+      const taskRef = db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId);
+      batch.set(taskRef, { ...taskFields, boardId: BOARD_ID, columnId, order }, { merge: true });
     });
   });
 

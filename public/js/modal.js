@@ -385,7 +385,6 @@
       return;
     }
     if (!title) { titleEl.focus(); return; }
-    if (!text)  { textEl.focus();  return; }
 
     const tag      = getTagPicker()?.dataset.value || 'task';
     const todos    = pendingTodos.slice();

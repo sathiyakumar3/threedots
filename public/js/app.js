@@ -533,8 +533,11 @@ document.addEventListener('DOMContentLoaded', () => {
           const _memberUids = data.users?.members || [];
           const _boardUsers = [...new Set([..._adminUids, ..._memberUids])];
           // Set current user's role for this board
-          window._boardRole = _adminUids.includes(currentUser?.uid) ? 'admin' : 'member';
-          document.getElementById('appShell').dataset.role = window._boardRole;
+          window._boardRole    = _adminUids.includes(currentUser?.uid) ? 'admin' : 'member';
+          window._primaryAdmin = _adminUids[0] || null;
+          const _appShell = document.getElementById('appShell');
+          _appShell.dataset.role      = window._boardRole;
+          _appShell.dataset.isPrimary = (currentUser?.uid === window._primaryAdmin) ? 'true' : 'false';
           // Prefetch all board member profiles into _uidMap before rendering cards
           const _uidsNeeded = _boardUsers.filter(uid => !(window._uidMap && window._uidMap[uid]));
           Promise.all(_uidsNeeded.map(uid =>
@@ -723,8 +726,9 @@ document.addEventListener('DOMContentLoaded', () => {
         : name[0].toUpperCase();
       const isCurrentUser   = uid === currentUser?.uid;
       const viewerIsAdmin   = window._boardRole === 'admin';
+      const isPrimaryAdmin  = uid === admins[0];
       let actions = '';
-      if (viewerIsAdmin) {
+      if (viewerIsAdmin && !isPrimaryAdmin) {
         if (isAdmin) {
           if (adminCount > 1 && !isCurrentUser) {
             actions = `<button class='tmr-demote' data-uid='${uid}'>Demote</button>`;
@@ -809,6 +813,7 @@ document.addEventListener('DOMContentLoaded', () => {
       db.doc(`boards/${BOARD_ID}`).get().then(snap => {
         if (!snap.exists) return;
         const bd      = snap.data();
+        if ((bd.users?.admins || [])[0] === uid) return; // cannot demote primary admin
         const admins  = (bd.users?.admins  || []).filter(u => u !== uid);
         const members = [...(bd.users?.members || []), uid];
         db.doc(`boards/${BOARD_ID}`).update({ 'users.admins': admins, 'users.members': members })
@@ -908,7 +913,7 @@ document.addEventListener('DOMContentLoaded', () => {
       });
   });
 
-  // ── Board options dropdown (rename / delete) ──────────────────────────────
+  // ── Board options dropdown (rename / delete / leave) ─────────────────────
   const boardOptionsBtn = document.getElementById('boardOptionsBtn');
   const boardDropdown   = document.getElementById('boardDropdown');
 
@@ -1000,6 +1005,46 @@ document.addEventListener('DOMContentLoaded', () => {
           }
         })
         .catch(err => { console.error(err); showToast('Delete failed', true); });
+    });
+  });
+
+  document.getElementById('boardOptLeave').addEventListener('click', () => {
+    boardDropdown.classList.remove('open');
+    const boardName = document.getElementById('boardComboLabel').textContent;
+    Swal.fire({
+      title: 'Leave board?',
+      html: `You will lose access to <b>${boardName}</b>.`,
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Leave',
+      cancelButtonText: 'Cancel',
+      confirmButtonColor: '#e05252',
+      reverseButtons: true
+    }).then(result => {
+      if (!result.isConfirmed) return;
+      const uid = currentUser?.uid;
+      if (!uid) return;
+      db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+        if (!snap.exists) return;
+        const bd      = snap.data();
+        const admins  = (bd.users?.admins  || []).filter(u => u !== uid);
+        const members = (bd.users?.members || []).filter(u => u !== uid);
+        db.doc(`boards/${BOARD_ID}`).update({ 'users.admins': admins, 'users.members': members })
+          .then(() => {
+            showToast('You have left the board');
+            const menu = document.getElementById('boardComboMenu');
+            const item = menu?.querySelector(`[data-board-id="${BOARD_ID}"]`);
+            if (item) item.remove();
+            const next = menu?.querySelector('.board-combo__item');
+            if (next) {
+              loadBoard(next.dataset.boardId);
+            } else {
+              board.innerHTML = '';
+              document.getElementById('boardComboLabel').textContent = 'Select board';
+            }
+          })
+          .catch(() => showToast('Could not leave board', true));
+      });
     });
   });
 
