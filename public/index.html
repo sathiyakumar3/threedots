@@ -117,6 +117,15 @@
             <button class="topbar-search__clear" id="searchClear" title="Clear"><i class="fas fa-times"></i></button>
           </div>
            <div class="topbar-divider"></div>
+          <div class="view-toggle-wrap" id="viewToggleWrap">
+            <button class="topbar-icon-btn" id="viewToggleBtn" title="View"><i class="fas fa-th-large"></i></button>
+            <div class="view-dropdown" id="viewDropdown">
+              <div class="view-dropdown__label">View</div>
+              <button class="view-dropdown__item" data-view="compact"><i class="fas fa-minus"></i> Compact</button>
+              <button class="view-dropdown__item" data-view="cozy"><i class="fas fa-align-left"></i> Cozy</button>
+              <button class="view-dropdown__item" data-view="roomy"><i class="fas fa-expand-alt"></i> Roomy</button>
+            </div>
+          </div>
           <button class="topbar-icon-btn" id="themeToggleBtn" title="Toggle dark mode"><i class="fas fa-moon"></i></button>
 
      
@@ -221,8 +230,26 @@
               </div>
             </div>
             <div class="modal-field">
-              <label for="cardText">Description</label>
-              <textarea id="cardText" placeholder="What needs to be done?"></textarea>
+              <div class="modal-field__label-row">
+                <label for="cardTitle">Title</label>
+                <button type="button" class="ai-assist-btn" id="aiTitleBtn" title="Generate headline with AI">
+                  <i class="fas fa-magic"></i>
+                </button>
+              </div>
+              <div class="ai-field-wrap">
+                <input type="text" id="cardTitle" placeholder="Short card title…" autocomplete="off">
+              </div>
+            </div>
+            <div class="modal-field">
+              <div class="modal-field__label-row">
+                <label for="cardText">Description</label>
+                <button type="button" class="ai-assist-btn" id="aiDescBtn" title="Summarize with AI">
+                  <i class="fas fa-magic"></i>
+                </button>
+              </div>
+              <div class="ai-field-wrap">
+                <textarea id="cardText" placeholder="What needs to be done?"></textarea>
+              </div>
             </div>
             <button type="button" class="modal-more-toggle" id="modalMoreToggle">
               <i class="fas fa-chevron-down modal-more-toggle__icon"></i> More Options
@@ -327,7 +354,45 @@
   <script src="js/tags.js"></script>
   <script src="https://unpkg.com/vanilla-calendar-pro@3.1.0/index.js"></script>
   <script src="js/modal.js"></script>
+  <script src="js/ai-assist.js"></script>
   <script src="js/confetti.js"></script>
+  <script>
+  (function () {
+    const btn      = document.getElementById('viewToggleBtn');
+    const dropdown = document.getElementById('viewDropdown');
+    const STORAGE_KEY = 'qnotes_view';
+
+    function applyView(view) {
+      document.body.classList.remove('view-cozy', 'view-roomy');
+      if (view === 'cozy' || view === 'roomy') document.body.classList.add('view-' + view);
+      dropdown.querySelectorAll('.view-dropdown__item').forEach(el => {
+        el.classList.toggle('active', el.dataset.view === view);
+      });
+      btn.classList.toggle('active', view !== 'compact');
+      localStorage.setItem(STORAGE_KEY, view);
+    }
+
+    // Restore saved preference
+    applyView(localStorage.getItem(STORAGE_KEY) || 'cozy');
+
+    btn.addEventListener('click', e => {
+      e.stopPropagation();
+      dropdown.classList.toggle('open');
+    });
+
+    dropdown.addEventListener('click', e => {
+      const item = e.target.closest('.view-dropdown__item');
+      if (!item) return;
+      applyView(item.dataset.view);
+      dropdown.classList.remove('open');
+    });
+
+    document.addEventListener('click', e => {
+      if (!document.getElementById('viewToggleWrap').contains(e.target))
+        dropdown.classList.remove('open');
+    });
+  })();
+  </script>
 
 </body>
 </html>

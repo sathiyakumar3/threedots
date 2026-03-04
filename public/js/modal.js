@@ -11,6 +11,7 @@
   const colNewInput = document.getElementById('colNewInput');
   const colNewAdd   = document.getElementById('colNewAdd');
   const tagWrap     = document.getElementById('cardTag');
+  const titleEl     = document.getElementById('cardTitle');
   const textEl      = document.getElementById('cardText');
   const todoInput   = document.getElementById('cardTodoInput');
   const todoAddBtn  = document.getElementById('cardTodoAdd');
@@ -267,7 +268,19 @@
   todoAddBtn.addEventListener('click', addTodoItem);
   todoInput.addEventListener('keydown', e => { if (e.key === 'Enter') { e.preventDefault(); addTodoItem(); } });
 
+  titleEl.addEventListener('input', refreshAddBtn);
+  textEl.addEventListener('input', refreshAddBtn);
+
   function getTagPicker() { return tagWrap.querySelector('.tag-picker'); }
+
+  function refreshAddBtn() {
+    if (_editingCard) return; // don't interfere with "Save Changes"
+    const hasTitle = !!titleEl.value.trim();
+    const hasText  = !!textEl.value.trim();
+    addBtn.innerHTML = (!hasTitle && hasText)
+      ? '<i class="fas fa-magic"></i> Add Title'
+      : '<i class="fas fa-plus"></i> Add Card';
+  }
 
   function openModal() {
     initDeadlinePicker();
@@ -276,7 +289,8 @@
     const tags = window._getActiveTags ? window._getActiveTags() : [];
     if (window._createTagPicker) window._createTagPicker(tags[0]?.id || 'task', tagWrap);
     overlay.classList.add('open');
-    textEl.focus();
+    titleEl.focus();
+    refreshAddBtn();
   }
   function closeModal() {
     _editingCard = null;
@@ -285,6 +299,7 @@
     overlay.classList.remove('open');
     document.getElementById('modalMoreFields')?.classList.remove('open');
     document.getElementById('modalMoreToggle')?.classList.remove('open');
+    titleEl.value = '';
     textEl.value  = '';
     linkInput.value = '';
     deadlineInput.value = '';
@@ -308,6 +323,7 @@
     // Auto-expand More Options when editing an existing card
     document.getElementById('modalMoreFields')?.classList.add('open');
     document.getElementById('modalMoreToggle')?.classList.add('open');
+    titleEl.value       = data.title    || '';
     textEl.value        = data.text     || '';
     linkInput.value     = data.link     || '';
     pickerDeadline      = data.deadline || '';
@@ -320,7 +336,7 @@
     addBtn.innerHTML = '<i class="fas fa-check"></i> Save Changes';
     document.getElementById('modalTitle').textContent = 'Edit Card';
     overlay.classList.add('open');
-    textEl.focus();
+    titleEl.focus();
   }
   window._openEditModal = openEditModal;
   window._openModal = openModal;
@@ -349,8 +365,27 @@
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
 
   addBtn.addEventListener('click', () => {
-    const text = textEl.value.trim();
-    if (!text) { textEl.focus(); return; }
+    const text  = textEl.value.trim();
+    const title = titleEl.value.trim();
+    if (!title && text) {
+      const aiBtn  = document.getElementById('aiTitleBtn');
+      const icon   = addBtn.querySelector('i');
+      const origCls = icon.className;
+      icon.className   = 'fas fa-spinner fa-spin';
+      addBtn.disabled  = true;
+      const obs = new MutationObserver(() => {
+        if (!aiBtn.disabled) {
+          obs.disconnect();
+          icon.className  = origCls;
+          addBtn.disabled = false;
+        }
+      });
+      obs.observe(aiBtn, { attributes: true, attributeFilter: ['disabled'] });
+      aiBtn?.click();
+      return;
+    }
+    if (!title) { titleEl.focus(); return; }
+    if (!text)  { textEl.focus();  return; }
 
     const tag      = getTagPicker()?.dataset.value || 'task';
     const todos    = pendingTodos.slice();
@@ -362,6 +397,15 @@
     if (_editingCard) {
       const card = _editingCard;
       const oldText = card.querySelector('p')?.textContent || '';
+      // update title
+      const existingTitle = card.querySelector('.task__title');
+      if (title) {
+        if (existingTitle) { existingTitle.textContent = title; }
+        else { card.querySelector('.task__tags').insertAdjacentHTML('afterend', `<h4 class='task__title'>${title}</h4>`); }
+      } else {
+        existingTitle?.remove();
+      }
+      card.dataset.title = title;
       card.querySelector('p').textContent = text;
       const tagSpan = card.querySelector('.task__tag');
       tagSpan.className   = `task__tag task__tag--${tag}`;
@@ -450,11 +494,13 @@
         <span class='task__tag task__tag--${tag}'>${tagLabels[tag]}</span>
         <button class='task__options'><i class='fas fa-ellipsis-h'></i></button>
       </div>
+      ${title ? `<h4 class='task__title'>${title}</h4>` : ''}
       <p>${text}</p>
       ${todosHTML}
       ${linkHTML}
       ${statsHTML}`;
 
+    if (title) card.dataset.title = title;
     card.dataset.id             = db.collection(`boards/${BOARD_ID}/tasks`).doc().id;
     card.dataset.created        = new Date().toISOString().split('T')[0];
     card.dataset.createdByUid   = currentUser?.uid         || '';

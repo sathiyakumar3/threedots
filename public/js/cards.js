@@ -86,8 +86,10 @@ function serializeTask(cardEl) {
     const ts = entry.dataset.ts ? +entry.dataset.ts : undefined;
     timeline.push({ type, author: authorUid, text: entryText, date, ...(ts ? { ts } : {}) });
   });
+  const titleText = cardEl.querySelector('.task__title')?.textContent || cardEl.dataset.title || '';
   return {
     id:          cardEl.dataset.id || db.collection(`boards/${BOARD_ID}/tasks`).doc().id,
+    title: titleText,
     tag, text, flagDate, comments, attachments, todos, link,
     deadline:  cardEl.dataset.deadline || '',
     assignee:  cardEl.dataset.assignee || '',
@@ -135,11 +137,13 @@ function renderCard(taskData) {
   const statsHTML = (flagSpanHTML || assigneeTagsHTML)
     ? `<div class='task__stats'>${flagSpanHTML}${assigneeTagsHTML}</div>`
     : '';
+  if (taskData.title) card.dataset.title = taskData.title;
   card.innerHTML   = `
     <div class='task__tags'>
       <span class='task__tag task__tag--${taskData.tag}'>${tagLabels[taskData.tag]}</span>
       <button class='task__options'><i class='fas fa-ellipsis-h'></i></button>
     </div>
+    ${taskData.title ? `<h4 class='task__title'>${taskData.title}</h4>` : ''}
     <p>${taskData.text}</p>
     ${todosHTML}
     ${linkHTML}
