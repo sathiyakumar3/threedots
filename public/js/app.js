@@ -229,15 +229,15 @@ document.addEventListener('DOMContentLoaded', () => {
   const searchToggle  = document.getElementById('searchToggle');
   const topbarSearch  = document.getElementById('topbarSearch');
 
+  let _searchTimer;
   function applySearch(query) {
     const q = query.trim().toLowerCase();
-    document.querySelectorAll('.task').forEach(card => {
+    board.querySelectorAll('.task').forEach(card => {
       if (!q) {
         card.classList.remove('task--search-hidden', 'task--search-match');
       } else {
-        const text  = (card.querySelector('p')?.textContent || '').toLowerCase();
-        const tag   = (card.querySelector('.task__tag')?.textContent || '').toLowerCase();
-        const match = text.includes(q) || tag.includes(q);
+        const haystack = card.dataset.search || '';
+        const match = haystack.includes(q);
         card.classList.toggle('task--search-hidden', !match);
         card.classList.toggle('task--search-match',   match);
       }
@@ -261,7 +261,10 @@ document.addEventListener('DOMContentLoaded', () => {
     topbarSearch.classList.contains('open') ? closeSearch() : openSearch();
   });
 
-  boardSearch.addEventListener('input', () => applySearch(boardSearch.value));
+  boardSearch.addEventListener('input', () => {
+    clearTimeout(_searchTimer);
+    _searchTimer = setTimeout(() => applySearch(boardSearch.value), 150);
+  });
   boardSearch.addEventListener('keydown', e => { if (e.key === 'Escape') closeSearch(); });
 
   searchClear.addEventListener('click', () => {
@@ -460,6 +463,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const board   = document.querySelector('.project-tasks');
   let userFavouriteBoard = null;
+
+  // ── Column task-count badge helpers ─────────────────────────────────────
+  function refreshColCount(colEl) {
+    const count = colEl.querySelectorAll(':scope > .task').length;
+    const badge = colEl.querySelector('.col-count');
+    if (badge) badge.textContent = count;
+  }
+  function refreshAllColCounts() {
+    document.querySelectorAll('.project-column').forEach(refreshColCount);
+  }
+  // Auto-refresh: only react to .task cards being added/removed inside columns
+  new MutationObserver(mutations => {
+    if (mutations.some(m => [...m.addedNodes, ...m.removedNodes].some(n => n.classList?.contains('task')))) {
+      refreshAllColCounts();
+    }
+  }).observe(board, { childList: true, subtree: true });
 
   // ── Author identity helpers ──────────────────────────────────────────────
   function _authorName()  { return currentUser?.displayName || currentUser?.email || 'You'; }
@@ -970,7 +989,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const item = document.getElementById('boardComboMenu').querySelector(`[data-board-id="${BOARD_ID}"]`);
           if (item) item.textContent = val;
           document.getElementById('boardComboLabel').textContent = val;
-          showToast('Board renamed ?');
+          showToast('Board renamed ✅');
         })
         .catch(() => showToast('Rename failed', true));
     });
@@ -1098,7 +1117,7 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const ts     = Date.now();
     const author = _authorName();
-    const now    = new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const now    = fmtDate(ts);
     data.activity = [{
       type: 'create',
       text: `<b>${author}</b> created this board — "<em>${name}</em>"`,
@@ -1224,6 +1243,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (col.users && col.users.length) div.dataset.users = JSON.stringify(col.users);
       div.innerHTML   = `<div class='project-column-heading'>
         <h2 class='project-column-heading__title'>${col.title}</h2>
+        <span class='col-count'>0</span>
         <button class='project-column-heading__options'><i class="fas fa-ellipsis-h"></i></button>
       </div>`;
       board.appendChild(div);
@@ -1251,6 +1271,7 @@ document.addEventListener('DOMContentLoaded', () => {
                  || colEls[0];
       if (colEl) colEl.appendChild(renderCard(taskData));
     });
+    refreshAllColCounts();
   }
 
   // ── Card expand / collapse ───────────────────────────────────────────────
@@ -1274,7 +1295,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const textDiv = entry.querySelector('.task__tl-text');
       if (!textDiv) return;
       const t = textDiv._savedTime || '';
-      textDiv.innerHTML = `${textDiv.dataset.comment || ''}<div class='task__tl-meta'><time>${t}</time><b>${textDiv._savedAuthor || ''}</b></div>`;
+      textDiv.innerHTML = tlMetaHTML(textDiv.dataset.comment || '', t, textDiv._savedAuthor || '');
     });
     task.classList.toggle('task--expanded');
     refreshExpandBtn(task);
@@ -1372,7 +1393,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const otherDiv = other.querySelector('.task__tl-text');
         if (!otherDiv) return;
         const t = otherDiv._savedTime || '';
-        otherDiv.innerHTML = `${otherDiv.dataset.comment || ''}<div class='task__tl-meta'><time>${t}</time><b>${otherDiv._savedAuthor || ''}</b></div>`;
+        otherDiv.innerHTML = tlMetaHTML(otherDiv.dataset.comment || '', t, otherDiv._savedAuthor || '');
       });
       entry.classList.add('task__tl-entry--editing');
       textDiv._savedTime   = metaTime;
@@ -1390,7 +1411,7 @@ document.addEventListener('DOMContentLoaded', () => {
           ev.preventDefault();
           entry.classList.remove('task__tl-entry--editing');
           const t = textDiv._savedTime || '';
-          textDiv.innerHTML = `${textDiv.dataset.comment || ''}<div class='task__tl-meta'><time>${t}</time><b>${textDiv._savedAuthor || _authorName()}</b></div>`;
+          textDiv.innerHTML = tlMetaHTML(textDiv.dataset.comment || '', t, textDiv._savedAuthor || _authorName());
         }
         if (ev.key === 'Enter' && (ev.ctrlKey || ev.metaKey)) {
           ev.preventDefault();
@@ -1406,7 +1427,8 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('You can only delete your own comments.', true);
         return;
       }
-      const cardText = entry.closest('.task')?.querySelector('p')?.textContent.slice(0, 40) || 'Card';
+      const _taskEl  = entry.closest('.task');
+      const cardText = _taskEl?.querySelector('p')?.textContent.slice(0, 40) || 'Card';
       Swal.fire({
         title: 'Are you sure?',
         text: 'This comment will be permanently deleted.',
@@ -1420,7 +1442,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (!result.isConfirmed) return;
         entry.remove();
         logActivity('delete', `<b>${_authorName()}</b> deleted a comment on "${cardText}"`);
-        saveChanges(true);
+        saveTask(_taskEl, true);
       });
       return;
     }
@@ -1430,7 +1452,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const current = textDiv.dataset.comment || '';
       const time    = textDiv._savedTime || '';
       entry.classList.remove('task__tl-entry--editing');
-      textDiv.innerHTML = `${current}<div class='task__tl-meta'><time>${time}</time><b>${textDiv._savedAuthor || _authorName()}</b></div>`;
+      textDiv.innerHTML = tlMetaHTML(current, time, textDiv._savedAuthor || _authorName());
       return;
     }
     if (e.target.closest('.task__tl-edit-save')) {
@@ -1443,10 +1465,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const time = textDiv._savedTime || '';
       entry.classList.remove('task__tl-entry--editing');
       textDiv.dataset.comment = newText;
-      textDiv.innerHTML = `${newText}<div class='task__tl-meta'><time>${time}</time><b>${textDiv._savedAuthor || _authorName()}</b></div>`;
+      textDiv.innerHTML = tlMetaHTML(newText, time, textDiv._savedAuthor || _authorName());
       const cardText = entry.closest('.task')?.querySelector('p')?.textContent.slice(0, 40) || 'Card';
       logActivity('edit', `<b>${_authorName()}</b> edited a comment on "<em>${cardText}</em>"<br><span class='activity-diff'><s>${oldText.slice(0, 60)}${oldText.length > 60 ? '…' : ''}</s> → ${newText.slice(0, 60)}${newText.length > 60 ? '…' : ''}</span>`);
-      saveChanges();
+      saveTask(entry.closest('.task'));
       return;
     }
   });
@@ -1468,7 +1490,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!comment) { input.focus(); return; }
 
       const _now    = Date.now();
-      const today   = new Date(_now).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+      const today   = fmtDate(_now);
       const entry = document.createElement('div');
       entry.className = 'task__tl-entry';
       entry.dataset.ts = _now;
@@ -1663,7 +1685,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (bar) bar.style.width = pct + '%';
       if (lbl) lbl.textContent = done + '/' + all.length;
     }
-    saveChanges(true);
+    saveTask(cb.closest('.task'), true);
   });
 
 

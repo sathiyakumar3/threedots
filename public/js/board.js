@@ -41,6 +41,20 @@ function saveChanges(silent) {
     .catch(err => { console.error('Save failed:', err); showToast('Save failed', true); });
 }
 
+// ── Persist a single task card to Firestore (targeted, no full-board batch) ──
+function saveTask(cardEl, silent) {
+  if (!cardEl) return Promise.resolve();
+  const colEl    = cardEl.closest('.project-column');
+  const columnId = colEl ? (+colEl.dataset.columnId || 0) : 0;
+  const siblings = colEl ? [...colEl.querySelectorAll(':scope > .task')] : [];
+  const order    = siblings.indexOf(cardEl);
+  const { id: taskId, ...taskFields } = serializeTask(cardEl);
+  return db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId)
+    .set({ ...taskFields, boardId: BOARD_ID, columnId, order }, { merge: true })
+    .then(() => { if (!silent) showToast('Saved ✓'); })
+    .catch(err => { console.error('Save failed:', err); showToast('Save failed', true); });
+}
+
 // ── Inject a column dropdown into an existing column element ──
 function setupColDropdown(colEl) {
   const heading = colEl.querySelector('.project-column-heading');

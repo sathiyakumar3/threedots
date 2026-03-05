@@ -148,6 +148,8 @@ function renderCard(taskData) {
     ${todosHTML}
     ${linkHTML}
     ${statsHTML}`;
+  // Cache searchable text to avoid per-keystroke child DOM queries
+  card.dataset.search = `${taskData.title || ''} ${taskData.text} ${tagLabels[taskData.tag] || ''}`.toLowerCase();
   {
     const creates = (taskData.timeline || []).filter(e => e.type === 'create');
     const others  = (taskData.timeline || []).filter(e => e.type !== 'create');

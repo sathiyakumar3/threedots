@@ -49,7 +49,7 @@ body.dark .project-column {
   border-color:var(--border);
 }
 body.dark .project-column-heading {
-  background:var(--surface);
+  background:rgba(26,29,39,0.88);
   border-color:var(--border);
 }
 body.dark .task {
@@ -1436,9 +1436,18 @@ body.dark #appShell[data-role="member"] .board-combo__trigger::after {
 }
 
 .project-column-heading {
+  position:sticky;
+  top:0;
+  z-index:2;
+  background:rgba(244,244,245,0.88);
+  backdrop-filter:blur(8px);
+  -webkit-backdrop-filter:blur(8px);
+  border-radius:10px 10px 0 0;
   margin-bottom:0.75rem;
   margin-left: 7px;
+  margin-right: 7px;
   margin-top: 7px;
+  padding-bottom:6px;
   display:flex;
   align-items:center;
   justify-content:space-between;
@@ -1446,6 +1455,28 @@ body.dark #appShell[data-role="member"] .board-combo__trigger::after {
 
 .project-column-heading__title {
   font-size:16px;
+}
+
+/* Column task-count badge */
+.col-count {
+  display:inline-flex;
+  align-items:center;
+  justify-content:center;
+  min-width:20px;
+  height:20px;
+  padding:0 6px;
+  background:rgba(0,0,0,0.08);
+  color:#6b7280;
+  font-size:11px;
+  font-weight:600;
+  border-radius:10px;
+  margin-left:auto;
+  margin-right:4px;
+  flex-shrink:0;
+}
+body.dark .col-count {
+  background:rgba(255,255,255,0.1);
+  color:#94a3b8;
 }
 
 .project-column-heading__options {
@@ -1472,43 +1503,52 @@ body.dark #appShell[data-role="member"] .board-combo__trigger::after {
   cursor:move;
   background-color:var(--white);
   padding:0.6rem 0.75rem;
-  border-radius:10px;
+  border-radius:12px;
   width:100%;
   box-shadow: 0 1px 4px rgba(100,116,139,.08), 0 1px 2px rgba(100,116,139,.06);
   margin-bottom:0.55rem;
   border:1.5px solid #f1f5f9;
-  transition:box-shadow .15s, border-color .15s;
+  transition:box-shadow .18s, border-color .18s, transform .18s;
 }
 
 .task:hover {
-  box-shadow: 0 4px 12px rgba(100,116,139,.13);
+  box-shadow: 0 6px 18px rgba(100,116,139,.18), 0 2px 6px rgba(100,116,139,.10);
   border-color:#e2e8f0;
+  transform:translateY(-1px);
 }
 
 .task__title {
   font-size:13.5px;
-  font-weight:700;
+  font-weight:600;
   color:#111827;
   margin:0.4rem 0;
   line-height:1.4;
-  letter-spacing:-.01em;
+  letter-spacing:.02em;
   white-space:pre-wrap;
   word-break:break-word;
 }
 
 .task p {
   font-size:13.5px;
-  font-weight:0;
-   color:#111827;
+  font-weight:400;
+  color:#111827;
   margin:0.4rem 0;
   line-height:1.4;
   letter-spacing:-.01em;
   white-space:pre-wrap;
   word-break:break-word;
-  display:none;
+  display:-webkit-box;
+  -webkit-line-clamp:3;
+  -webkit-box-orient:vertical;
+  overflow:hidden;
 }
+/* Expanded or title-less: show full text */
 .task--expanded p,
-.task:not(:has(.task__title)) p { display:block; }
+.task:not(:has(.task__title)) p {
+  display:block;
+  -webkit-line-clamp:unset;
+  overflow:visible;
+}
 
 /* Hide todos & link until card is expanded */
 .task:has(.task__title) .task__todos,
@@ -1516,13 +1556,18 @@ body.dark #appShell[data-role="member"] .board-combo__trigger::after {
 .task--expanded .task__todos { display:flex; }
 .task--expanded .task__link  { display:block; }
 
+/* ── Tight view: hide description + last timeline/comment entry ── */
+body.view-tight .task p                         { display:none !important; }
+body.view-tight .task__tl-entry:last-of-type    { display:none; }
+body.view-tight .task:not(.task--expanded) .task__timeline { border-top:none !important; margin-top:0 !important; padding-top:0 !important; }
+
 /* ── Cozy view: always show descriptions, todos & links ────────── */
-body.view-cozy .task p                          { display:block; }
+body.view-cozy .task p                          { display:block; -webkit-line-clamp:unset; overflow:visible; }
 body.view-cozy .task:has(.task__title) .task__todos { display:flex; }
 body.view-cozy .task:has(.task__title) .task__link  { display:block; }
 
 /* ── Roomy view: cozy + all timeline entries always visible ─────── */
-body.view-roomy .task p                          { display:block; }
+body.view-roomy .task p                          { display:block; -webkit-line-clamp:unset; overflow:visible; }
 body.view-roomy .task:has(.task__title) .task__todos { display:flex; }
 body.view-roomy .task:has(.task__title) .task__link  { display:block; }
 body.view-roomy .task__tl-entry                  { display:flex !important; padding-bottom:.3rem; }
@@ -2285,11 +2330,15 @@ body.dark .col-combo__menu .board-combo__footer { border-color:var(--border); }
 
 /* -- Card Timeline -- */
 .task__timeline {
+  /* border only rendered when non-create entries exist — see :has() rule below */
+}
+/* Show separator only when there is at least one non-create entry */
+.task__timeline:has(> .task__tl-entry:not(.task__tl-entry--create)) {
   margin-top:.55rem;
   padding-top:.45rem;
   border-top:1px solid #f1f5f9;
 }
-/* Hide timeline container entirely when only a create entry exists and card is collapsed */
+/* create-only: no spacing or border */
 .task__timeline--create-only {
   margin-top:0;
   padding-top:0;

@@ -123,6 +123,7 @@
             <button class="topbar-icon-btn" id="viewToggleBtn" title="View"><i class="fas fa-th-large"></i></button>
             <div class="view-dropdown" id="viewDropdown">
               <div class="view-dropdown__label">View</div>
+              <button class="view-dropdown__item" data-view="tight"><i class="fas fa-compress"></i> Tight</button>
               <button class="view-dropdown__item" data-view="compact"><i class="fas fa-minus"></i> Compact</button>
               <button class="view-dropdown__item" data-view="cozy"><i class="fas fa-align-left"></i> Cozy</button>
               <button class="view-dropdown__item" data-view="roomy"><i class="fas fa-expand-alt"></i> Roomy</button>
@@ -365,8 +366,8 @@
     const STORAGE_KEY = 'qnotes_view';
 
     function applyView(view) {
-      document.body.classList.remove('view-cozy', 'view-roomy');
-      if (view === 'cozy' || view === 'roomy') document.body.classList.add('view-' + view);
+      document.body.classList.remove('view-tight', 'view-cozy', 'view-roomy');
+      if (['tight', 'cozy', 'roomy'].includes(view)) document.body.classList.add('view-' + view);
       dropdown.querySelectorAll('.view-dropdown__item').forEach(el => {
         el.classList.toggle('active', el.dataset.view === view);
       });

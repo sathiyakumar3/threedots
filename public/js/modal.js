@@ -452,14 +452,15 @@
       } else {
         logActivity('edit', `<b>${_editAuthor}</b> edited "<em>${text.slice(0, 40)}</em>"`);
       }
-      saveChanges();
+      saveTask(card);
+      // Refresh search cache after edit
+      card.dataset.search = `${title} ${text} ${tagLabels[tag] || ''}`.toLowerCase();
       closeModal();
       return;
     }
 
     // ── Create new card ──
     const colEl    = document.querySelectorAll('.project-column')[selectedColIdx];
-    const today    = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
 
     const authorName  = currentUser?.displayName || currentUser?.email || 'You';
     const authorPhoto = currentUser?.photoURL    || '';
@@ -509,7 +510,7 @@
     if (assignee) card.dataset.assignee = assignee;
     addUpdateWidget(card);
     // Insert "created by" timeline entry (always last → visible when collapsed)
-    const createdDate = new Date().toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+    const createdDate = fmtDate(Date.now());
     const createTL = buildTimeline([{ type: 'create', author: currentUser?.uid || '', text: 'Card Created', date: createdDate, ts: Date.now() }], { createOnly: true });
     card.querySelector('.task__footer').insertAdjacentHTML('beforebegin', createTL);
     refreshExpandBtn(card);
@@ -518,7 +519,9 @@
     zone ? colEl.insertBefore(card, zone) : colEl.appendChild(card);
 
     logActivity('create', `<b>${authorName}</b> created the card - "${text.slice(0, 40)}"`);
-    saveChanges(true);
+    saveTask(card, true);
+    // Stamp search cache on new card
+    card.dataset.search = `${title} ${text} ${tagLabels[tag] || ''}`.toLowerCase();
     closeModal();
   });
 }());

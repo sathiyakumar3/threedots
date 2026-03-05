@@ -41,7 +41,7 @@ function logActivity(type, text, timeLabel, ts, skipPersist) {
   };
   const { cls, icon } = icons[type] || icons.edit;
   const finalTs = ts || Date.now();
-  const now = timeLabel || new Date(finalTs).toLocaleString('en-US', { month: 'short', day: 'numeric', year: 'numeric', hour: 'numeric', minute: '2-digit' });
+  const now = timeLabel || new Date(finalTs).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   const li  = document.createElement('li');
   li.dataset.ts = finalTs;
   li.innerHTML = `<span class='task-icon ${cls}'><i class='${icon}'></i></span>${text}<time>${now}</time>`;
@@ -60,6 +60,21 @@ function daysAgo(isoStr) {
   return `${diff}d ago`;
 }
 
+// ── Strip year from stored date strings e.g. "Mar 4, 2026, 9:27 AM" → "Mar 4, 9:27 AM" ──
+function stripYear(str) {
+  return str ? str.replace(/,\s*\d{4}(?=,)/, '') : str;
+}
+
+// ── Format a timestamp to "Mar 4, 9:27 AM" ──
+function fmtDate(ts) {
+  return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
+}
+
+// ── Build comment tl-meta HTML snippet ──
+function tlMetaHTML(comment, time, author) {
+  return `${comment}<div class='task__tl-meta'><time>${time}</time><b>${author}</b></div>`;
+}
+
 // ── Timeline HTML builder ──
 function buildTimeline(entries, opts) {
   if (!entries || !entries.length) return '';
@@ -76,11 +91,12 @@ function buildTimeline(entries, opts) {
       const avatarHTML  = authorPhoto
         ? `<img class='tl-avatar' src='${authorPhoto}' alt='${authorName}' title='${authorName}' onerror="${avatarFallback}">`
         : `<span class='tl-avatar tl-avatar--initial' title='${authorName}'>${initial}</span>`;
+      const displayDate = stripYear(e.date);
       const textDiv = isComment
-        ? `<div class="task__tl-text" data-comment="${e.text.replace(/"/g, '&quot;')}">${e.text}<div class="task__tl-meta"><time>${e.date}</time><b>${authorName}</b></div></div>`
+        ? `<div class="task__tl-text" data-comment="${e.text.replace(/"/g, '&quot;')}">${e.text}<div class="task__tl-meta"><time>${displayDate}</time><b>${authorName}</b></div></div>`
         : e.type === 'create'
-          ? `<div class="task__tl-text">${e.text}<div class="task__tl-meta"><time>${e.date}</time><b>${authorName}</b></div></div>`
-          : `<div class="task__tl-text"><b>${authorName}</b> ${e.text}<time>${e.date}</time></div>`;
+          ? `<div class="task__tl-text">${e.text}<div class="task__tl-meta"><time>${displayDate}</time><b>${authorName}</b></div></div>`
+          : `<div class="task__tl-text"><b>${authorName}</b> ${e.text}<time>${displayDate}</time></div>`;
       const createClass = (e.type === 'create') ? ' task__tl-entry--create' : '';
       return `<div class="task__tl-entry${createClass}" data-ts="${e.ts || ''}" data-author-uid="${e.author || ''}"><span class="task__tl-dot task__tl-dot--${e.type || 'create'}">${avatarHTML}</span>${textDiv}</div>`;
     }).join('')}
