@@ -1,7 +1,7 @@
 // ── Firebase configuration & initialisation ──
 const firebaseConfig = {
   apiKey: "AIzaSyBpkOQE7zdXU4tBq5z2V3R04dOh-eJ3G9o",
-  authDomain: "threedots-92cd6.firebaseapp.com",
+  authDomain: "threedots.app",
   projectId: "threedots-92cd6",
   storageBucket: "threedots-92cd6.firebasestorage.app",
   messagingSenderId: "64245808992",

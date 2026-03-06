@@ -24,8 +24,14 @@
       "emailPassword": true,
       "googleSignIn": {
         "oAuthBrandDisplayName": "threedots",
-        "supportEmail": "support@threedots@firebaseapp.com"
+        "supportEmail": "support@threedots.app"
       }
+    },
+    "email": {
+      "senderDisplayName": "Taskbz",
+      "senderLocalPart": "noreply",
+      "customDomain": "threedots.app",
+      "actionUrl": "https://threedots.app/__/auth/action"
     }
   }
 }
