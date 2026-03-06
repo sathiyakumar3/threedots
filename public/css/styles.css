@@ -1579,8 +1579,14 @@ body.view-roomy .task__tl-entry:not(:last-of-type)::after { content:''; position
   border-radius:6px;
   padding:2px 9px;
   font-size:10px;
-  font-weight:600;
+  font-weight:700;
   letter-spacing:.01em;
+  text-transform: uppercase;
+}
+
+@keyframes glow{
+  from{text-shadow:0px 0px 5px #fff,0px 0px 5px #614ad3;}
+  to{text-shadow:0px 0px 20px #fff,0px 0px 20px #614ad3;}
 }
 
 .task__tags {

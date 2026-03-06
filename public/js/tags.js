@@ -20,15 +20,30 @@
   const dynStyle = document.createElement('style');
   document.head.appendChild(dynStyle);
 
-  // Gamma-corrected perceived luminance (SO #3942878 — most perceptually accurate)
-  // Weights: green (0.587) > red (0.299) > blue (0.114), matching human eye sensitivity
+  // Gamma-corrected perceived luminance → returns a tinted dark/light shade of the tag colour
   function tagTextColor(hex) {
     const c = hex.replace('#', '');
     const r = parseInt(c.length === 3 ? c[0]+c[0] : c.slice(0,2), 16);
     const g = parseInt(c.length === 3 ? c[1]+c[1] : c.slice(2,4), 16);
     const b = parseInt(c.length === 3 ? c[2]+c[2] : c.slice(4,6), 16);
     const luminance = Math.sqrt(0.299 * r*r + 0.587 * g*g + 0.114 * b*b) / 255;
-    return luminance > 0.5 ? '#000000' : '#ffffff';
+    // Convert to HSL so we can shift only the lightness
+    const rn = r/255, gn = g/255, bn = b/255;
+    const max = Math.max(rn, gn, bn), min = Math.min(rn, gn, bn);
+    let h = 0, s = 0;
+    const l = (max + min) / 2;
+    if (max !== min) {
+      const d = max - min;
+      s = l > 0.5 ? d / (2 - max - min) : d / (max + min);
+      if      (max === rn) h = ((gn - bn) / d + (gn < bn ? 6 : 0)) / 6;
+      else if (max === gn) h = ((bn - rn) / d + 2) / 6;
+      else                 h = ((rn - gn) / d + 4) / 6;
+    }
+    const hDeg = Math.round(h * 360);
+    const sPct = Math.round(Math.min(s * 1.2, 1) * 100);
+    return luminance > 0.5
+      ? `hsl(${hDeg},${sPct}%,22%)`  // dark shade for light-background tags
+      : `hsl(${hDeg},${sPct}%,90%)`; // light shade for dark-background tags
   }
 
   function applyTagStyles(tags) {
