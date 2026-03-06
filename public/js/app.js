@@ -564,8 +564,12 @@ document.addEventListener('DOMContentLoaded', () => {
   new MutationObserver(mutations => {
     if (mutations.some(m => [...m.addedNodes, ...m.removedNodes].some(n => n.classList?.contains('task')))) {
       refreshAllColCounts();
+      scheduleOverflowCheck();
     }
   }).observe(board, { childList: true, subtree: true });
+
+  // Re-check overflow when the window is resized
+  window.addEventListener('resize', scheduleOverflowCheck);
 
   // ── Author identity helpers ──────────────────────────────────────────────
   function _authorName()  { return currentUser?.displayName || currentUser?.email || 'You'; }
@@ -1383,6 +1387,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     dragSrcEl.style.opacity = '1';
     clearHighlights();
+    scheduleOverflowCheck();
 
     // ── Single-document drag save (fractional order) ──
     const taskId    = dragSrcEl.dataset.id;
@@ -1460,6 +1465,30 @@ document.addEventListener('DOMContentLoaded', () => {
       if (colEl) colEl.appendChild(renderCard(taskData));
     });
     refreshAllColCounts();
+    // Check overflow after all cards are in the DOM and painted
+    setTimeout(checkColumnOverflow, 80);
+  }
+
+  // ── Card expand / collapse animation helper ──────────────────────────────
+  function setCardExpanded(task, expanded) {
+    if (task.classList.contains('task--expanded') === expanded) return;
+    const startH = task.offsetHeight;
+    if (expanded) task.classList.add('task--expanded');
+    else          task.classList.remove('task--expanded');
+    refreshExpandBtn(task);
+    const endH = task.offsetHeight;
+    if (startH === endH) return;
+    task.style.height   = startH + 'px';
+    task.style.overflow = 'hidden';
+    task.getBoundingClientRect(); // force reflow
+    task.style.transition = 'height 0.28s cubic-bezier(0.4,0,.2,1)';
+    task.style.height = endH + 'px';
+    function finish(e) {
+      if (e.propertyName !== 'height') return;
+      task.removeEventListener('transitionend', finish);
+      task.style.height = task.style.overflow = task.style.transition = '';
+    }
+    task.addEventListener('transitionend', finish);
   }
 
   // ── Card expand / collapse ───────────────────────────────────────────────
@@ -1485,8 +1514,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const t = textDiv._savedTime || '';
       textDiv.innerHTML = tlMetaHTML(textDiv.dataset.comment || '', t, textDiv._savedAuthor || '');
     });
-    task.classList.toggle('task--expanded');
-    refreshExpandBtn(task);
+    setCardExpanded(task, !task.classList.contains('task--expanded'));
   });
 
   // ── Task options dropdown ────────────────────────────────────────────────
@@ -1666,8 +1694,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.task__cc-cancel')) {
       const task = e.target.closest('.task');
       task.querySelector('.task__comment-input').value = '';
-      task.classList.remove('task--expanded');
-      refreshExpandBtn(task);
+      setCardExpanded(task, false);
       return;
     }
     if (e.target.closest('.task__cc-submit')) {
@@ -1701,8 +1728,7 @@ document.addEventListener('DOMContentLoaded', () => {
         span.innerHTML = `<i class='fas fa-comment'></i>${n + 1}`;
       }
 
-      task.classList.add('task--expanded');
-      refreshExpandBtn(task);
+      setCardExpanded(task, true);
       input.value = '';
       box.classList.remove('open');
       const cardText = task.querySelector('p')?.textContent.slice(0, 40) || 'Card';

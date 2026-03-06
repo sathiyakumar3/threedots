@@ -69,8 +69,30 @@ body.dark .project-column-heading {
   border-color:var(--border);
 }
 body.dark .task {
-  background:var(--surface);
-  border-color:var(--border);
+  background: rgba(15,18,38,0.72);
+  backdrop-filter: blur(18px) saturate(160%);
+  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  border:1px solid rgba(255,255,255,0.07);
+  box-shadow:
+    0 2px 12px rgba(0,0,0,0.38),
+    0 1px 3px rgba(0,0,0,0.22),
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    inset 0 0 28px 10px rgba(255,255,255,0.02);
+}
+body.dark .task::before {
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,0.11), transparent);
+}
+body.dark .task::after {
+  background:linear-gradient(180deg, rgba(255,255,255,0.10), transparent, rgba(255,255,255,0.04));
+}
+body.dark .task:hover {
+  background: rgba(22,26,52,0.86);
+  border-color: rgba(255,255,255,0.13);
+  box-shadow:
+    0 8px 28px rgba(0,0,0,0.55),
+    0 2px 8px rgba(0,0,0,0.32),
+    inset 0 1px 0 rgba(255,255,255,0.11),
+    inset 0 0 32px 12px rgba(255,255,255,0.03);
 }
 body.dark .task p { color:var(--text); }
 body.dark .task__title { color:var(--text); }
@@ -1601,19 +1623,56 @@ body.dark .col-count {
 
 .task {
   cursor:move;
-  background-color:var(--white);
+  background: rgba(255,255,255,0.68);
+  backdrop-filter: blur(18px) saturate(180%);
+  -webkit-backdrop-filter: blur(18px) saturate(180%);
   padding:0.6rem 0.75rem;
   border-radius:12px;
   width:100%;
-  box-shadow: 0 1px 4px rgba(100,116,139,.08), 0 1px 2px rgba(100,116,139,.06);
+  box-shadow:
+    0 2px 12px rgba(99,102,241,0.09),
+    0 1px 3px rgba(0,0,0,0.06),
+    inset 0 1px 0 rgba(255,255,255,0.90),
+    inset 0 0 32px 12px rgba(255,255,255,0.20);
   margin-bottom:0.55rem;
-  border:1.5px solid #f1f5f9;
-  transition:box-shadow .18s, border-color .18s, transform .18s;
+  border:1px solid rgba(210,218,240,0.70);
+  transition:box-shadow .22s, border-color .22s, transform .22s, background .22s;
+  box-sizing:border-box;
+  position:relative;
+  z-index:1;
+}
+/* Elevate a card above its siblings when its dropdown is open */
+.task:has(.task__dropdown.open) {
+  z-index:100;
+}
+.task::before {
+  content:'';
+  position:absolute;
+  top:0; left:0; right:0;
+  height:1px;
+  background:linear-gradient(90deg, transparent, rgba(255,255,255,0.92), transparent);
+  border-radius:12px 12px 0 0;
+  pointer-events:none;
+  z-index:1;
+}
+.task::after {
+  content:'';
+  position:absolute;
+  top:0; left:0;
+  width:1px; height:100%;
+  background:linear-gradient(180deg, rgba(255,255,255,0.88), transparent, rgba(255,255,255,0.28));
+  pointer-events:none;
+  z-index:1;
 }
 
 .task:hover {
-  box-shadow: 0 6px 18px rgba(100,116,139,.18), 0 2px 6px rgba(100,116,139,.10);
-  border-color:#e2e8f0;
+  background: rgba(255,255,255,0.82);
+  box-shadow:
+    0 8px 28px rgba(99,102,241,0.15),
+    0 2px 8px rgba(0,0,0,0.08),
+    inset 0 1px 0 rgba(255,255,255,0.96),
+    inset 0 0 36px 14px rgba(255,255,255,0.26);
+  border-color: rgba(180,195,235,0.85);
   transform:translateY(-1px);
 }
 
@@ -1655,6 +1714,17 @@ body.dark .col-count {
 .task:has(.task__title) .task__link { display:none; }
 .task--expanded .task__todos { display:flex; }
 .task--expanded .task__link  { display:block; }
+
+/* Fade-in for content revealed on card expansion */
+@keyframes taskContentFadeIn {
+  from { opacity:0; transform:translateY(5px); }
+  to   { opacity:1; transform:translateY(0); }
+}
+.task--expanded .task__todos,
+.task--expanded .task__link,
+.task--expanded .task__tl-entry:not(:last-of-type),
+.task--expanded .task__tl-entry--create,
+.task--expanded .task__comment-box { animation:taskContentFadeIn 0.22s cubic-bezier(0.4,0,.2,1) both; }
 
 /* ── Tight view: hide description + last timeline/comment entry ── */
 body.view-tight .task p                         { display:none !important; }
@@ -4201,14 +4271,20 @@ body.dark .project-column {
 }
 
 body.dark .task {
-  background: rgba(20,24,42,0.72) !important;
-  border: 1.5px solid rgba(255,255,255,0.07) !important;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.30) !important;
+  background: rgba(15,18,38,0.72) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  box-shadow:
+    0 2px 12px rgba(0,0,0,0.38),
+    inset 0 1px 0 rgba(255,255,255,0.07),
+    inset 0 0 28px 10px rgba(255,255,255,0.02) !important;
 }
 body.dark .task:hover {
-  background: rgba(28,32,55,0.88) !important;
-  border-color: rgba(255,255,255,0.12) !important;
-  box-shadow: 0 8px 28px rgba(0,0,0,0.45) !important;
+  background: rgba(22,26,52,0.86) !important;
+  border-color: rgba(255,255,255,0.13) !important;
+  box-shadow:
+    0 8px 28px rgba(0,0,0,0.55),
+    inset 0 1px 0 rgba(255,255,255,0.11),
+    inset 0 0 32px 12px rgba(255,255,255,0.03) !important;
 }
 
 body.dark .board-combo__trigger {
@@ -4282,6 +4358,48 @@ body.dark .insights-panel,
 body.dark .activity-panel {
   background: rgba(10,12,22,0.85) !important;
   border-left: 1px solid rgba(255,255,255,0.07) !important;
+}
+
+/* ── Sub-column overflow layout ────────────────────────────────────
+   When a column has more cards than fit in the viewport, checkColumnOverflow()
+   sets data-subcols="N" on the .project-column element. CSS multi-column
+   then distributes the cards across N side-by-side sub-columns, and syncGrid()
+   gives the .project-column a grid-column:span N so it occupies more board width.
+   Minimum column width per sub-column is 300 px (checked in JS before activating).
+   ──────────────────────────────────────────────────────────────────────────── */
+.project-column[data-subcols] .task {
+  break-inside: avoid;
+  page-break-inside: avoid;
+}
+.project-column[data-subcols="2"] { column-count: 2; column-gap: 8px; }
+.project-column[data-subcols="3"] { column-count: 3; column-gap: 8px; }
+.project-column[data-subcols="4"] { column-count: 4; column-gap: 8px; }
+
+/* The heading spans all CSS columns; sticky is not needed when cards fit in viewport */
+.project-column[data-subcols] .project-column-heading {
+  column-span: all;
+  -webkit-column-span: all;
+  position: relative;
+}
+
+/* Subtle indicator pill on the heading showing sub-column count */
+.project-column[data-subcols] .project-column-heading[data-subcols-label]::after {
+  content: attr(data-subcols-label);
+  font-size: 9.5px;
+  font-weight: 600;
+  color: #94a3b8;
+  background: rgba(148,163,184,0.12);
+  border: 1px solid rgba(148,163,184,0.2);
+  border-radius: 10px;
+  padding: 1px 7px;
+  margin-left: 6px;
+  vertical-align: middle;
+  letter-spacing: .02em;
+}
+body.dark .project-column[data-subcols] .project-column-heading[data-subcols-label]::after {
+  color: #475569;
+  background: rgba(71,85,105,0.18);
+  border-color: rgba(71,85,105,0.3);
 }
 
 
