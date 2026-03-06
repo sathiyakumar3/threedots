@@ -2,6 +2,7 @@
 (function () {
   // Resolved once in init()
   let titleEl, textEl, titleBtn, descBtn;
+  let aiAvailable = false; // checked eagerly on startup
 
   // ── Visibility ────────────────────────────────────────────────────────────
   function wordCount(str) {
@@ -9,6 +10,11 @@
   }
 
   function updateVisibility() {
+    if (!aiAvailable) {
+      titleBtn?.classList.remove('ai-assist-btn--visible');
+      descBtn?.classList.remove('ai-assist-btn--visible');
+      return;
+    }
     const hasTitle   = wordCount(titleEl?.value) >= 1;
     const descWords  = wordCount(textEl?.value);
     const descLong   = descWords > 3;
@@ -17,7 +23,7 @@
   }
 
   // ── Summarizer helpers ────────────────────────────────────────────────────
-  async function isSummarizerAvailable() {
+  async function checkSummarizerAvailable() {
     if (!('Summarizer' in self)) return false;
     return (await Summarizer.availability()) !== 'unavailable';
   }
@@ -50,7 +56,7 @@
 
   // ── Shared AI runner ──────────────────────────────────────────────────────
   async function runAI(btn, getSummarizer, getInput, onResult) {
-    if (!(await isSummarizerAvailable())) {
+    if (!aiAvailable) {
       showToast('Chrome Summarizer API is not available in this browser.', true);
       return;
     }
@@ -112,22 +118,27 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    init();
+    // ── Check availability eagerly on startup; only wire up buttons if available ──
+    checkSummarizerAvailable().then(available => {
+      aiAvailable = available;
+      console.log('[AI] Summarizer available:', aiAvailable);
+      init();
 
-    // Hide buttons when modal closes (values reset without firing 'input')
-    new MutationObserver(() => {
-      if (!document.getElementById('modalOverlay')?.classList.contains('open'))
-        updateVisibility();
-    }).observe(document.getElementById('modalOverlay') || document.body,
-               { attributes: true, attributeFilter: ['class'] });
+      // Hide buttons when modal closes (values reset without firing 'input')
+      new MutationObserver(() => {
+        if (!document.getElementById('modalOverlay')?.classList.contains('open'))
+          updateVisibility();
+      }).observe(document.getElementById('modalOverlay') || document.body,
+                 { attributes: true, attributeFilter: ['class'] });
 
-    // Patch modal openers to re-check visibility after fields are populated
-    setTimeout(() => {
-      ['_openModal', '_openEditModal'].forEach(key => {
-        const orig = window[key];
-        if (orig) window[key] = function (...args) { orig.apply(this, args); setTimeout(updateVisibility, 0); };
-      });
-    }, 100);
+      // Patch modal openers to re-check visibility after fields are populated
+      setTimeout(() => {
+        ['_openModal', '_openEditModal'].forEach(key => {
+          const orig = window[key];
+          if (orig) window[key] = function (...args) { orig.apply(this, args); setTimeout(updateVisibility, 0); };
+        });
+      }, 100);
+    });
   });
 }());
 

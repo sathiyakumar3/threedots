@@ -19,6 +19,15 @@
   --surface:#ffffff;
   --border:#e5e7eb;
   --topbar-bg:#ffffff;
+  /* glassmorphism */
+  --glass-bg: rgba(255,255,255,0.78);
+  --glass-bg-strong: rgba(255,255,255,0.97);
+  --glass-border: rgba(210,218,238,0.85);
+  --glass-border-subtle: rgba(200,210,235,0.65);
+  --glass-shadow: 0 4px 24px rgba(99,102,241,0.10), 0 1px 4px rgba(0,0,0,0.05);
+  --glass-shadow-lg: 0 8px 40px rgba(99,102,241,0.14), 0 2px 8px rgba(0,0,0,0.07);
+  --glass-blur: blur(18px) saturate(180%);
+  --body-gradient: linear-gradient(135deg, #f1f5f9 0%, #e8edf8 50%, #eef0fb 100%);
 }
 
 /* -- Dark mode -- */
@@ -32,6 +41,14 @@ body.dark {
   --surface:#1a1d27;
   --border:#2d3148;
   --topbar-bg:#13151f;
+  /* glassmorphism dark */
+  --glass-bg: rgba(15,18,32,0.80);
+  --glass-bg-strong: rgba(18,22,40,0.97);
+  --glass-border: rgba(255,255,255,0.10);
+  --glass-border-subtle: rgba(255,255,255,0.05);
+  --glass-shadow: 0 4px 24px rgba(0,0,0,0.40), 0 1px 4px rgba(0,0,0,0.25);
+  --glass-shadow-lg: 0 8px 40px rgba(0,0,0,0.55), 0 2px 8px rgba(0,0,0,0.30);
+  --body-gradient: linear-gradient(135deg, #07091a 0%, #0d0a2a 45%, #080d22 100%);
 }
 body.dark .project-info {
   background:var(--topbar-bg);
@@ -49,7 +66,6 @@ body.dark .project-column {
   border-color:var(--border);
 }
 body.dark .project-column-heading {
-  background:rgba(26,29,39,0.88);
   border-color:var(--border);
 }
 body.dark .task {
@@ -171,11 +187,12 @@ body.dark .login-card p { color:var(--text); }
 
 body {
   color:var(--text);
-  background:var(--bg);
+  background: var(--body-gradient) fixed;
+  min-height:100vh;
 }
 
 .app {
-  background-color:var(--bg);
+  background:transparent;
   width:100%;
   min-height:100vh;
 }
@@ -1371,6 +1388,30 @@ body.dark .topbar-user__view-opt.active { background: #2a2d45; color: #a78bfa; b
 .tmr-revoke   { background:#fee2e2; color:#dc2626; }
 .tmr-revoke:hover { background:#fecaca; }
 
+/* Owner badge */
+.tmr-owner-badge {
+  display:inline-flex;
+  align-items:center;
+  gap:3px;
+  font-size:10px;
+  font-weight:600;
+  color:#b45309;
+  background:#fef3c7;
+  border:1px solid #fde68a;
+  border-radius:5px;
+  padding:1px 5px;
+  margin-left:6px;
+  vertical-align:middle;
+  letter-spacing:.2px;
+}
+.tmr-owner-badge i { font-size:9px; color:#d97706; }
+body.dark .tmr-owner-badge {
+  background:#451a03;
+  border-color:#78350f;
+  color:#fcd34d;
+}
+body.dark .tmr-owner-badge i { color:#fbbf24; }
+
 /* pending (non-member) row */
 .team-member-row--pending { opacity: .85; }
 .team-member-row__avatar--pending {
@@ -1499,7 +1540,6 @@ body.dark #appShell[data-role="member"] .board-combo__trigger::after {
   position:sticky;
   top:0;
   z-index:2;
-  background:rgba(244,244,245,0.88);
   backdrop-filter:blur(8px);
   -webkit-backdrop-filter:blur(8px);
   border-radius:10px 10px 0 0;
@@ -3707,7 +3747,9 @@ body.dark .task__startdate { background:#0c4a6e; color:#38bdf8; }
   position:fixed;
   inset:0;
   z-index:1200;
-  background:rgba(0,0,0,.45);
+  background:rgba(15,23,42,.45);
+  backdrop-filter:blur(6px);
+  -webkit-backdrop-filter:blur(6px);
   display:none;
   align-items:center;
   justify-content:center;
@@ -3734,27 +3776,41 @@ body.cal-open { overflow:hidden; }
 
 .cal-modal__header {
   display:flex;
-  align-items:center;
-  justify-content:space-between;
-  padding:.75rem 1.25rem;
-  border-bottom:1px solid #f0f1f6;
+  flex-direction:column;
+  gap:12px;
+  padding:18px 22px 0;
+  border-radius:16px 16px 0 0;
   flex-shrink:0;
-  gap:10px;
+  overflow:hidden;
 }
-.cal-modal__title {
-  font-size:15px;
-  font-weight:600;
-  color:var(--text);
+.cal-modal__header-brand {
   display:flex;
   align-items:center;
-  gap:7px;
+  justify-content:space-between;
+}
+.cal-modal__title {
+  font-size:16px;
+  font-weight:600;
+  color:#0B1220;
+  letter-spacing:-.2px;
+  margin:0;
+  font-family:'Inter',ui-sans-serif,system-ui,sans-serif;
+  display:flex;
+  align-items:center;
+  gap:8px;
 }
 .cal-modal__title i { color:var(--purple); }
 .cal-modal__header-actions {
   display:flex;
   align-items:center;
   gap:8px;
-  margin-left:auto;
+}
+.cal-modal__header-bar {
+  height:3px;
+  background:var(--purple-gradient);
+  border-radius:2px;
+  margin:0 -22px;
+  opacity:.7;
 }
 
 .cal-board-filter {
@@ -3929,7 +3985,8 @@ body.dark .cal-modal {
   background:var(--white);
   border:1px solid #2d2d3d;
 }
-body.dark .cal-modal__header { border-color:#2d2d3d; }
+body.dark .cal-modal__header { border-bottom:none; }
+body.dark .cal-modal__title { color:#F1F5F9; }
 body.dark .cal-board-filter {
   background:#1e1e2e;
   border-color:#3a3a55;
@@ -3967,4 +4024,264 @@ body.dark .cal-sidebar__card { background:#242438; }
 body.dark .cal-sidebar__card:hover { background:#2a2d45; }
 body.dark .cs-title { color:var(--text); }
 body.dark .cs-meta { color:#8a8aaa; }
+
+/* ══════════════════════════════════════════════════
+   GLASSMORPHISM OVERHAUL
+   All major surfaces get frosted-glass treatment.
+   These rules override the defaults above via cascade.
+══════════════════════════════════════════════════ */
+
+/* ── Topbar ── */
+.project-info {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border-bottom: 1px solid var(--glass-border) !important;
+  box-shadow: 0 1px 0 0 var(--glass-border-subtle), var(--glass-shadow) !important;
+}
+
+/* ── Columns ── */
+.project-column {
+  background: var(--glass-bg) !important;
+  backdrop-filter: var(--glass-blur);
+  -webkit-backdrop-filter: var(--glass-blur);
+  border: 1px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow) !important;
+}
+
+/* ── Column headings (sticky) ── */
+.project-column-heading {
+  background: transparent !important;
+  backdrop-filter: none !important;
+  -webkit-backdrop-filter: none !important;
+  border-bottom: none !important;
+}
+
+/* ── Cards ── */
+.task {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(10px) saturate(160%);
+  -webkit-backdrop-filter: blur(10px) saturate(160%);
+  border: 1.5px solid var(--glass-border) !important;
+  box-shadow: 0 2px 10px rgba(99,102,241,0.07), 0 1px 3px rgba(0,0,0,0.04) !important;
+}
+.task:hover {
+  background: rgba(255,255,255,0.88) !important;
+  border-color: rgba(255,255,255,1) !important;
+  box-shadow: 0 8px 28px rgba(99,102,241,0.16), 0 2px 8px rgba(0,0,0,0.06) !important;
+}
+
+/* ── Board combo trigger ── */
+.board-combo__trigger {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(12px);
+  -webkit-backdrop-filter: blur(12px);
+  border-color: var(--glass-border-subtle) !important;
+  box-shadow: 0 1px 6px rgba(99,102,241,0.08) !important;
+}
+
+/* ── Dropdowns & popups ── */
+.board-combo__menu,
+.board-dropdown,
+.col-dropdown,
+.tags-popup,
+.tags-themes,
+.topbar-user__dropdown,
+.view-dropdown,
+.participant-card {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  border: 1.5px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow-lg) !important;
+}
+.topbar-user__dropdown {
+  background: rgba(255,255,255,0.97) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+}
+
+/* ── Team panel ── */
+.team-panel {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(20px) saturate(200%);
+  -webkit-backdrop-filter: blur(20px) saturate(200%);
+  border: 1.5px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow-lg) !important;
+}
+
+/* ── User dropdown header ── */
+.topbar-user__header {
+  background: rgba(245,246,250,0.60) !important;
+  border-bottom: 1px solid rgba(220,225,240,0.5) !important;
+}
+
+/* ── Add-card modal ── */
+.modal {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1.5px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow-lg) !important;
+}
+.modal__header,
+.modal__actions {
+  border-color: rgba(220,225,240,0.55) !important;
+}
+.modal-overlay {
+  backdrop-filter: blur(6px) !important;
+  -webkit-backdrop-filter: blur(6px) !important;
+}
+
+/* ── Task details side panel ── */
+.task-details {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-left: 1px solid var(--glass-border) !important;
+  box-shadow: -6px 0 40px rgba(99,102,241,0.10) !important;
+}
+
+/* ── Calendar modal ── */
+.cal-modal {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1.5px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow-lg) !important;
+}
+.cal-modal__header {
+  background: transparent !important;
+  border-bottom: none !important;
+}
+.cal-modal__header-bar {
+  background: var(--purple-gradient) !important;
+  opacity: .55;
+}
+.cal-sidebar {
+  background: rgba(248,249,254,0.60) !important;
+  border-right: 1px solid rgba(220,225,240,0.55) !important;
+}
+
+/* ── Login overlay & card ── */
+.login-overlay {
+  background: var(--body-gradient) !important;
+  backdrop-filter: blur(4px);
+  -webkit-backdrop-filter: blur(4px);
+}
+.login-card {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(24px) saturate(200%);
+  -webkit-backdrop-filter: blur(24px) saturate(200%);
+  border: 1.5px solid var(--glass-border) !important;
+  box-shadow: var(--glass-shadow-lg) !important;
+}
+
+/* ── Insights / activity panels ── */
+.insights-panel,
+.activity-panel {
+  background: var(--glass-bg-strong) !important;
+  backdrop-filter: blur(20px) saturate(180%);
+  -webkit-backdrop-filter: blur(20px) saturate(180%);
+  border-left: 1px solid var(--glass-border) !important;
+}
+
+/* ══ DARK MODE OVERRIDES ══ */
+
+body.dark .project-info {
+  background: rgba(10,12,25,0.75) !important;
+  border-bottom: 1px solid var(--glass-border) !important;
+  box-shadow: 0 1px 0 rgba(255,255,255,0.04), var(--glass-shadow) !important;
+}
+
+body.dark .project-column {
+  background: rgba(15,18,32,0.65) !important;
+  border: 1px solid rgba(255,255,255,0.07) !important;
+  box-shadow: var(--glass-shadow) !important;
+}
+
+body.dark .task {
+  background: rgba(20,24,42,0.72) !important;
+  border: 1.5px solid rgba(255,255,255,0.07) !important;
+  box-shadow: 0 2px 10px rgba(0,0,0,0.30) !important;
+}
+body.dark .task:hover {
+  background: rgba(28,32,55,0.88) !important;
+  border-color: rgba(255,255,255,0.12) !important;
+  box-shadow: 0 8px 28px rgba(0,0,0,0.45) !important;
+}
+
+body.dark .board-combo__trigger {
+  background: rgba(20,24,42,0.75) !important;
+  border-color: rgba(255,255,255,0.08) !important;
+}
+
+body.dark .board-combo__menu,
+body.dark .board-dropdown,
+body.dark .col-dropdown,
+body.dark .tags-popup,
+body.dark .tags-themes,
+body.dark .topbar-user__dropdown,
+body.dark .view-dropdown,
+body.dark .participant-card,
+body.dark .team-panel {
+  background: rgba(12,14,28,0.85) !important;
+  border: 1.5px solid rgba(255,255,255,0.08) !important;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.55) !important;
+}
+body.dark .topbar-user__dropdown {
+  background: rgba(18,20,38,0.98) !important;
+}
+
+body.dark .topbar-user__header {
+  background: rgba(255,255,255,0.04) !important;
+  border-bottom: 1px solid rgba(255,255,255,0.06) !important;
+}
+
+body.dark .modal {
+  background: rgba(12,14,28,0.85) !important;
+  border: 1.5px solid rgba(255,255,255,0.08) !important;
+}
+body.dark .modal__header,
+body.dark .modal__actions {
+  border-color: rgba(255,255,255,0.07) !important;
+}
+
+body.dark .task-details {
+  background: rgba(10,12,22,0.85) !important;
+  border-left: 1px solid rgba(255,255,255,0.07) !important;
+}
+
+body.dark .cal-modal {
+  background: rgba(10,12,24,0.88) !important;
+  border: 1.5px solid rgba(255,255,255,0.08) !important;
+}
+body.dark .cal-modal__header {
+  border-bottom: none !important;
+}
+body.dark .cal-modal__header-bar {
+  opacity: .35;
+}
+body.dark .cal-modal__title {
+  color: #F1F5F9 !important;
+}
+body.dark .cal-sidebar {
+  background: rgba(15,18,30,0.70) !important;
+  border-right: 1px solid rgba(255,255,255,0.07) !important;
+}
+
+body.dark .login-overlay {
+  background: var(--body-gradient) !important;
+}
+body.dark .login-card {
+  background: rgba(12,14,28,0.85) !important;
+  border: 1.5px solid rgba(255,255,255,0.09) !important;
+}
+
+body.dark .insights-panel,
+body.dark .activity-panel {
+  background: rgba(10,12,22,0.85) !important;
+  border-left: 1px solid rgba(255,255,255,0.07) !important;
+}
+
 

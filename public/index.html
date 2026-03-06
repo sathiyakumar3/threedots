@@ -122,19 +122,6 @@
             <button class="topbar-search__clear" id="searchClear" title="Clear"><i class="fas fa-times"></i></button>
           </div>
            <div class="topbar-divider"></div>
-          <div class="view-toggle-wrap" id="viewToggleWrap">
-            <button class="topbar-icon-btn" id="viewToggleBtn" title="View"><i class="fas fa-th-large"></i></button>
-            <div class="view-dropdown" id="viewDropdown">
-              <div class="view-dropdown__label">View</div>
-              <button class="view-dropdown__item" data-view="tight"><i class="fas fa-compress"></i> Tight</button>
-              <button class="view-dropdown__item" data-view="compact"><i class="fas fa-minus"></i> Compact</button>
-              <button class="view-dropdown__item" data-view="cozy"><i class="fas fa-align-left"></i> Cozy</button>
-              <button class="view-dropdown__item" data-view="roomy"><i class="fas fa-expand-alt"></i> Roomy</button>
-            </div>
-          </div>
-          <button class="topbar-icon-btn" id="themeToggleBtn" title="Toggle dark mode"><i class="fas fa-moon"></i></button>
-
-     
 
           <button class="topbar-icon-btn" id="insightsBtn" title="Board Insights (AI)"><i class="fas fa-lightbulb"></i></button>
           <button class="topbar-icon-btn" id="calendarBtn" title="Calendar View"><i class="fas fa-calendar-alt"></i></button>
@@ -173,6 +160,9 @@
                   <button class="topbar-user__view-opt" data-view="roomy" title="Roomy"><i class="fas fa-expand-alt"></i><span>Roomy</span></button>
                 </div>
               </div>
+              <div class="topbar-user__divider"></div>
+              <button class="topbar-user__item" id="themeToggleBtn"><i class="fas fa-moon" id="themeToggleIcon"></i> <span id="themeToggleLabel">Dark mode</span></button>
+              <button class="topbar-user__item" id="fullscreenBtn"><i class="fas fa-expand" id="fullscreenIcon"></i> <span id="fullscreenLabel">Full screen</span></button>
               <div class="topbar-user__divider"></div>
               <button class="topbar-user__item danger" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
             </div>
@@ -393,10 +383,13 @@
   <div class="cal-overlay" id="calOverlay">
     <div class="cal-modal">
       <div class="cal-modal__header">
-        <span class="cal-modal__title"><i class="fas fa-calendar-alt"></i> Calendar</span>
-        <div class="cal-modal__header-actions">
-          <button class="cal-close-btn" id="calCloseBtn" title="Close"><i class="fas fa-times"></i></button>
+        <div class="cal-modal__header-brand">
+          <h3 class="cal-modal__title"><i class="fas fa-calendar-alt"></i> Calendar</h3>
+          <div class="cal-modal__header-actions">
+            <button class="cal-close-btn" id="calCloseBtn" title="Close"><i class="fas fa-times"></i></button>
+          </div>
         </div>
+        <div class="cal-modal__header-bar"></div>
       </div>
       <div class="cal-modal__body">
         <aside class="cal-sidebar" id="calSidebar">
@@ -427,21 +420,15 @@
   <script src="js/calendar.js"></script>
   <script>
   (function () {
-    const btn      = document.getElementById('viewToggleBtn');
-    const dropdown = document.getElementById('viewDropdown');
     const STORAGE_KEY = 'qnotes_view';
 
     window.applyView = function(view, persist) {
       if (persist === undefined) persist = true;
       document.body.classList.remove('view-tight', 'view-cozy', 'view-roomy');
       if (['tight', 'cozy', 'roomy'].includes(view)) document.body.classList.add('view-' + view);
-      dropdown.querySelectorAll('.view-dropdown__item').forEach(el => {
-        el.classList.toggle('active', el.dataset.view === view);
-      });
       document.querySelectorAll('.topbar-user__view-opt').forEach(el => {
         el.classList.toggle('active', el.dataset.view === view);
       });
-      btn.classList.toggle('active', view !== 'compact');
       localStorage.setItem(STORAGE_KEY, view);
       if (persist && window.saveViewPreference) window.saveViewPreference(view);
     };
@@ -449,27 +436,10 @@
     // Restore saved preference (no Firestore write on initial load)
     window.applyView(localStorage.getItem(STORAGE_KEY) || 'cozy', false);
 
-    btn.addEventListener('click', e => {
-      e.stopPropagation();
-      dropdown.classList.toggle('open');
-    });
-
-    dropdown.addEventListener('click', e => {
-      const item = e.target.closest('.view-dropdown__item');
-      if (!item) return;
-      window.applyView(item.dataset.view);
-      dropdown.classList.remove('open');
-    });
-
     document.getElementById('profileViewOptions').addEventListener('click', e => {
       const opt = e.target.closest('.topbar-user__view-opt');
       if (!opt) return;
       window.applyView(opt.dataset.view);
-    });
-
-    document.addEventListener('click', e => {
-      if (!document.getElementById('viewToggleWrap').contains(e.target))
-        dropdown.classList.remove('open');
     });
 
     // Handle invite URL params — pre-fill register form with invited email

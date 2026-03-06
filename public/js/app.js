@@ -509,7 +509,10 @@ document.addEventListener('DOMContentLoaded', () => {
   const themeBtn = document.getElementById('themeToggleBtn');
   function applyTheme(dark) {
     document.body.classList.toggle('dark', dark);
-    themeBtn.innerHTML = dark ? '<i class="fas fa-sun"></i>' : '<i class="fas fa-moon"></i>';
+    const icon  = document.getElementById('themeToggleIcon')  || themeBtn.querySelector('i');
+    const label = document.getElementById('themeToggleLabel');
+    if (icon)  { icon.className = dark ? 'fas fa-sun' : 'fas fa-moon'; }
+    if (label) { label.textContent = dark ? 'Light mode' : 'Dark mode'; }
     themeBtn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
     themeBtn.classList.toggle('active', dark);
     if (window.Coloris) Coloris({ themeMode: dark ? 'dark' : 'light' });
@@ -524,6 +527,26 @@ document.addEventListener('DOMContentLoaded', () => {
     localStorage.setItem('theme', isDark ? 'dark' : 'light');
     applyTheme(isDark);
   });
+
+  // ── Fullscreen toggle ─────────────────────────────────────────────────────
+  const fullscreenBtn   = document.getElementById('fullscreenBtn');
+  const fullscreenIcon  = document.getElementById('fullscreenIcon');
+  const fullscreenLabel = document.getElementById('fullscreenLabel');
+  function updateFullscreenBtn() {
+    const isFs = !!document.fullscreenElement;
+    fullscreenIcon.className  = isFs ? 'fas fa-compress' : 'fas fa-expand';
+    fullscreenLabel.textContent = isFs ? 'Exit full screen' : 'Full screen';
+  }
+  fullscreenBtn.addEventListener('click', () => {
+    if (!document.fullscreenElement) {
+      document.documentElement.requestFullscreen().catch(() => {});
+    } else {
+      document.exitFullscreen().catch(() => {});
+    }
+    document.getElementById('topbarUser').classList.remove('open');
+  });
+  document.addEventListener('fullscreenchange', updateFullscreenBtn);
+  updateFullscreenBtn();
 
   const board   = document.querySelector('.project-tasks');
   let userFavouriteBoard = null;
@@ -812,7 +835,11 @@ document.addEventListener('DOMContentLoaded', () => {
       const isCurrentUser   = uid === currentUser?.uid;
       const viewerIsAdmin   = window._boardRole === 'admin';
       const isPrimaryAdmin  = uid === admins[0];
+      const ownerBadge = isPrimaryAdmin
+        ? `<span class='tmr-owner-badge'><i class='fas fa-crown'></i> Owner</span>`
+        : '';
       let actions = '';
+
       if (viewerIsAdmin && !isPrimaryAdmin) {
         if (isAdmin) {
           if (adminCount > 1 && !isCurrentUser) {
@@ -823,10 +850,10 @@ document.addEventListener('DOMContentLoaded', () => {
                      <button class='tmr-remove'  data-uid='${uid}'><i class='fas fa-times'></i></button>`;
         }
       }
-      return `<div class='team-member-row' data-uid='${uid}'>
+      return `<div class='team-member-row${isPrimaryAdmin ? ' team-member-row--owner' : ''}' data-uid='${uid}'>
         <div class='team-member-row__avatar'>${avatarHTML}</div>
         <div class='team-member-row__info'>
-          <div class='team-member-row__name'>${name}</div>
+          <div class='team-member-row__name'>${name}${ownerBadge}</div>
           <div class='team-member-row__email'>${email}</div>
         </div>
         <div class='team-member-row__actions'>${actions}</div>
