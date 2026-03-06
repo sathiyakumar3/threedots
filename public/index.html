@@ -11,8 +11,11 @@
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/layout.css">
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/themes/light.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css">
-  <link rel="stylesheet" href="css/styles.css?v=6">
+  <!-- FullCalendar -->
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
+  <link rel="stylesheet" href="css/styles.css?v=7">
   <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -133,6 +136,8 @@
 
      
 
+          <button class="topbar-icon-btn" id="insightsBtn" title="Board Insights (AI)"><i class="fas fa-lightbulb"></i></button>
+          <button class="topbar-icon-btn" id="calendarBtn" title="Calendar View"><i class="fas fa-calendar-alt"></i></button>
           <button class="topbar-icon-btn" id="archiveBtn" title="Archive"><i class="fas fa-archive"></i></button>
           <button class="topbar-icon-btn" id="activityToggle" title="Activity"><i class="fas fa-stream"></i></button>
 
@@ -159,6 +164,16 @@
               <button class="topbar-user__item" id="profileBtn"><i class="fas fa-user-circle"></i> My Profile</button>
               <button class="topbar-user__item" id="settingsBtn"><i class="fas fa-cog"></i> Settings</button>
               <div class="topbar-user__divider"></div>
+              <div class="topbar-user__view-section">
+                <div class="topbar-user__view-label"><i class="fas fa-th-large"></i> View</div>
+                <div class="topbar-user__view-options" id="profileViewOptions">
+                  <button class="topbar-user__view-opt" data-view="tight" title="Tight"><i class="fas fa-compress"></i><span>Tight</span></button>
+                  <button class="topbar-user__view-opt" data-view="compact" title="Compact"><i class="fas fa-minus"></i><span>Compact</span></button>
+                  <button class="topbar-user__view-opt" data-view="cozy" title="Cozy"><i class="fas fa-align-left"></i><span>Cozy</span></button>
+                  <button class="topbar-user__view-opt" data-view="roomy" title="Roomy"><i class="fas fa-expand-alt"></i><span>Roomy</span></button>
+                </div>
+              </div>
+              <div class="topbar-user__divider"></div>
               <button class="topbar-user__item danger" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
             </div>
           </div>
@@ -170,12 +185,16 @@
           <div class="project-tasks"></div>
         </main>
         <aside class="task-details collapsed" id="activityPanel">
+          <div class="insights-panel__header">
+            <span class="insights-panel__title"><i class="fas fa-stream"></i> Activity</span>
+            <div class="insights-panel__header-actions">
+              <button class="insights-panel__action-btn activity-clear-btn" id="activityClearBtn" title="Clear all logs"><i class="fas fa-trash-alt"></i></button>
+              <button class="insights-panel__action-btn" id="activityPanelClose" title="Close"><i class="fas fa-times"></i></button>
+            </div>
+          </div>
+          <div class="insights-panel__body">
           <div class="task-activity">
             <div class="activity-header">
-              <div class="activity-header__top">
-                <h2>Activity</h2>
-                <button class="activity-clear-btn" id="activityClearBtn" title="Clear all logs"><i class="fas fa-trash-alt"></i> Clear logs</button>
-              </div>
               <div class="activity-tabs-wrap">
                 <div class="activity-period-tabs" id="activityPeriodTabs">
                   <button class="activity-period-tab active" data-period="today">Today</button>
@@ -192,11 +211,25 @@
             </div>
             <ul id="activityFeed"></ul>
           </div>
+          </div>
         </aside>
       </div>
     </div>
 
     <div class="save-toast" id="saveToast"></div>
+
+    <!-- AI Board Insights panel -->
+    <div class="insights-panel" id="insightsPanel">
+      <div class="insights-panel__header">
+        <span class="insights-panel__title"><i class="fas fa-lightbulb"></i> Board Insights</span>
+        <div class="insights-panel__header-actions">
+          <button class="insights-panel__action-btn" id="insightsPanelRefresh" title="Regenerate insights"><i class="fas fa-sync-alt"></i></button>
+          <button class="insights-panel__action-btn" id="insightsPanelClose" title="Close"><i class="fas fa-times"></i></button>
+        </div>
+      </div>
+      <div class="insights-panel__body" id="insightsPanelBody">
+      </div>
+    </div>
 
     <button class="fab" id="fabBtn" title="Add card (Enter)"><i class="fas fa-plus"></i></button>
 
@@ -280,10 +313,16 @@
               </div>
               <div class="modal-field modal-field--row">
                 <div class="modal-field modal-field--half">
-                  <label for="cardDeadline">Deadline</label>
-                  <input type="text" id="cardDeadline" placeholder="Select deadline…" readonly autocomplete="off">
+                  <label for="cardStartDate"><i class="fas fa-play-circle" style="font-size:10px;opacity:.6;margin-right:3px"></i>Start Date</label>
+                  <input type="text" id="cardStartDate" placeholder="Select start…" readonly autocomplete="off">
                 </div>
                 <div class="modal-field modal-field--half">
+                  <label for="cardDeadline"><i class="fas fa-flag" style="font-size:10px;opacity:.6;margin-right:3px"></i>Deadline</label>
+                  <input type="text" id="cardDeadline" placeholder="Select deadline…" readonly autocomplete="off">
+                </div>
+              </div>
+              <div class="modal-field modal-field--row">
+                <div class="modal-field modal-field--half" style="flex:1">
                   <label for="cardLink">Link</label>
                   <input type="url" id="cardLink" placeholder="https://…">
                 </div>
@@ -307,7 +346,8 @@
         <img class="logo-mode-dark"  src="images/logo-dark.svg"  width="160" height="42" alt="Taskbz logo">
       </div>
       <h2>Clarity in Simplicity</h2>
-      <p>Welcome back. Please sign in.</p>
+      <p id="loginTagline">Welcome back. Please sign in.</p>
+      <div class="login-invite-banner" id="inviteBanner" style="display:none"></div>
       
 
       <!-- Social providers -->
@@ -349,6 +389,28 @@
     </div>
   </div>
 
+  <!-- FullCalendar overlay -->
+  <div class="cal-overlay" id="calOverlay">
+    <div class="cal-modal">
+      <div class="cal-modal__header">
+        <span class="cal-modal__title"><i class="fas fa-calendar-alt"></i> Calendar</span>
+        <div class="cal-modal__header-actions">
+          <button class="cal-close-btn" id="calCloseBtn" title="Close"><i class="fas fa-times"></i></button>
+        </div>
+      </div>
+      <div class="cal-modal__body">
+        <aside class="cal-sidebar" id="calSidebar">
+          <div class="cal-sidebar__hdr">
+            <span class="cal-sidebar__label">All Cards</span>
+            <input class="cal-sidebar__search" id="calSidebarSearch" type="search" placeholder="Search cards…" />
+          </div>
+          <div class="cal-sidebar__list" id="calSidebarList"></div>
+        </aside>
+        <div id="fcContainer"></div>
+      </div>
+    </div>
+  </div>
+
   <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
   <script src="js/utils.js"></script>
   <script src="js/cards.js"></script>
@@ -358,25 +420,34 @@
   <script src="https://unpkg.com/vanilla-calendar-pro@3.1.0/index.js"></script>
   <script src="js/modal.js"></script>
   <script src="js/ai-assist.js"></script>
+  <script src="js/ai-insights.js"></script>
   <script src="js/confetti.js"></script>
+  <!-- FullCalendar -->
+  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
+  <script src="js/calendar.js"></script>
   <script>
   (function () {
     const btn      = document.getElementById('viewToggleBtn');
     const dropdown = document.getElementById('viewDropdown');
     const STORAGE_KEY = 'qnotes_view';
 
-    function applyView(view) {
+    window.applyView = function(view, persist) {
+      if (persist === undefined) persist = true;
       document.body.classList.remove('view-tight', 'view-cozy', 'view-roomy');
       if (['tight', 'cozy', 'roomy'].includes(view)) document.body.classList.add('view-' + view);
       dropdown.querySelectorAll('.view-dropdown__item').forEach(el => {
         el.classList.toggle('active', el.dataset.view === view);
       });
+      document.querySelectorAll('.topbar-user__view-opt').forEach(el => {
+        el.classList.toggle('active', el.dataset.view === view);
+      });
       btn.classList.toggle('active', view !== 'compact');
       localStorage.setItem(STORAGE_KEY, view);
-    }
+      if (persist && window.saveViewPreference) window.saveViewPreference(view);
+    };
 
-    // Restore saved preference
-    applyView(localStorage.getItem(STORAGE_KEY) || 'cozy');
+    // Restore saved preference (no Firestore write on initial load)
+    window.applyView(localStorage.getItem(STORAGE_KEY) || 'cozy', false);
 
     btn.addEventListener('click', e => {
       e.stopPropagation();
@@ -386,14 +457,45 @@
     dropdown.addEventListener('click', e => {
       const item = e.target.closest('.view-dropdown__item');
       if (!item) return;
-      applyView(item.dataset.view);
+      window.applyView(item.dataset.view);
       dropdown.classList.remove('open');
+    });
+
+    document.getElementById('profileViewOptions').addEventListener('click', e => {
+      const opt = e.target.closest('.topbar-user__view-opt');
+      if (!opt) return;
+      window.applyView(opt.dataset.view);
     });
 
     document.addEventListener('click', e => {
       if (!document.getElementById('viewToggleWrap').contains(e.target))
         dropdown.classList.remove('open');
     });
+
+    // Handle invite URL params — pre-fill register form with invited email
+    (function() {
+      const params = new URLSearchParams(window.location.search);
+      const inviteEmail = params.get('invite');
+      const inviteBoard = params.get('board');
+      const inviteName  = params.get('bname');
+      if (!inviteEmail) return;
+      const regEmail     = document.getElementById('regEmail');
+      const loginForm    = document.getElementById('loginForm');
+      const registerForm = document.getElementById('registerForm');
+      const banner       = document.getElementById('inviteBanner');
+      const tagline      = document.getElementById('loginTagline');
+      if (regEmail)     regEmail.value = decodeURIComponent(inviteEmail);
+      if (loginForm)    loginForm.style.display = 'none';
+      if (registerForm) registerForm.style.display = '';
+      if (tagline)      tagline.textContent = "You've been invited! Create an account to get started.";
+      if (banner) {
+        banner.style.display = '';
+        banner.innerHTML = inviteName
+          ? `<i class='fas fa-envelope-open-text'></i> You've been invited to join <b>${inviteName}</b>`
+          : `<i class='fas fa-envelope-open-text'></i> You have a board invitation waiting`;
+      }
+      if (inviteBoard) sessionStorage.setItem('pendingInviteBoard', decodeURIComponent(inviteBoard));
+    })();
   })();
   </script>
 

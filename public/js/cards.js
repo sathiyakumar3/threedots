@@ -91,8 +91,9 @@ function serializeTask(cardEl) {
     id:          cardEl.dataset.id || db.collection(`boards/${BOARD_ID}/tasks`).doc().id,
     title: titleText,
     tag, text, flagDate, comments, attachments, todos, link,
-    deadline:  cardEl.dataset.deadline || '',
-    assignee:  cardEl.dataset.assignee || '',
+    startDate: cardEl.dataset.startDate || '',
+    deadline:  cardEl.dataset.deadline  || '',
+    assignee:  cardEl.dataset.assignee  || '',
     created:     cardEl.dataset.created || '',
     author:      cardEl.dataset.createdByUid || '',
     timeline
@@ -106,9 +107,10 @@ function renderCard(taskData) {
   card.draggable   = true;
   card.dataset.id  = taskData.id;
   if (taskData.order !== undefined) card.dataset.order = taskData.order;
-  if (taskData.created) card.dataset.created = taskData.created;
-  if (taskData.deadline) card.dataset.deadline = taskData.deadline;
-  if (taskData.assignee) card.dataset.assignee = taskData.assignee;
+  if (taskData.created)   card.dataset.created   = taskData.created;
+  if (taskData.startDate) card.dataset.startDate = taskData.startDate;
+  if (taskData.deadline)  card.dataset.deadline  = taskData.deadline;
+  if (taskData.assignee)  card.dataset.assignee  = taskData.assignee;
   // Support new `author` field (UID string) and legacy `createdBy: { uid }` object
   const authorUid  = taskData.author || taskData.createdBy?.uid || '';
   const _cbResolved = (window._uidMap && authorUid) ? window._uidMap[authorUid] : null;
@@ -126,16 +128,20 @@ function renderCard(taskData) {
   const linkHTML  = taskData.link
     ? `<div class='task__link'><a href='${taskData.link}' target='_blank' rel='noopener'><i class='fas fa-link'></i>${shortLinkLabel(taskData.link)}</a></div>`
     : '';
-  const hasDeadline = !!taskData.deadline;
+  const hasDeadline  = !!taskData.deadline;
+  const hasStartDate = !!taskData.startDate;
   const hasAssignee  = !!taskData.assignee;
+  const sdSpanHTML   = hasStartDate
+    ? `<span class='task__startdate'><i class='fas fa-play-circle'></i>${fmtDeadline(taskData.startDate)}</span>`
+    : '';
   const flagSpanHTML = hasDeadline
-    ? `<span class='task__deadline${isOverdue(taskData.deadline) ? ' task__deadline--overdue' : ''}'><i class='fas fa-calendar-alt'></i>${fmtDeadline(taskData.deadline)}</span>`
-    : (hasAssignee ? `<span class='task__no-value'><i class='fas fa-calendar-alt'></i>No Deadline</span>` : '');
+    ? `<span class='task__deadline${isOverdue(taskData.deadline) ? ' task__deadline--overdue' : ''}'><i class='fas fa-flag'></i>${fmtDeadline(taskData.deadline)}</span>`
+    : (hasAssignee ? `<span class='task__no-value'><i class='fas fa-flag'></i>No Deadline</span>` : '');
   const assigneeTagsHTML = hasAssignee
     ? `<span class='task__assignees'>${taskData.assignee.split(', ').map(n => resolveAssigneeAvatar(n.trim())).join('')}</span>`
     : (hasDeadline ? `<span class='task__no-value task__no-assignee'><i class='fas fa-user'></i>No Assignee</span>` : '');
-  const statsHTML = (flagSpanHTML || assigneeTagsHTML)
-    ? `<div class='task__stats'>${flagSpanHTML}${assigneeTagsHTML}</div>`
+  const statsHTML = (sdSpanHTML || flagSpanHTML || assigneeTagsHTML)
+    ? `<div class='task__stats'>${sdSpanHTML}${flagSpanHTML}${assigneeTagsHTML}</div>`
     : '';
   if (taskData.title) card.dataset.title = taskData.title;
   card.innerHTML   = `

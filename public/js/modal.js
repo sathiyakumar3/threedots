@@ -18,14 +18,18 @@
   const todoList    = document.getElementById('cardTodoList');
   const linkInput   = document.getElementById('cardLink');
   const deadlineInput          = document.getElementById('cardDeadline');
+  const startDateInput         = document.getElementById('cardStartDate');
   const assigneeComboTrigger   = document.getElementById('assigneeComboTrigger');
   const assigneeComboMenu      = document.getElementById('assigneeComboMenu');
   const assigneeComboLabel     = document.getElementById('assigneeComboLabel');
   let selectedAssignees = new Set();
 
   // ── Vanilla Calendar Pro ──
-  let pickerDeadline = '';   // ISO yyyy-mm-dd
-  let deadlinePicker = null;
+  let pickerDeadline  = '';   // ISO yyyy-mm-dd[ HH:mm]
+  let pickerStartDate = '';   // ISO yyyy-mm-dd[ HH:mm]
+  let deadlinePicker  = null;
+  let startDatePicker = null;
+
   function initDeadlinePicker() {
     if (deadlinePicker || !window.VanillaCalendarPro) return;
     const { Calendar } = window.VanillaCalendarPro;
@@ -33,17 +37,35 @@
       inputMode: true,
       selectedTheme: 'light',
       positionToInput: ['bottom', 'center'],
-      selectionTimeMode: 24,
       onChangeToInput(self) {
         const date = self.context.selectedDates[0] || '';
-        const time = self.context.selectedTime || '';
-        pickerDeadline = date ? (time ? date + ' ' + time : date) : '';
+        pickerDeadline = date;
         if (self.context.inputElement) {
           self.context.inputElement.value = pickerDeadline;
         }
+        if (date) self.hide();
       },
     });
     deadlinePicker.init();
+  }
+
+  function initStartDatePicker() {
+    if (startDatePicker || !window.VanillaCalendarPro) return;
+    const { Calendar } = window.VanillaCalendarPro;
+    startDatePicker = new Calendar('#cardStartDate', {
+      inputMode: true,
+      selectedTheme: 'light',
+      positionToInput: ['bottom', 'center'],
+      onChangeToInput(self) {
+        const date = self.context.selectedDates[0] || '';
+        pickerStartDate = date;
+        if (self.context.inputElement) {
+          self.context.inputElement.value = pickerStartDate;
+        }
+        if (date) self.hide();
+      },
+    });
+    startDatePicker.init();
   }
 
   let selectedColIdx = 0;
@@ -156,6 +178,7 @@
       const n = av.querySelector('.pcard__name')?.textContent?.trim();
       if (n && !names.includes(n)) names.push(n);
     });
+    const pendingEmails = (window._pendingEmails || []).filter(e => !names.includes(e));
     assigneeComboMenu.innerHTML = '';
     const clearEl = document.createElement('div');
     clearEl.className = 'board-combo__item assignee-none';
@@ -190,6 +213,36 @@
       });
       assigneeComboMenu.appendChild(item);
     });
+    if (pendingEmails.length) {
+      const sep = document.createElement('div');
+      sep.className = 'assignee-pending-sep';
+      sep.textContent = 'Pending invites';
+      assigneeComboMenu.appendChild(sep);
+      pendingEmails.forEach(email => {
+        const item = document.createElement('div');
+        item.className = 'board-combo__item assignee-item assignee-item--pending';
+        const check = document.createElement('i');
+        check.className = 'fas fa-check assignee-check';
+        check.style.visibility = selectedAssignees.has(email) ? 'visible' : 'hidden';
+        item.appendChild(check);
+        const avatarWrap = document.createElement('span');
+        avatarWrap.className = 'assignee-item__avatar';
+        avatarWrap.innerHTML = '<i class="fas fa-envelope" style="font-size:11px;color:#94a3b8"></i>';
+        item.appendChild(avatarWrap);
+        item.appendChild(document.createTextNode(email));
+        item.addEventListener('click', () => {
+          if (selectedAssignees.has(email)) {
+            selectedAssignees.delete(email);
+            check.style.visibility = 'hidden';
+          } else {
+            selectedAssignees.add(email);
+            check.style.visibility = 'visible';
+          }
+          updateAssigneeLabel();
+        });
+        assigneeComboMenu.appendChild(item);
+      });
+    }
   }
 
   assigneeComboTrigger.addEventListener('click', e => {
@@ -284,6 +337,7 @@
 
   function openModal() {
     initDeadlinePicker();
+    initStartDatePicker();
     refreshColCombo(0);
     refreshAssigneeCombo();
     const tags = window._getActiveTags ? window._getActiveTags() : [];
@@ -302,8 +356,10 @@
     titleEl.value = '';
     textEl.value  = '';
     linkInput.value = '';
-    deadlineInput.value = '';
-    pickerDeadline = '';
+    deadlineInput.value  = '';
+    startDateInput.value = '';
+    pickerDeadline  = '';
+    pickerStartDate = '';
     selectedAssignees.clear();
     updateAssigneeLabel();
     pendingTodos  = [];
@@ -315,6 +371,7 @@
     const data = serializeTask(cardEl);
     _editingCard = cardEl;
     initDeadlinePicker();
+    initStartDatePicker();
     const cols   = [...document.querySelectorAll('.project-column')];
     const colIdx = cols.indexOf(cardEl.closest('.project-column'));
     refreshColCombo(colIdx >= 0 ? colIdx : 0);
@@ -323,11 +380,13 @@
     // Auto-expand More Options when editing an existing card
     document.getElementById('modalMoreFields')?.classList.add('open');
     document.getElementById('modalMoreToggle')?.classList.add('open');
-    titleEl.value       = data.title    || '';
-    textEl.value        = data.text     || '';
-    linkInput.value     = data.link     || '';
-    pickerDeadline      = data.deadline || '';
-    deadlineInput.value = data.deadline || '';
+    titleEl.value        = data.title     || '';
+    textEl.value         = data.text      || '';
+    linkInput.value      = data.link      || '';
+    pickerDeadline       = data.deadline  || '';
+    deadlineInput.value  = data.deadline  || '';
+    pickerStartDate      = data.startDate || '';
+    startDateInput.value = data.startDate || '';
     selectedAssignees.clear();
     if (data.assignee) data.assignee.split(', ').forEach(n => selectedAssignees.add(n.trim()));
     updateAssigneeLabel();
@@ -386,11 +445,12 @@
     }
     if (!title) { titleEl.focus(); return; }
 
-    const tag      = getTagPicker()?.dataset.value || 'task';
-    const todos    = pendingTodos.slice();
-    const link     = linkInput.value.trim();
-    const deadline = pickerDeadline;
-    const assignee = [...selectedAssignees].join(', ');
+    const tag       = getTagPicker()?.dataset.value || 'task';
+    const todos     = pendingTodos.slice();
+    const link      = linkInput.value.trim();
+    const deadline  = pickerDeadline;
+    const startDate = pickerStartDate;
+    const assignee  = [...selectedAssignees].join(', ');
 
     // ── Edit existing card ──
     if (_editingCard) {
@@ -418,11 +478,13 @@
         anchor.insertAdjacentHTML('afterend',
           `<div class='task__link'><a href='${link}' target='_blank' rel='noopener'><i class='fas fa-link'></i>${shortLinkLabel(link)}</a></div>`);
       }
-      // Update deadline span
+      // Update start date + deadline spans
+      card.querySelector('.task__startdate')?.remove();
       card.querySelector('.task__deadline, .task__no-value:not(.task__no-assignee)')?.remove();
       let stats = card.querySelector('.task__stats');
-      const newDeadline = deadline;
-      const newAssignee = assignee;
+      const newDeadline  = deadline;
+      const newStartDate = startDate;
+      const newAssignee  = assignee;
       // Rebuild stats from scratch with the conditional-placeholder logic
       if (!stats) {
         const anchor = card.querySelector('.task__timeline, .task__footer');
@@ -431,21 +493,26 @@
         card.insertBefore(stats, anchor);
       }
       card.querySelector('.task__assignees, .task__no-assignee')?.remove();
+      stats.querySelector('.task__startdate')?.remove();
       stats.querySelector('.task__deadline, .task__no-value:not(.task__no-assignee)')?.remove();
+      const sdHTML = newStartDate
+        ? `<span class='task__startdate'><i class='fas fa-play-circle'></i>${fmtDeadline(newStartDate)}</span>`
+        : '';
       const dlHTML = newDeadline
-        ? `<span class='task__deadline${isOverdue(newDeadline) ? ' task__deadline--overdue' : ''}'><i class='fas fa-calendar-alt'></i>${fmtDeadline(newDeadline)}</span>`
-        : (newAssignee ? `<span class='task__no-value'><i class='fas fa-calendar-alt'></i>No Deadline</span>` : '');
+        ? `<span class='task__deadline${isOverdue(newDeadline) ? ' task__deadline--overdue' : ''}'><i class='fas fa-flag'></i>${fmtDeadline(newDeadline)}</span>`
+        : (newAssignee ? `<span class='task__no-value'><i class='fas fa-flag'></i>No Deadline</span>` : '');
       const asnHTML = newAssignee
         ? `<span class='task__assignees'>${newAssignee.split(', ').map(n => resolveAssigneeAvatar(n.trim())).join('')}</span>`
         : (newDeadline ? `<span class='task__no-value task__no-assignee'><i class='fas fa-user'></i>No Assignee</span>` : '');
-      if (dlHTML || asnHTML) {
-        stats.insertAdjacentHTML('afterbegin', dlHTML);
+      if (sdHTML || dlHTML || asnHTML) {
+        stats.insertAdjacentHTML('afterbegin', sdHTML + dlHTML);
         stats.insertAdjacentHTML('beforeend', asnHTML);
       } else {
         stats.remove();
       }
-      if (newDeadline) card.dataset.deadline = newDeadline; else delete card.dataset.deadline;
-      if (newAssignee) card.dataset.assignee = newAssignee; else delete card.dataset.assignee;
+      if (newStartDate) card.dataset.startDate = newStartDate; else delete card.dataset.startDate;
+      if (newDeadline)  card.dataset.deadline  = newDeadline;  else delete card.dataset.deadline;
+      if (newAssignee)  card.dataset.assignee  = newAssignee;  else delete card.dataset.assignee;
       const _editAuthor = currentUser?.displayName || 'Someone';
       if (oldText !== text) {
         logActivity('edit', `<b>${_editAuthor}</b> edited "<em>${oldText.slice(0, 40)}</em>"<br><span class='activity-diff'><s>${oldText.slice(0, 60)}${oldText.length > 60 ? '…' : ''}</s> → ${text.slice(0, 60)}${text.length > 60 ? '…' : ''}</span>`);
@@ -475,16 +542,20 @@
       ? `<div class='task__link'><a href='${link}' target='_blank' rel='noopener'><i class='fas fa-link'></i>${shortLinkLabel(link)}</a></div>`
       : '';
 
-    const hasDeadline = !!deadline;
+    const hasDeadline  = !!deadline;
+    const hasStartDate = !!startDate;
     const hasAssignee  = !!assignee;
+    const sdSpanHTML   = hasStartDate
+      ? `<span class='task__startdate'><i class='fas fa-play-circle'></i>${fmtDeadline(startDate)}</span>`
+      : '';
     const flagSpanHTML = hasDeadline
-      ? `<span class='task__deadline${isOverdue(deadline) ? ' task__deadline--overdue' : ''}'><i class='fas fa-calendar-alt'></i>${fmtDeadline(deadline)}</span>`
-      : (hasAssignee ? `<span class='task__no-value'><i class='fas fa-calendar-alt'></i>No Deadline</span>` : '');
+      ? `<span class='task__deadline${isOverdue(deadline) ? ' task__deadline--overdue' : ''}'><i class='fas fa-flag'></i>${fmtDeadline(deadline)}</span>`
+      : (hasAssignee ? `<span class='task__no-value'><i class='fas fa-flag'></i>No Deadline</span>` : '');
     const assigneeTagsHTML = hasAssignee
       ? `<span class='task__assignees'>${assignee.split(', ').map(n => resolveAssigneeAvatar(n.trim())).join('')}</span>`
       : (hasDeadline ? `<span class='task__no-value task__no-assignee'><i class='fas fa-user'></i>No Assignee</span>` : '');
-    const statsHTML = (flagSpanHTML || assigneeTagsHTML)
-      ? `<div class='task__stats'>${flagSpanHTML}${assigneeTagsHTML}</div>`
+    const statsHTML = (sdSpanHTML || flagSpanHTML || assigneeTagsHTML)
+      ? `<div class='task__stats'>${sdSpanHTML}${flagSpanHTML}${assigneeTagsHTML}</div>`
       : '';
     const card      = document.createElement('div');
     card.className  = 'task';
@@ -506,8 +577,9 @@
     card.dataset.createdByUid   = currentUser?.uid         || '';
     card.dataset.createdByName  = authorName;
     card.dataset.createdByPhoto = authorPhoto;
-    if (deadline) card.dataset.deadline = deadline;
-    if (assignee) card.dataset.assignee = assignee;
+    if (startDate) card.dataset.startDate = startDate;
+    if (deadline)  card.dataset.deadline  = deadline;
+    if (assignee)  card.dataset.assignee  = assignee;
     addUpdateWidget(card);
     // Insert "created by" timeline entry (always last → visible when collapsed)
     const createdDate = fmtDate(Date.now());

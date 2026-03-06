@@ -1,3 +1,12 @@
+// ── EmailJS configuration ─────────────────────────────────────────────────
+// Sign up at https://www.emailjs.com, create a service + template, then fill in:
+window.EMAILJS_CONFIG = {
+  serviceId:  'YOUR_SERVICE_ID',   // e.g. 'service_abc123'
+  templateId: 'YOUR_TEMPLATE_ID',  // e.g. 'template_xyz789'
+  publicKey:  'YOUR_PUBLIC_KEY'    // EmailJS dashboard → Account → API Keys
+};
+// Template variables expected: {{to_email}}, {{board_name}}, {{invited_by}}, {{invite_link}}
+
 // ── _uidMap sessionStorage helpers ──────────────────────────────────────────
 let _uidCacheKey = '';
 function _uidMapInit(uid) {
@@ -31,6 +40,22 @@ window.closeAllPopups = function(skip = []) {
   });
 };
 
+function sendInvitationEmail({ email, boardName, invitedByName, inviteLink }) {
+  const cfg = window.EMAILJS_CONFIG;
+  if (!cfg?.serviceId || cfg.serviceId === 'YOUR_SERVICE_ID') {
+    console.warn('EmailJS not configured — invitation stored in Firestore but email not sent.');
+    return;
+  }
+  if (typeof emailjs === 'undefined') {
+    console.warn('EmailJS library not loaded.');
+    return;
+  }
+  emailjs.send(cfg.serviceId, cfg.templateId,
+    { to_email: email, board_name: boardName, invited_by: invitedByName, invite_link: inviteLink },
+    cfg.publicKey
+  ).catch(err => console.error('EmailJS send error:', err));
+}
+
 document.addEventListener('DOMContentLoaded', () => {
 
   // ── Auth: gate the whole app behind Google sign-in ──────────────────────
@@ -51,6 +76,8 @@ document.addEventListener('DOMContentLoaded', () => {
     db.collection('users').doc(user.uid).get()
       .then(userSnap => {
         userFavouriteBoard = userSnap.exists ? (userSnap.data().favourite || null) : null;
+        const savedView = userSnap.exists ? (userSnap.data().viewPreference || null) : null;
+        if (savedView && window.applyView) window.applyView(savedView, false);
         db.collection('users').doc(user.uid).set({
           uid:         user.uid,
           displayName: user.displayName || '',
@@ -58,8 +85,37 @@ document.addEventListener('DOMContentLoaded', () => {
           photoURL:    user.photoURL    || '',
           lastLogin:   firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true }).catch(err => console.error('Error saving user:', err));
-        if (window._loadUserTags) window._loadUserTags(user.uid);
-        loadUserBoards(user.uid);
+
+        // Convert any pending invitations for this user's email to full membership
+        const conversionPromise = user.email
+          ? db.collection('invitations')
+              .where('email', '==', user.email.toLowerCase())
+              .where('status', '==', 'pending')
+              .get()
+              .then(invSnap => {
+                if (invSnap.empty) return;
+                const batch = db.batch();
+                invSnap.docs.forEach(invDoc => {
+                  const inv = invDoc.data();
+                  batch.update(db.doc(`boards/${inv.boardId}`), {
+                    'users.members':    firebase.firestore.FieldValue.arrayUnion(user.uid),
+                    'users.nonMembers': firebase.firestore.FieldValue.arrayRemove(inv.email)
+                  });
+                  batch.update(invDoc.ref, {
+                    status: 'accepted',
+                    acceptedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+                    acceptedByUid: user.uid
+                  });
+                });
+                return batch.commit();
+              })
+              .catch(err => console.error('Invitation conversion error:', err))
+          : Promise.resolve();
+
+        conversionPromise.finally(() => {
+          if (window._loadUserTags) window._loadUserTags(user.uid);
+          loadUserBoards(user.uid);
+        });
       })
       .catch(() => {
         userFavouriteBoard = null;
@@ -156,6 +212,13 @@ document.addEventListener('DOMContentLoaded', () => {
     appShell.style.display = 'none';
     loginOverlay.classList.remove('hidden');
   }
+
+  window.saveViewPreference = function(view) {
+    if (!currentUser) return;
+    db.collection('users').doc(currentUser.uid)
+      .set({ viewPreference: view }, { merge: true })
+      .catch(err => console.error('Error saving view preference:', err));
+  };
 
   appShell.style.display = 'none';
   auth.onAuthStateChanged(user => { if (user) showApp(user); else hideApp(); });
@@ -282,11 +345,12 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Activity panel toggle ────────────────────────────────────────────────
   const activityPanel  = document.getElementById('activityPanel');
   const activityToggle = document.getElementById('activityToggle');
+  function openActivityPanel()  { activityPanel.classList.remove('collapsed'); activityToggle.classList.add('active');    activityToggle.title = 'Hide activity'; }
+  function closeActivityPanel() { activityPanel.classList.add('collapsed');    activityToggle.classList.remove('active'); activityToggle.title = 'Show activity'; }
   activityToggle.addEventListener('click', () => {
-    const collapsed = activityPanel.classList.toggle('collapsed');
-    activityToggle.classList.toggle('active', !collapsed);
-    activityToggle.title = collapsed ? 'Show activity' : 'Hide activity';
+    activityPanel.classList.contains('collapsed') ? openActivityPanel() : closeActivityPanel();
   });
+  document.getElementById('activityPanelClose')?.addEventListener('click', () => closeActivityPanel());
 
   // ── Clear activity logs ──────────────────────────────────────────────────
   document.getElementById('activityClearBtn').addEventListener('click', () => {
@@ -554,6 +618,7 @@ document.addEventListener('DOMContentLoaded', () => {
           // Set current user's role for this board
           window._boardRole    = _adminUids.includes(currentUser?.uid) ? 'admin' : 'member';
           window._primaryAdmin = _adminUids[0] || null;
+          window._pendingEmails = data.users?.nonMembers || [];
           const _appShell = document.getElementById('appShell');
           _appShell.dataset.role      = window._boardRole;
           _appShell.dataset.isPrimary = (currentUser?.uid === window._primaryAdmin) ? 'true' : 'false';
@@ -705,9 +770,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // Load and render team from Firestore
     db.doc(`boards/${BOARD_ID}`).get().then(snap => {
       if (!snap.exists) return;
-      const bd      = snap.data();
-      const admins  = bd.users?.admins  || (bd.admins ? bd.admins : (bd.owner ? [bd.owner] : []));
-      const members = bd.users?.members || [];
+      const bd         = snap.data();
+      const admins     = bd.users?.admins     || (bd.admins ? bd.admins : (bd.owner ? [bd.owner] : []));
+      const members    = bd.users?.members    || [];
+      const nonMembers = bd.users?.nonMembers || [];
       const allUids = [...new Set([...admins, ...members])];
       const unknown = allUids.filter(uid => !(window._uidMap && window._uidMap[uid]));
       Promise.all(unknown.map(uid =>
@@ -719,8 +785,8 @@ document.addEventListener('DOMContentLoaded', () => {
           const u = s.data();
           _uidMapSet(s.id, { name: u.displayName || u.email || 'User', photo: u.photoURL || '', email: u.email || '' });
         });
-        renderTeamPanel(admins, members);
-        document.getElementById('teamPanelCount').textContent = allUids.length;
+        renderTeamPanel(admins, members, nonMembers);
+        document.getElementById('teamPanelCount').textContent = allUids.length + nonMembers.length;
       });
     });
     participantEmail.focus();
@@ -730,7 +796,7 @@ document.addEventListener('DOMContentLoaded', () => {
     teamPanel.classList.remove('open');
   }
 
-  function renderTeamPanel(admins, members, filter = '') {
+  function renderTeamPanel(admins, members, nonMembers = [], filter = '') {
     const body = document.getElementById('teamPanelBody');
     const q    = filter.toLowerCase();
 
@@ -767,17 +833,35 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
     };
 
-    const adminRows  = admins.map(uid  => buildRow(uid, true,  admins.length)).filter(Boolean);
-    const memberRows = members.map(uid => buildRow(uid, false, admins.length)).filter(Boolean);
+    const buildPendingRow = (email) => {
+      if (q && !email.toLowerCase().includes(q)) return '';
+      const viewerIsAdmin = window._boardRole === 'admin';
+      const actions = viewerIsAdmin
+        ? `<button class='tmr-revoke' data-email='${email}' title='Revoke invitation'><i class='fas fa-times'></i></button>`
+        : '';
+      return `<div class='team-member-row team-member-row--pending'>
+        <div class='team-member-row__avatar team-member-row__avatar--pending'><i class='fas fa-envelope'></i></div>
+        <div class='team-member-row__info'>
+          <div class='team-member-row__name'>${email}</div>
+          <div class='team-member-row__email'>Invitation pending</div>
+        </div>
+        <div class='team-member-row__actions'>${actions}</div>
+      </div>`;
+    };
 
-    if (!adminRows.length && !memberRows.length) {
+    const adminRows   = admins.map(uid   => buildRow(uid, true,  admins.length)).filter(Boolean);
+    const memberRows  = members.map(uid  => buildRow(uid, false, admins.length)).filter(Boolean);
+    const pendingRows = nonMembers.map(e => buildPendingRow(e)).filter(Boolean);
+
+    if (!adminRows.length && !memberRows.length && !pendingRows.length) {
       body.innerHTML = `<div class='team-panel__empty'>No members found.</div>`;
       return;
     }
 
     body.innerHTML = [
-      adminRows.length  ? `<div class='team-section__hdr team-section__hdr--admin'><i class='fas fa-shield-alt'></i> Admins</div>${adminRows.join('')}` : '',
-      memberRows.length ? `<div class='team-section__hdr team-section__hdr--member'><i class='fas fa-user'></i> Members</div>${memberRows.join('')}` : ''
+      adminRows.length   ? `<div class='team-section__hdr team-section__hdr--admin'><i class='fas fa-shield-alt'></i> Admins</div>${adminRows.join('')}` : '',
+      memberRows.length  ? `<div class='team-section__hdr team-section__hdr--member'><i class='fas fa-user'></i> Members</div>${memberRows.join('')}` : '',
+      pendingRows.length ? `<div class='team-section__hdr team-section__hdr--pending'><i class='fas fa-clock'></i> Pending</div>${pendingRows.join('')}` : ''
     ].join('');
   }
 
@@ -794,10 +878,11 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('teamSearch').addEventListener('input', e => {
     db.doc(`boards/${BOARD_ID}`).get().then(snap => {
       if (!snap.exists) return;
-      const bd      = snap.data();
-      const admins  = bd.users?.admins  || (bd.admins ? bd.admins : (bd.owner ? [bd.owner] : []));
-      const members = bd.users?.members || [];
-      renderTeamPanel(admins, members, e.target.value.trim());
+      const bd         = snap.data();
+      const admins     = bd.users?.admins     || (bd.admins ? bd.admins : (bd.owner ? [bd.owner] : []));
+      const members    = bd.users?.members    || [];
+      const nonMembers = bd.users?.nonMembers || [];
+      renderTeamPanel(admins, members, nonMembers, e.target.value.trim());
     });
   });
 
@@ -806,6 +891,37 @@ document.addEventListener('DOMContentLoaded', () => {
     const promoteBtn = e.target.closest('.tmr-promote');
     const demoteBtn  = e.target.closest('.tmr-demote');
     const removeBtn  = e.target.closest('.tmr-remove');
+    const revokeBtn  = e.target.closest('.tmr-revoke');
+
+    if (revokeBtn) {
+      const invEmail = revokeBtn.dataset.email;
+      db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+        if (!snap.exists) return;
+        const bd         = snap.data();
+        const admins     = bd.users?.admins     || [];
+        const members    = bd.users?.members    || [];
+        const nonMembers = (bd.users?.nonMembers || []).filter(e => e !== invEmail);
+        // Mark any matching invitations as revoked, then update board
+        db.collection('invitations')
+          .where('boardId', '==', BOARD_ID)
+          .where('email',   '==', invEmail)
+          .where('status',  '==', 'pending')
+          .get()
+          .then(invSnap => {
+            const batch = db.batch();
+            batch.update(db.doc(`boards/${BOARD_ID}`), { 'users.nonMembers': nonMembers });
+            invSnap.docs.forEach(d => batch.update(d.ref, { status: 'revoked' }));
+            return batch.commit();
+          })
+          .then(() => {
+            window._pendingEmails = nonMembers;
+            renderTeamPanel(admins, members, nonMembers, document.getElementById('teamSearch').value.trim());
+            document.getElementById('teamPanelCount').textContent = admins.length + members.length + nonMembers.length;
+            logActivity('participant', `<b>${_authorName()}</b> revoked invitation for <b>${invEmail}</b>`);
+          });
+      });
+      return;
+    }
 
     if (promoteBtn) {
       const uid = promoteBtn.dataset.uid;
@@ -818,8 +934,8 @@ document.addEventListener('DOMContentLoaded', () => {
         db.doc(`boards/${BOARD_ID}`).update({ 'users.admins': newAdmins, 'users.members': members })
           .then(() => {
             renderParticipants(newAdmins, [...newAdmins, ...members]);
-            renderTeamPanel(newAdmins, members, document.getElementById('teamSearch').value.trim());
-            document.getElementById('teamPanelCount').textContent = newAdmins.length + members.length;
+            renderTeamPanel(newAdmins, members, bd.users?.nonMembers || [], document.getElementById('teamSearch').value.trim());
+            document.getElementById('teamPanelCount').textContent = newAdmins.length + members.length + (bd.users?.nonMembers?.length || 0);
             const name = window._uidMap?.[uid]?.name || uid;
             logActivity('participant', `<b>${_authorName()}</b> promoted <b>${name}</b> to Admin`);
           });
@@ -838,8 +954,8 @@ document.addEventListener('DOMContentLoaded', () => {
         db.doc(`boards/${BOARD_ID}`).update({ 'users.admins': admins, 'users.members': members })
           .then(() => {
             renderParticipants(admins, [...admins, ...members]);
-            renderTeamPanel(admins, members, document.getElementById('teamSearch').value.trim());
-            document.getElementById('teamPanelCount').textContent = admins.length + members.length;
+            renderTeamPanel(admins, members, bd.users?.nonMembers || [], document.getElementById('teamSearch').value.trim());
+            document.getElementById('teamPanelCount').textContent = admins.length + members.length + (bd.users?.nonMembers?.length || 0);
             const name = window._uidMap?.[uid]?.name || uid;
             logActivity('participant', `<b>${_authorName()}</b> demoted <b>${name}</b> to Member`);
           });
@@ -868,8 +984,8 @@ document.addEventListener('DOMContentLoaded', () => {
           const members = (bd.users?.members || []).filter(u => u !== uid);
           db.doc(`boards/${BOARD_ID}`).update({ 'users.members': members }).then(() => {
             renderParticipants(admins, [...admins, ...members]);
-            renderTeamPanel(admins, members, document.getElementById('teamSearch').value.trim());
-            document.getElementById('teamPanelCount').textContent = admins.length + members.length;
+            renderTeamPanel(admins, members, bd.users?.nonMembers || [], document.getElementById('teamSearch').value.trim());
+            document.getElementById('teamPanelCount').textContent = admins.length + members.length + (bd.users?.nonMembers?.length || 0);
             logActivity('participant', `<b>${_authorName()}</b> removed <b>${name}</b> from the board`);
             // Remove avatar from topbar if present
             document.querySelector(`.participant-avatar[data-uid='${uid}']`)?.remove();
@@ -889,11 +1005,55 @@ document.addEventListener('DOMContentLoaded', () => {
     const email = participantEmail.value.trim().toLowerCase();
     if (!email) { participantMsg.textContent = 'Please enter an email address.'; return; }
     participantMsg.className = 'team-panel__msg';
-    participantMsg.textContent = 'Searching…';
+    participantMsg.textContent = 'Searching\u2026';
     db.collection('users').where('email', '==', email).get()
       .then(snap => {
         if (snap.empty) {
-          participantMsg.textContent = 'User not found.';
+          // User not registered — send an invitation
+          db.doc(`boards/${BOARD_ID}`).get().then(boardSnap => {
+            if (!boardSnap.exists) { participantMsg.textContent = 'Board not found.'; return; }
+            const bd         = boardSnap.data();
+            const admins     = bd.users?.admins     || [];
+            const members    = bd.users?.members    || [];
+            const nonMembers = bd.users?.nonMembers || [];
+            if (nonMembers.includes(email)) {
+              participantMsg.textContent = 'Invitation already sent to this email.';
+              return;
+            }
+            const boardName     = bd.name || 'a shared board';
+            const invitedByName = currentUser?.displayName || currentUser?.email || 'A team member';
+            const appUrl        = window.location.origin + window.location.pathname;
+            const inviteLink    = `${appUrl}?invite=${encodeURIComponent(email)}&board=${encodeURIComponent(BOARD_ID)}&bname=${encodeURIComponent(boardName)}`;
+            const newNonMembers = [...nonMembers, email];
+            const batch = db.batch();
+            batch.update(db.doc(`boards/${BOARD_ID}`), { 'users.nonMembers': newNonMembers });
+            const invRef = db.collection('invitations').doc();
+            batch.set(invRef, {
+              email,
+              boardId:       BOARD_ID,
+              boardName,
+              invitedBy:     currentUser.uid,
+              invitedByName,
+              invitedAt:     firebase.firestore.FieldValue.serverTimestamp(),
+              status:        'pending'
+            });
+            batch.commit().then(() => {
+              sendInvitationEmail({ email, boardName, invitedByName, inviteLink });
+              window._pendingEmails = newNonMembers;
+              participantMsg.className = 'team-panel__msg ok';
+              participantMsg.textContent = `Invitation sent to ${email}`;
+              participantEmail.value = '';
+              renderTeamPanel(admins, members, newNonMembers, document.getElementById('teamSearch').value.trim());
+              document.getElementById('teamPanelCount').textContent = admins.length + members.length + newNonMembers.length;
+              logActivity('participant', `<b>${_authorName()}</b> invited <b>${email}</b> (pending sign-up)`);
+            }).catch(err => {
+              console.error(err);
+              participantMsg.textContent = 'Error sending invitation.';
+            });
+          }).catch(err => {
+            console.error(err);
+            participantMsg.textContent = 'Error. Please try again.';
+          });
           return;
         }
         const foundUid = snap.docs[0].id;
@@ -902,6 +1062,7 @@ document.addEventListener('DOMContentLoaded', () => {
           const boardData  = boardSnap.data();
           const admins  = boardData.users?.admins  || (boardData.admins ? boardData.admins : (boardData.owner ? [boardData.owner] : []));
           const members = boardData.users?.members || [];
+          const nonMembers = boardData.users?.nonMembers || [];
           if (admins.includes(foundUid) || members.includes(foundUid)) {
             participantMsg.textContent = 'User is already a participant.';
             return;
@@ -919,8 +1080,8 @@ document.addEventListener('DOMContentLoaded', () => {
               photo: addedData.photoURL || '',
               email: addedData.email || ''
             });
-            renderTeamPanel(admins, newMembers, document.getElementById('teamSearch').value.trim());
-            document.getElementById('teamPanelCount').textContent = admins.length + newMembers.length;
+            renderTeamPanel(admins, newMembers, nonMembers, document.getElementById('teamSearch').value.trim());
+            document.getElementById('teamPanelCount').textContent = admins.length + newMembers.length + nonMembers.length;
             const addedName = addedData.displayName || addedData.email || email;
             logActivity('participant', `<b>${_authorName()}</b> added <b>${addedName}</b> as a member`);
           });

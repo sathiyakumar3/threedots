@@ -317,6 +317,7 @@
 
   newAdd.addEventListener('click', addNewTag);
   newInput.addEventListener('keydown', e => {
+    e.stopPropagation();
     if (e.key === 'Enter') { e.preventDefault(); addNewTag(); }
   });
 
