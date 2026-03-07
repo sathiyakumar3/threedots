@@ -12,6 +12,7 @@ function serializeBoard() {
         title:    col.querySelector('.project-column-heading__title')?.textContent || `Column ${i + 1}`,
         owner:    col.dataset.owner || '',
         users:    col.dataset.users ? JSON.parse(col.dataset.users) : [],
+        ...(col.dataset.wipLimit ? { wipLimit: +col.dataset.wipLimit } : {}),
         ...(col.classList.contains('project-column--archive') ? { archive: true } : {})
       }))
     }
@@ -49,9 +50,15 @@ function saveTask(cardEl, silent) {
   const siblings = colEl ? [...colEl.querySelectorAll(':scope > .task')] : [];
   const order    = siblings.indexOf(cardEl);
   const { id: taskId, ...taskFields } = serializeTask(cardEl);
+  // Suppress real-time listener echo for our own writes
+  window._localWriteIds = window._localWriteIds || new Set();
+  window._localWriteIds.add(taskId);
   return db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId)
     .set({ ...taskFields, boardId: BOARD_ID, columnId, order }, { merge: true })
-    .then(() => { if (!silent) showToast('Saved ✓'); })
+    .then(() => {
+      setTimeout(() => window._localWriteIds?.delete(taskId), 500);
+      if (!silent) showToast('Saved ✓');
+    })
     .catch(err => { console.error('Save failed:', err); showToast('Save failed', true); });
 }
 
@@ -66,6 +73,7 @@ function setupColDropdown(colEl) {
        ${isArchive ? '' : `<button class='col-opt-rename'><i class='fas fa-pen'></i> Rename</button>`}
        ${isArchive ? '' : `<button class='col-opt-add-before'><i class='fas fa-arrow-left'></i> Add column before</button>`}
        ${isArchive || isDone ? '' : `<button class='col-opt-add-after'><i class='fas fa-arrow-right'></i> Add column after</button>`}
+       ${isArchive || isDone ? '' : `<button class='col-opt-wip'><i class='fas fa-tachometer-alt'></i> WIP Limit</button>`}
        ${isArchive || isDone ? '' : `<button class='col-opt-delete danger'><i class='fas fa-trash-alt'></i> Delete column</button>`}
      </div>`);
 }

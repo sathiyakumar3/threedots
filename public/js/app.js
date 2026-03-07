@@ -204,6 +204,8 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function hideApp() {
     currentUser = null;
+    if (_tasksUnsub) { _tasksUnsub(); _tasksUnsub = null; }
+    window._localWriteIds = new Set();
     BOARD_ID = 'main';
     board.innerHTML = '';
     document.getElementById('boardComboList').innerHTML = '';
@@ -550,12 +552,22 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const board   = document.querySelector('.project-tasks');
   let userFavouriteBoard = null;
+  let _tasksUnsub = null; // active tasks onSnapshot unsubscribe handle
 
   // ── Column task-count badge helpers ─────────────────────────────────────
   function refreshColCount(colEl) {
     const count = colEl.querySelectorAll(':scope > .task').length;
     const badge = colEl.querySelector('.col-count');
-    if (badge) badge.textContent = count;
+    if (!badge) return;
+    const limit = colEl.dataset.wipLimit ? +colEl.dataset.wipLimit : 0;
+    if (limit > 0) {
+      badge.textContent = `${count}/${limit}`;
+      badge.classList.toggle('wip-over', count > limit);
+      badge.classList.toggle('wip-near', count === limit);
+    } else {
+      badge.textContent = count;
+      badge.classList.remove('wip-over', 'wip-near');
+    }
   }
   function refreshAllColCounts() {
     document.querySelectorAll('.project-column').forEach(refreshColCount);
@@ -600,6 +612,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Load a board by Firestore doc ID ────────────────────────────────────
   function loadBoard(id) {
+    // Tear down any previous tasks listener before switching boards
+    if (_tasksUnsub) { _tasksUnsub(); _tasksUnsub = null; }
+    window._localWriteIds = new Set();
     BOARD_ID = id;
     board.innerHTML = '';
     document.getElementById('activityFeed').innerHTML = '';
@@ -662,32 +677,84 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (data.columns) {
               buildColumnsFromData(data.columns);
-              // Load tasks from subcollection boards/{id}/tasks
-              db.collection(`boards/${id}/tasks`)
-                .get()
-                .then(snap => {
-                  if (!snap.empty) {
-                    const tasks = snap.docs
-                      .map(d => d.data())
-                      .sort((a, b) => (a.order || 0) - (b.order || 0));
-                    buildTasksFromFlatData(tasks);
-                  } else if (Array.isArray(data.tasks) && data.tasks.length > 0) {
-                    // Migration: old boards stored task IDs in board doc, tasks in top-level collection
-                    Promise.all(data.tasks.map(tid => db.collection('tasks').doc(tid).get()))
-                      .then(snaps => {
-                        const tasks = snaps
-                          .filter(s => s.exists)
-                          .map(s => s.data())
-                          .sort((a, b) => (a.order || 0) - (b.order || 0));
-                        buildTasksFromFlatData(tasks);
-                      })
-                      .catch(err => console.error('Could not migrate tasks:', err));
-                  } else if (data.tasks && !Array.isArray(data.tasks)) {
-                    // Legacy format: tasks is an object with a `columns` array (full task bodies)
-                    buildTasksFromData(data.tasks);
+              // ── Real-time tasks listener ──────────────────────────────
+              let _tasksInitialised = false;
+              _tasksUnsub = db.collection(`boards/${id}/tasks`)
+                .onSnapshot(snap => {
+                  if (!_tasksInitialised) {
+                    // ── Initial load: same sorted batch render as before ──
+                    _tasksInitialised = true;
+                    if (!snap.empty) {
+                      const tasks = snap.docs
+                        .map(d => d.data())
+                        .sort((a, b) => (a.order || 0) - (b.order || 0));
+                      buildTasksFromFlatData(tasks);
+                    } else if (Array.isArray(data.tasks) && data.tasks.length > 0) {
+                      // Migration: tasks stored in top-level collection
+                      Promise.all(data.tasks.map(tid => db.collection('tasks').doc(tid).get()))
+                        .then(snaps => {
+                          const tasks = snaps
+                            .filter(s => s.exists)
+                            .map(s => s.data())
+                            .sort((a, b) => (a.order || 0) - (b.order || 0));
+                          buildTasksFromFlatData(tasks);
+                        })
+                        .catch(err => console.error('Could not migrate tasks:', err));
+                    } else if (data.tasks && !Array.isArray(data.tasks)) {
+                      buildTasksFromData(data.tasks);
+                    }
+                    return;
                   }
-                })
-                .catch(err => console.error('Could not load tasks:', err));
+
+                  // ── Incremental updates from other users ───────────────
+                  snap.docChanges().forEach(change => {
+                    const taskData = change.doc.data();
+                    const taskId   = change.doc.id || taskData.id;
+
+                    if (change.type === 'removed') {
+                      const cardEl = board.querySelector(`.task[data-id="${CSS.escape(taskId)}"]`);
+                      if (cardEl) { cardEl.remove(); refreshAllColCounts(); scheduleOverflowCheck(); }
+                      return;
+                    }
+
+                    // Skip echoes of our own writes
+                    if (window._localWriteIds?.has(taskId)) return;
+
+                    if (change.type === 'added') {
+                      // Only add if not already in DOM (guard against duplicate fires)
+                      if (board.querySelector(`.task[data-id="${CSS.escape(taskId)}"]`)) return;
+                      const colEl = board.querySelector(`.project-column[data-column-id="${taskData.columnId}"]`)
+                                 || board.querySelector('.project-column');
+                      if (colEl) {
+                        colEl.appendChild(renderCard(taskData));
+                        refreshAllColCounts();
+                        scheduleOverflowCheck();
+                      }
+                      return;
+                    }
+
+                    if (change.type === 'modified') {
+                      const existing = board.querySelector(`.task[data-id="${CSS.escape(taskId)}"]`);
+                      const newCard  = renderCard(taskData);
+                      // Preserve expanded state
+                      if (existing?.classList.contains('task--expanded')) newCard.classList.add('task--expanded');
+                      // Check if the card moved to a different column
+                      const targetCol = board.querySelector(`.project-column[data-column-id="${taskData.columnId}"]`);
+                      if (existing) {
+                        if (targetCol && existing.closest('.project-column') !== targetCol) {
+                          targetCol.appendChild(newCard);
+                          existing.remove();
+                        } else {
+                          existing.replaceWith(newCard);
+                        }
+                      } else if (targetCol) {
+                        targetCol.appendChild(newCard);
+                      }
+                      refreshAllColCounts();
+                      scheduleOverflowCheck();
+                    }
+                  });
+                }, err => console.error('Tasks listener error:', err));
             }
             renderParticipants(_adminUids, _boardUsers);
             // ── Load persisted activity feed ──
@@ -1403,8 +1470,12 @@ document.addEventListener('DOMContentLoaded', () => {
       else if (nextOrder === null) newOrder = prevOrder + 1;
       else                         newOrder = (prevOrder + nextOrder) / 2;
       dragSrcEl.dataset.order = newOrder;
+      // Suppress real-time listener echo for our own drag write
+      window._localWriteIds = window._localWriteIds || new Set();
+      window._localWriteIds.add(taskId);
       db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId)
         .update({ columnId: newColId, order: newOrder })
+        .then(() => setTimeout(() => window._localWriteIds?.delete(taskId), 500))
         .catch(err => console.error('Drag save failed:', err));
     }
     dragSrcEl = null;
@@ -1434,6 +1505,7 @@ document.addEventListener('DOMContentLoaded', () => {
       div.dataset.columnId = col.id;
       if (col.owner) div.dataset.owner = col.owner;
       if (col.users && col.users.length) div.dataset.users = JSON.stringify(col.users);
+      if (col.wipLimit) div.dataset.wipLimit = col.wipLimit;
       div.innerHTML   = `<div class='project-column-heading'>
         <h2 class='project-column-heading__title'>${col.title}</h2>
         <span class='col-count'>0</span>
@@ -1838,6 +1910,32 @@ document.addEventListener('DOMContentLoaded', () => {
         const idx = [...document.querySelectorAll('.project-column')].indexOf(newCol);
         window._refreshColCombo(idx);
       }
+      return;
+    }
+    // Set WIP limit
+    if (e.target.closest('.col-opt-wip')) {
+      if (window._boardRole === 'member') { showToast('Contact an admin to make changes to columns.', true); return; }
+      const colEl = e.target.closest('.project-column');
+      colEl.querySelector('.col-dropdown').classList.remove('open'); openColDropdown = null;
+      const current = colEl.dataset.wipLimit || '';
+      Swal.fire({
+        title: 'Set WIP Limit',
+        text: 'Max cards allowed in this column (0 = no limit):',
+        input: 'number',
+        inputValue: current,
+        inputAttributes: { min: 0, max: 99, step: 1 },
+        showCancelButton: true,
+        confirmButtonText: 'Save',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+      }).then(result => {
+        if (!result.isConfirmed) return;
+        const val = parseInt(result.value) || 0;
+        if (val > 0) colEl.dataset.wipLimit = val;
+        else delete colEl.dataset.wipLimit;
+        refreshColCount(colEl);
+        saveChanges(true);
+      });
       return;
     }
     // Delete column

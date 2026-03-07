@@ -94,6 +94,7 @@ function serializeTask(cardEl) {
     startDate: cardEl.dataset.startDate || '',
     deadline:  cardEl.dataset.deadline  || '',
     assignee:  cardEl.dataset.assignee  || '',
+    priority:  cardEl.dataset.priority  || '',
     created:     cardEl.dataset.created || '',
     author:      cardEl.dataset.createdByUid || '',
     timeline
@@ -111,6 +112,7 @@ function renderCard(taskData) {
   if (taskData.startDate) card.dataset.startDate = taskData.startDate;
   if (taskData.deadline)  card.dataset.deadline  = taskData.deadline;
   if (taskData.assignee)  card.dataset.assignee  = taskData.assignee;
+  if (taskData.priority)  card.dataset.priority  = taskData.priority;
   // Support new `author` field (UID string) and legacy `createdBy: { uid }` object
   const authorUid  = taskData.author || taskData.createdBy?.uid || '';
   const _cbResolved = (window._uidMap && authorUid) ? window._uidMap[authorUid] : null;
@@ -147,6 +149,7 @@ function renderCard(taskData) {
   card.innerHTML   = `
     <div class='task__tags'>
       <span class='task__tag task__tag--${taskData.tag}'>${tagLabels[taskData.tag]}</span>
+      ${taskData.priority ? `<span class='task__priority task__priority--${taskData.priority}'>${taskData.priority[0].toUpperCase() + taskData.priority.slice(1)}</span>` : ''}
       <button class='task__options'><i class='fas fa-ellipsis-h'></i></button>
     </div>
     ${taskData.title ? `<h4 class='task__title'>${taskData.title}</h4>` : ''}
@@ -155,7 +158,7 @@ function renderCard(taskData) {
     ${linkHTML}
     ${statsHTML}`;
   // Cache searchable text to avoid per-keystroke child DOM queries
-  card.dataset.search = `${taskData.title || ''} ${taskData.text} ${tagLabels[taskData.tag] || ''}`.toLowerCase();
+  card.dataset.search = `${taskData.title || ''} ${taskData.text} ${tagLabels[taskData.tag] || ''} ${taskData.priority || ''}`.toLowerCase();
   {
     const creates = (taskData.timeline || []).filter(e => e.type === 'create');
     const others  = (taskData.timeline || []).filter(e => e.type !== 'create');

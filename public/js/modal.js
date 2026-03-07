@@ -24,6 +24,22 @@
   const assigneeComboLabel     = document.getElementById('assigneeComboLabel');
   let selectedAssignees = new Set();
 
+  const priorityEl = document.getElementById('cardPriority');
+  function getPriority() {
+    return priorityEl.querySelector('.priority-btn.active')?.dataset.value || '';
+  }
+  function setPriority(val) {
+    priorityEl.querySelectorAll('.priority-btn').forEach(b => {
+      b.classList.toggle('active', b.dataset.value === (val || ''));
+    });
+  }
+  priorityEl.addEventListener('click', e => {
+    const btn = e.target.closest('.priority-btn');
+    if (!btn) return;
+    priorityEl.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
+    btn.classList.add('active');
+  });
+
   // ── Vanilla Calendar Pro ──
   let pickerDeadline  = '';   // ISO yyyy-mm-dd[ HH:mm]
   let pickerStartDate = '';   // ISO yyyy-mm-dd[ HH:mm]
@@ -364,6 +380,7 @@
     updateAssigneeLabel();
     pendingTodos  = [];
     todoList.innerHTML = '';
+    setPriority('');
   }
 
   function openEditModal(cardEl) {
@@ -392,6 +409,7 @@
     updateAssigneeLabel();
     pendingTodos = (data.todos || []).map(t => ({ text: t.text, done: !!t.done }));
     renderTodoList();
+    setPriority(data.priority || '');
     addBtn.innerHTML = '<i class="fas fa-check"></i> Save Changes';
     document.getElementById('modalTitle').textContent = 'Edit Card';
     overlay.classList.add('open');
@@ -451,6 +469,7 @@
     const deadline  = pickerDeadline;
     const startDate = pickerStartDate;
     const assignee  = [...selectedAssignees].join(', ');
+    const priority  = getPriority();
 
     // ── Edit existing card ──
     if (_editingCard) {
@@ -469,6 +488,12 @@
       const tagSpan = card.querySelector('.task__tag');
       tagSpan.className   = `task__tag task__tag--${tag}`;
       tagSpan.textContent = tagLabels[tag];
+      card.querySelector('.task__priority')?.remove();
+      if (priority) {
+        card.querySelector('.task__tag').insertAdjacentHTML('afterend',
+          `<span class='task__priority task__priority--${priority}'>${priority[0].toUpperCase() + priority.slice(1)}</span>`);
+      }
+      if (priority) card.dataset.priority = priority; else delete card.dataset.priority;
       card.querySelector('.task__todos')?.remove();
       const newTodosHTML = todos.length ? buildTodosHTML(todos) : '';
       if (newTodosHTML) card.querySelector('p').insertAdjacentHTML('afterend', newTodosHTML);
@@ -521,7 +546,7 @@
       }
       saveTask(card);
       // Refresh search cache after edit
-      card.dataset.search = `${title} ${text} ${tagLabels[tag] || ''}`.toLowerCase();
+      card.dataset.search = `${title} ${text} ${tagLabels[tag] || ''} ${priority || ''}`.toLowerCase();
       closeModal();
       return;
     }
@@ -563,6 +588,7 @@
     card.innerHTML  = `
       <div class='task__tags'>
         <span class='task__tag task__tag--${tag}'>${tagLabels[tag]}</span>
+        ${priority ? `<span class='task__priority task__priority--${priority}'>${priority[0].toUpperCase() + priority.slice(1)}</span>` : ''}
         <button class='task__options'><i class='fas fa-ellipsis-h'></i></button>
       </div>
       ${title ? `<h4 class='task__title'>${title}</h4>` : ''}
@@ -577,6 +603,7 @@
     card.dataset.createdByUid   = currentUser?.uid         || '';
     card.dataset.createdByName  = authorName;
     card.dataset.createdByPhoto = authorPhoto;
+    if (priority)  card.dataset.priority  = priority;
     if (startDate) card.dataset.startDate = startDate;
     if (deadline)  card.dataset.deadline  = deadline;
     if (assignee)  card.dataset.assignee  = assignee;
@@ -593,7 +620,7 @@
     logActivity('create', `<b>${authorName}</b> created the card - "${text.slice(0, 40)}"`);
     saveTask(card, true);
     // Stamp search cache on new card
-    card.dataset.search = `${title} ${text} ${tagLabels[tag] || ''}`.toLowerCase();
+    card.dataset.search = `${title} ${text} ${tagLabels[tag] || ''} ${priority || ''}`.toLowerCase();
     closeModal();
   });
 }());
