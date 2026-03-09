@@ -24,7 +24,7 @@
       "emailPassword": true,
       "googleSignIn": {
         "oAuthBrandDisplayName": "threedots",
-        "supportEmail": "support@threedots@firebaseapp.com"
+        "supportEmail": "support@taskbz.com"
       }
     }
   }

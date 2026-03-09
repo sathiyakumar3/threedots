@@ -298,6 +298,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function applySearch(query) {
     const q = query.trim().toLowerCase();
     board.querySelectorAll('.task').forEach(card => {
+      if (card.closest('.project-column--trash')) {
+        card.classList.remove('task--search-hidden', 'task--search-match');
+        return;
+      }
       if (!q) {
         card.classList.remove('task--search-hidden', 'task--search-match');
       } else {
@@ -371,10 +375,14 @@ document.addEventListener('DOMContentLoaded', () => {
       const btn = document.getElementById('activityClearBtn');
       btn.innerHTML = '<i class="fas fa-spinner"></i> Clearing…';
       btn.disabled = true;
-      db.doc(`boards/${BOARD_ID}`)
-        .update({ activity: [] })
+      db.collection(`boards/${BOARD_ID}/activity`)
+        .get()
+        .then(snap => {
+          const batch = db.batch();
+          snap.forEach(doc => batch.delete(doc.ref));
+          return batch.commit();
+        })
         .then(() => {
-          window._activityCache = [];
           document.getElementById('activityFeed').innerHTML = '';
           btn.innerHTML = '<i class="fas fa-trash-alt"></i> Clear logs';
           btn.disabled = false;
@@ -556,9 +564,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Column task-count badge helpers ─────────────────────────────────────
   function refreshColCount(colEl) {
+    const isTrashCol = colEl.classList.contains('project-column--trash');
     const count = colEl.querySelectorAll(':scope > .task').length;
     const badge = colEl.querySelector('.col-count');
     if (!badge) return;
+    if (isTrashCol) { badge.textContent = count; return; }
     const limit = colEl.dataset.wipLimit ? +colEl.dataset.wipLimit : 0;
     if (limit > 0) {
       badge.textContent = `${count}/${limit}`;
@@ -585,6 +595,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Author identity helpers ──────────────────────────────────────────────
   function _authorName()  { return currentUser?.displayName || currentUser?.email || 'You'; }
+
+  // ── Inject a single timeline entry into an existing card ────────────────
+  function _addCardTlEntry(card, type, text) {
+    const uid    = currentUser?.uid || '';
+    const name   = _authorName();
+    const photo  = _authorPhoto();
+    const now    = Date.now();
+    const date   = fmtDate(now);
+    const avatar = photo
+      ? `<img class='tl-avatar' src='${photo}' alt='${name}' title='${name}'>`
+      : `<span class='tl-avatar tl-avatar--initial' title='${name}'>${name[0].toUpperCase()}</span>`;
+    const textDiv  = `<div class="task__tl-text">${text}<div class="task__tl-meta"><time>${date}</time><b>${name}</b></div></div>`;
+    const entryHTML = `<div class="task__tl-entry" data-ts="${now}" data-author-uid="${uid}"><span class="task__tl-dot task__tl-dot--${type}">${avatar}</span>${textDiv}</div>`;
+    const tl = card.querySelector('.task__timeline');
+    if (tl) {
+      tl.insertAdjacentHTML('beforeend', entryHTML);
+    } else {
+      const footer = card.querySelector('.task__footer');
+      if (footer) footer.insertAdjacentHTML('beforebegin', `<div class="task__timeline">${entryHTML}</div>`);
+    }
+  }
   function _authorPhoto() { return currentUser?.photoURL    || ''; }
   function _authorAvatar() {
     const name  = _authorName();
@@ -619,13 +650,9 @@ document.addEventListener('DOMContentLoaded', () => {
     board.innerHTML = '';
     document.getElementById('activityFeed').innerHTML = '';
     // ── Set up Firestore activity persistence hook ──
-    window._activityCache = [];
     window._persistActivity = (type, text, date, ts) => {
-      window._activityCache.push({ type, text, date, ts });
-      if (window._activityCache.length > 50)
-        window._activityCache.splice(0, window._activityCache.length - 50);
-      db.doc(`boards/${BOARD_ID}`)
-        .update({ activity: window._activityCache })
+      db.collection(`boards/${BOARD_ID}/activity`)
+        .add({ type, text, date, ts })
         .catch(err => console.error('Activity persist error:', err));
     };
     const srch = document.getElementById('boardSearch');
@@ -636,6 +663,9 @@ document.addEventListener('DOMContentLoaded', () => {
     // Reset archive button + show-archive state
     board.classList.remove('show-archive');
     document.getElementById('archiveBtn').classList.remove('active');
+    // Reset trash button + show-trash state
+    board.classList.remove('show-trash');
+    document.getElementById('trashBtn').classList.remove('active');
     // Close board options dropdown if open
     document.getElementById('boardDropdown').classList.remove('open');
     // Reset activity panel to collapsed
@@ -677,6 +707,21 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (data.columns) {
               buildColumnsFromData(data.columns);
+              // ── Migration: add Trash column to boards that pre-date the feature ──
+              if (!board.querySelector('.project-column--trash')) {
+                const trashDiv = document.createElement('div');
+                trashDiv.className = 'project-column project-column--trash';
+                trashDiv.dataset.columnId = '100';
+                trashDiv.innerHTML = `<div class='project-column-heading'>
+                  <h2 class='project-column-heading__title'>Trash</h2>
+                  <span class='col-count'>0</span>
+                  <button class='project-column-heading__options'><i class="fas fa-ellipsis-h"></i></button>
+                </div>`;
+                board.appendChild(trashDiv);
+                setupColDropdown(trashDiv);
+                syncGrid();
+                saveChanges(true);
+              }
               // ── Real-time tasks listener ──────────────────────────────
               let _tasksInitialised = false;
               _tasksUnsub = db.collection(`boards/${id}/tasks`)
@@ -686,9 +731,29 @@ document.addEventListener('DOMContentLoaded', () => {
                     _tasksInitialised = true;
                     if (!snap.empty) {
                       const tasks = snap.docs
-                        .map(d => d.data())
+                        .map(d => ({ id: d.id, ...d.data() }))
                         .sort((a, b) => (a.order || 0) - (b.order || 0));
                       buildTasksFromFlatData(tasks);
+                      // ── Auto-purge trash cards older than 30 days ──
+                      const THIRTY_DAYS = 30 * 24 * 60 * 60 * 1000;
+                      const now = Date.now();
+                      const trashCol = document.querySelector('.project-column--trash');
+                      if (trashCol) {
+                        let purged = 0;
+                        [...trashCol.querySelectorAll(':scope > .task')].forEach(card => {
+                          const deletedAt = +card.dataset.deletedAt;
+                          if (deletedAt && (now - deletedAt) >= THIRTY_DAYS) {
+                            const tid = card.dataset.id;
+                            card.remove();
+                            if (tid) db.collection(`boards/${BOARD_ID}/tasks`).doc(tid).delete().catch(() => {});
+                            purged++;
+                          }
+                        });
+                        if (purged > 0) {
+                            logActivity('delete', `<b>System</b> auto-purged ${purged} card${purged !== 1 ? 's' : ''} from Trash (30-day limit)`);
+                            saveChanges(true);
+                          }
+                      }
                     } else if (Array.isArray(data.tasks) && data.tasks.length > 0) {
                       // Migration: tasks stored in top-level collection
                       Promise.all(data.tasks.map(tid => db.collection('tasks').doc(tid).get()))
@@ -726,7 +791,7 @@ document.addEventListener('DOMContentLoaded', () => {
                       const colEl = board.querySelector(`.project-column[data-column-id="${taskData.columnId}"]`)
                                  || board.querySelector('.project-column');
                       if (colEl) {
-                        colEl.appendChild(renderCard(taskData));
+                        colEl.appendChild(renderCard({ id: taskId, ...taskData }));
                         refreshAllColCounts();
                         scheduleOverflowCheck();
                       }
@@ -735,7 +800,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
                     if (change.type === 'modified') {
                       const existing = board.querySelector(`.task[data-id="${CSS.escape(taskId)}"]`);
-                      const newCard  = renderCard(taskData);
+                      const newCard  = renderCard({ id: taskId, ...taskData });
                       // Preserve expanded state
                       if (existing?.classList.contains('task--expanded')) newCard.classList.add('task--expanded');
                       // Check if the card moved to a different column
@@ -757,12 +822,17 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, err => console.error('Tasks listener error:', err));
             }
             renderParticipants(_adminUids, _boardUsers);
-            // ── Load persisted activity feed ──
-            const storedActivity = data.activity || [];
-            window._activityCache = [...storedActivity];
-            storedActivity.forEach(a => {
-              logActivity(a.type, a.text, a.date, a.ts, true /* skipPersist */);
-            });
+            // ── Load persisted activity feed from subcollection ──
+            db.collection(`boards/${id}/activity`)
+              .orderBy('ts', 'desc')
+              .limit(200)
+              .get()
+              .then(snap => {
+                snap.docs.map(d => d.data()).reverse().forEach(a => {
+                  logActivity(a.type, a.text, a.date, a.ts, true /* skipPersist */);
+                });
+              })
+              .catch(err => console.error('Activity load error:', err));
           });
           // sync favourite star + dropdown button
           const isFav = userFavouriteBoard === id;
@@ -1371,7 +1441,8 @@ document.addEventListener('DOMContentLoaded', () => {
         { id: 2,  title: 'In Progress' },
         { id: 3,  title: 'Review'      },
         { id: 98, title: 'Done'        },
-        { id: 99, title: 'Archive', archive: true }
+        { id: 99,  title: 'Archive', archive: true },
+        { id: 100, title: 'Trash',   trash:   true }
       ]}
     };
     const ts     = Date.now();
@@ -1438,11 +1509,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const col     = e.target.closest('.project-column');
     const colName = col ? col.querySelector('.project-column-heading__title')?.textContent : '';
     const cardText = dragSrcEl.querySelector('p')?.textContent.slice(0, 40) || 'Card';
+    const fromTrash = dragSrcEl.closest('.project-column--trash') !== null;
 
     if (task && task !== dragSrcEl) {
       task.parentNode.insertBefore(dragSrcEl, task);
     } else if (col) {
       col.appendChild(dragSrcEl);
+    }
+
+    const toTrash = col && col.classList.contains('project-column--trash');
+
+    if (toTrash && !fromTrash) {
+      dragSrcEl.dataset.deletedAt = Date.now().toString();
+      _addCardTlEntry(dragSrcEl, 'delete', 'Card Deleted');
+    } else if (fromTrash && !toTrash) {
+      delete dragSrcEl.dataset.deletedAt;
+      _addCardTlEntry(dragSrcEl, 'create', 'Card Recovered');
     }
 
     logActivity('move', `<b>Card</b> "${cardText}" moved to <b>${colName}</b>`);
@@ -1473,10 +1555,17 @@ document.addEventListener('DOMContentLoaded', () => {
       // Suppress real-time listener echo for our own drag write
       window._localWriteIds = window._localWriteIds || new Set();
       window._localWriteIds.add(taskId);
-      db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId)
-        .update({ columnId: newColId, order: newOrder })
-        .then(() => setTimeout(() => window._localWriteIds?.delete(taskId), 500))
-        .catch(err => console.error('Drag save failed:', err));
+      if ((fromTrash && !toTrash) || (!fromTrash && toTrash)) {
+        // Full save to persist timeline entry + deletedAt change
+        saveTask(dragSrcEl, true)
+          .then(() => setTimeout(() => window._localWriteIds?.delete(taskId), 500))
+          .catch(err => console.error('Drag save failed:', err));
+      } else {
+        db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId)
+          .update({ columnId: newColId, order: newOrder })
+          .then(() => setTimeout(() => window._localWriteIds?.delete(taskId), 500))
+          .catch(err => console.error('Drag save failed:', err));
+      }
     }
     dragSrcEl = null;
   });
@@ -1501,10 +1590,11 @@ document.addEventListener('DOMContentLoaded', () => {
     let maxId = 0;
     colData.columns.forEach(col => {
       const div       = document.createElement('div');
-      div.className   = 'project-column' + (col.archive ? ' project-column--archive' : '');
+      let cls = 'project-column';
+      if (col.archive) cls += ' project-column--archive';
+      if (col.trash)   cls += ' project-column--trash';
+      div.className   = cls;
       div.dataset.columnId = col.id;
-      if (col.owner) div.dataset.owner = col.owner;
-      if (col.users && col.users.length) div.dataset.users = JSON.stringify(col.users);
       if (col.wipLimit) div.dataset.wipLimit = col.wipLimit;
       div.innerHTML   = `<div class='project-column-heading'>
         <h2 class='project-column-heading__title'>${col.title}</h2>
@@ -1513,7 +1603,7 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
       board.appendChild(div);
       setupColDropdown(div);
-      if (!col.archive && col.id < 97 && col.id > maxId) maxId = col.id;
+      if (!col.archive && !col.trash && col.id < 97 && col.id > maxId) maxId = col.id;
     });
     nextColId = maxId + 1;
     syncGrid();
@@ -1615,11 +1705,32 @@ document.addEventListener('DOMContentLoaded', () => {
       const task = e.target.closest('.task');
       task.querySelector('.task__dropdown').classList.remove('open');
       openDropdown = null;
+      if (task.closest('.project-column--trash')) {
+        showToast('Restore the card before editing.', true);
+        return;
+      }
       if (window._boardRole === 'member' && task.dataset.createdByUid && task.dataset.createdByUid !== currentUser?.uid) {
         showToast('You can only edit your own tasks.', true);
         return;
       }
       if (window._openEditModal) window._openEditModal(task);
+      return;
+    }
+
+    // Restore (from Trash)
+    if (e.target.closest('.task__opt-restore')) {
+      const task = e.target.closest('.task');
+      task.querySelector('.task__dropdown').classList.remove('open');
+      openDropdown = null;
+      const firstNonSpecial = document.querySelector('.project-column:not(.project-column--archive):not(.project-column--trash)');
+      if (!firstNonSpecial) { showToast('No column to restore to.', true); return; }
+      delete task.dataset.deletedAt;
+      delete task.dataset.deletedLabel;
+      _addCardTlEntry(task, 'create', 'Card Recovered');
+      firstNonSpecial.appendChild(task);
+      refreshAllColCounts();
+      saveTask(task, true);
+      logActivity('move', `<b>${_authorName()}</b> restored "${task.querySelector('.task__title')?.textContent?.trim() || task.querySelector('p')?.textContent?.slice(0,40) || 'Card'}"`);
       return;
     }
 
@@ -1634,28 +1745,67 @@ document.addEventListener('DOMContentLoaded', () => {
       }
       const taskId   = task.dataset.id;
       const cardText = task.querySelector('p')?.textContent.slice(0, 40) || 'Card';
+      const cardTitle = task.querySelector('.task__title')?.textContent?.trim() || cardText;
+      const inTrash  = !!task.closest('.project-column--trash');
+
+      if (inTrash) {
+        Swal.fire({
+          title: 'Delete permanently?',
+          text: `"${cardTitle}" will be deleted forever and cannot be recovered.`,
+          icon: 'warning',
+          showCancelButton: true,
+          confirmButtonText: 'Delete Forever',
+          confirmButtonColor: '#e05252',
+          cancelButtonText: 'Cancel',
+          reverseButtons: true
+        }).then(result => {
+          if (!result.isConfirmed) return;
+          task.style.transition = 'opacity .2s';
+          task.style.opacity    = '0';
+          const deleteDoc = taskId
+            ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(err => console.warn('Could not delete task doc:', err))
+            : Promise.resolve();
+          setTimeout(() => { task.remove(); deleteDoc.then(() => { refreshAllColCounts(); saveChanges(true); }); }, 200);
+          logActivity('delete', `<b>${_authorName()}</b> permanently deleted "${cardTitle}"`);
+          openDropdown = null;
+        });
+        return;
+      }
+
       Swal.fire({
-        title: 'Are you sure?',
-        text: 'This task will be permanently deleted.',
+        title: 'Move to Trash?',
+        text: `"${cardTitle}" will be moved to Trash and auto-deleted after 30 days.`,
         icon: 'warning',
         showCancelButton: true,
-        confirmButtonText: 'Delete',
+        confirmButtonText: 'Move to Trash',
         confirmButtonColor: '#e05252',
         cancelButtonText: 'Cancel',
         reverseButtons: true
       }).then(result => {
         if (!result.isConfirmed) return;
-        task.style.transition = 'opacity .2s';
-        task.style.opacity    = '0';
-        // Remove task doc from subcollection, then save board
-        const deleteDoc = taskId
-          ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(err => console.warn('Could not delete task doc:', err))
-          : Promise.resolve();
-        setTimeout(() => {
-          task.remove();
-          deleteDoc.then(() => saveChanges(true));
-        }, 200);
-        logActivity('delete', `<b>${_authorName()}</b> deleted "${cardText}"`);
+        const trashCol = document.querySelector('.project-column--trash');
+        if (trashCol) {
+          task.dataset.deletedAt = Date.now().toString();
+          task.style.transition = 'opacity .2s';
+          task.style.opacity    = '0';
+          setTimeout(() => {
+            task.style.opacity = '';
+            task.style.transition = '';
+            trashCol.appendChild(task);
+            _addCardTlEntry(task, 'delete', 'Card Deleted');
+            refreshAllColCounts();
+            saveChanges(true);
+          }, 200);
+        } else {
+          // Fallback: hard delete if no trash column exists
+          task.style.transition = 'opacity .2s';
+          task.style.opacity    = '0';
+          const deleteDoc = taskId
+            ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(err => console.warn('Could not delete task doc:', err))
+            : Promise.resolve();
+          setTimeout(() => { task.remove(); deleteDoc.then(() => saveChanges(true)); }, 200);
+        }
+        logActivity('delete', `<b>${_authorName()}</b> deleted "${cardTitle}"`);
         openDropdown = null;
       });
       return;
@@ -1857,7 +2007,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.col-opt-rename')) {
       if (window._boardRole === 'member') { showToast('Contact an admin to make changes to columns.', true); return; }
       const colEl   = e.target.closest('.project-column');
-      if (colEl.classList.contains('project-column--archive')) return;
+      if (colEl.classList.contains('project-column--archive') || colEl.classList.contains('project-column--trash')) return;
       const dd      = colEl.querySelector('.col-dropdown');
       const titleEl = colEl.querySelector('.project-column-heading__title');
       dd.classList.remove('open'); openColDropdown = null;
@@ -1868,15 +2018,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.col-opt-add-before')) {
       if (window._boardRole === 'member') { showToast('Contact an admin to make changes to columns.', true); return; }
       const colEl = e.target.closest('.project-column');
-      if (colEl.classList.contains('project-column--archive')) return;
+      if (colEl.classList.contains('project-column--archive') || colEl.classList.contains('project-column--trash')) return;
       colEl.querySelector('.col-dropdown').classList.remove('open'); openColDropdown = null;
       const newCol = document.createElement('div');
       newCol.className = 'project-column';
       newCol.dataset.columnId = nextColId++;
-      if (currentUser) {
-        newCol.dataset.owner = currentUser.uid;
-        newCol.dataset.users = JSON.stringify([currentUser.uid]);
-      }
       newCol.innerHTML = `<div class='project-column-heading'><h2 class='project-column-heading__title'>New Column</h2><button class='project-column-heading__options'><i class="fas fa-ellipsis-h"></i></button></div>`;
       colEl.parentNode.insertBefore(newCol, colEl);
       setupColDropdown(newCol);
@@ -1892,15 +2038,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.col-opt-add-after')) {
       if (window._boardRole === 'member') { showToast('Contact an admin to make changes to columns.', true); return; }
       const colEl = e.target.closest('.project-column');
-      if (colEl.classList.contains('project-column--archive')) return;
+      if (colEl.classList.contains('project-column--archive') || colEl.classList.contains('project-column--trash')) return;
       colEl.querySelector('.col-dropdown').classList.remove('open'); openColDropdown = null;
       const newCol = document.createElement('div');
       newCol.className = 'project-column';
       newCol.dataset.columnId = nextColId++;
-      if (currentUser) {
-        newCol.dataset.owner = currentUser.uid;
-        newCol.dataset.users = JSON.stringify([currentUser.uid]);
-      }
       newCol.innerHTML = `<div class='project-column-heading'><h2 class='project-column-heading__title'>New Column</h2><button class='project-column-heading__options'><i class="fas fa-ellipsis-h"></i></button></div>`;
       colEl.parentNode.insertBefore(newCol, colEl.nextSibling);
       setupColDropdown(newCol);
@@ -1939,6 +2081,38 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     // Delete column
+    if (e.target.closest('.col-opt-empty-trash')) {
+      const colEl = e.target.closest('.project-column');
+      colEl.querySelector('.col-dropdown').classList.remove('open'); openColDropdown = null;
+      const count = colEl.querySelectorAll(':scope > .task').length;
+      if (!count) { showToast('Trash is already empty.'); return; }
+      Swal.fire({
+        title: 'Empty Trash?',
+        text: `${count} card${count !== 1 ? 's' : ''} will be permanently deleted and cannot be recovered.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Empty Trash',
+        confirmButtonColor: '#e05252',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+      }).then(result => {
+        if (!result.isConfirmed) return;
+        const batch = db.batch();
+        [...colEl.querySelectorAll(':scope > .task')].forEach(card => {
+          const tid = card.dataset.id;
+          if (tid) batch.delete(db.collection(`boards/${BOARD_ID}/tasks`).doc(tid));
+          card.remove();
+        });
+        batch.commit().catch(err => console.error('Empty trash failed:', err));
+        refreshAllColCounts();
+        _refreshTrashBadge();
+        saveChanges(true);
+        logActivity('delete', `<b>${_authorName()}</b> emptied the Trash (${count} card${count !== 1 ? 's' : ''})`);
+        showToast('Trash emptied');
+      });
+      return;
+    }
+
     if (e.target.closest('.col-opt-delete')) {
       if (window._boardRole === 'member') { showToast('Contact an admin to make changes to columns.', true); return; }
       const colEl    = e.target.closest('.project-column');
@@ -1972,7 +2146,7 @@ document.addEventListener('DOMContentLoaded', () => {
   board.addEventListener('dblclick', e => {
     const titleEl = e.target.closest('.project-column-heading__title');
     if (!titleEl) return;
-    if (titleEl.closest('.project-column--archive')) return;
+    if (titleEl.closest('.project-column--archive') || titleEl.closest('.project-column--trash')) return;
     e.preventDefault();
     // Close any open col dropdown
     if (openColDropdown) { openColDropdown.classList.remove('open'); openColDropdown = null; }
@@ -2007,6 +2181,35 @@ document.addEventListener('DOMContentLoaded', () => {
     this.classList.toggle('active');
     syncGrid();
   });
+
+  // ── Trash toggle ─────────────────────────────────────────────────────────
+  document.getElementById('trashBtn').addEventListener('click', function () {
+    board.classList.toggle('show-trash');
+    this.classList.toggle('active');
+    syncGrid();
+    _refreshTrashBadge();
+  });
+
+  // ── Trash badge helper ───────────────────────────────────────────────────
+  function _refreshTrashBadge() {
+    const btn = document.getElementById('trashBtn');
+    if (!btn) return;
+    const trashCol = document.querySelector('.project-column--trash');
+    const count = trashCol ? trashCol.querySelectorAll(':scope > .task').length : 0;
+    let badge = btn.querySelector('.trash-badge');
+    if (count > 0) {
+      if (!badge) { badge = document.createElement('span'); badge.className = 'trash-badge'; btn.appendChild(badge); }
+      badge.textContent = count > 99 ? '99+' : count;
+    } else {
+      badge?.remove();
+    }
+  }
+
+  // Refresh badge whenever cards enter/leave the trash column
+  new MutationObserver(() => _refreshTrashBadge()).observe(
+    document.querySelector('.project-tasks'),
+    { childList: true, subtree: true }
+  );
 
   // ── Topbar user dropdown ─────────────────────────────────────────────────
   const topbarUser    = document.getElementById('topbarUser');

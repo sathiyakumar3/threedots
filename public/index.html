@@ -31,8 +31,8 @@
         <!-- Left group -->
         <div class="topbar-left">
           <div class="topbar-logo">
-            <img class="logo-mode-light" src="images/logo-light.svg" width="160" height="42" alt="Taskbz logo">
-            <img class="logo-mode-dark"  src="images/logo-dark.svg"  width="160" height="42" alt="Taskbz logo">
+            <img class="logo-mode-light" src="images/logo-icon-light.svg" width="32" height="32" alt="Taskbz logo">
+            <img class="logo-mode-dark"  src="images/logo-icon-dark.svg"  width="32" height="32" alt="Taskbz logo">
           </div>
           <div class="board-title-wrap">
             <div class="board-combo" id="boardCombo">
@@ -84,6 +84,8 @@
               </div>
             </div>
           </div>
+          <button class="topbar-icon-btn" id="insightsBtn" title="Board Insights (AI)"><i class="fas fa-lightbulb"></i></button>
+          <button class="topbar-icon-btn" id="activityToggle" title="Activity"><i class="fas fa-stream"></i></button>
           <div class="topbar-divider"></div>
                     <div class="project-participants" id="projectParticipants">
             <!-- avatars injected by renderParticipants() -->
@@ -123,10 +125,9 @@
           </div>
            <div class="topbar-divider"></div>
 
-          <button class="topbar-icon-btn" id="insightsBtn" title="Board Insights (AI)"><i class="fas fa-lightbulb"></i></button>
           <button class="topbar-icon-btn" id="calendarBtn" title="Calendar View"><i class="fas fa-calendar-alt"></i></button>
           <button class="topbar-icon-btn" id="archiveBtn" title="Archive"><i class="fas fa-archive"></i></button>
-          <button class="topbar-icon-btn" id="activityToggle" title="Activity"><i class="fas fa-stream"></i></button>
+          <button class="topbar-icon-btn" id="trashBtn" title="Trash"><i class="fas fa-trash-alt"></i></button>
 
           <div class="topbar-divider"></div>
 
@@ -166,6 +167,29 @@
               <div class="topbar-user__divider"></div>
               <button class="topbar-user__item danger" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
             </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Bulk selection action bar -->
+      <div class="bulk-bar" id="bulkBar">
+        <div class="bulk-bar__inner">
+          <button class="bulk-bar__deselect" id="bulkDeselect" title="Clear selection"><i class="fas fa-times"></i></button>
+          <span class="bulk-bar__count" id="bulkCount">0 cards selected</span>
+          <div class="bulk-bar__actions">
+            <div class="bulk-action-wrap">
+              <button class="bulk-bar__btn" id="bulkTagBtn"><i class="fas fa-tag"></i> Tag</button>
+              <div class="bulk-popup" id="bulkTagPopup"></div>
+            </div>
+            <div class="bulk-action-wrap">
+              <button class="bulk-bar__btn" id="bulkPrioBtn"><i class="fas fa-flag"></i> Priority</button>
+              <div class="bulk-popup" id="bulkPrioPopup"></div>
+            </div>
+            <div class="bulk-action-wrap">
+              <button class="bulk-bar__btn" id="bulkMoveBtn"><i class="fas fa-exchange-alt"></i> Move to</button>
+              <div class="bulk-popup" id="bulkMovePopup"></div>
+            </div>
+            <button class="bulk-bar__btn bulk-bar__btn--danger" id="bulkDeleteBtn"><i class="fas fa-trash-alt"></i> Delete</button>
           </div>
         </div>
       </div>
@@ -233,36 +257,20 @@
             <div class="modal__header-bar"></div>
           </div>
           <div class="modal__body">
-            <div class="modal-two-col">
-              <div class="modal-field">
-                <label>Column</label>
-                <div class="col-combo" id="colCombo">
-                  <button type="button" class="col-combo__trigger" id="colComboTrigger">
-                    <span id="colComboLabel">Select column</span>
-                    <i class="fas fa-chevron-down col-combo__chevron"></i>
-                  </button>
-                  <div class="col-combo__menu" id="colComboMenu">
-                    <div id="colComboList"></div>
-                    <div class="board-combo__footer">
-                      <input type="text" class="board-combo__new-input" id="colNewInput" placeholder="New column…" autocomplete="off">
-                      <button type="button" class="board-combo__new-add" id="colNewAdd" title="Add column"><i class="fas fa-plus"></i></button>
-                    </div>
+            <div class="modal-field">
+              <label>Column</label>
+              <div class="col-combo" id="colCombo">
+                <button type="button" class="col-combo__trigger" id="colComboTrigger">
+                  <span id="colComboLabel">Select column</span>
+                  <i class="fas fa-chevron-down col-combo__chevron"></i>
+                </button>
+                <div class="col-combo__menu" id="colComboMenu">
+                  <div id="colComboList"></div>
+                  <div class="board-combo__footer">
+                    <input type="text" class="board-combo__new-input" id="colNewInput" placeholder="New column…" autocomplete="off">
+                    <button type="button" class="board-combo__new-add" id="colNewAdd" title="Add column"><i class="fas fa-plus"></i></button>
                   </div>
                 </div>
-              </div>
-              <div class="modal-field">
-                <label>Tag</label>
-                <div id="cardTag"></div>
-              </div>
-            </div>
-            <div class="modal-field">
-              <label>Priority</label>
-              <div class="priority-selector" id="cardPriority">
-                <button type="button" class="priority-btn priority-btn--none active" data-value="">None</button>
-                <button type="button" class="priority-btn priority-btn--low" data-value="low">Low</button>
-                <button type="button" class="priority-btn priority-btn--medium" data-value="medium">Medium</button>
-                <button type="button" class="priority-btn priority-btn--high" data-value="high">High</button>
-                <button type="button" class="priority-btn priority-btn--critical" data-value="critical">Critical</button>
               </div>
             </div>
             <div class="modal-field">
@@ -285,6 +293,20 @@
               </div>
               <div class="ai-field-wrap">
                 <textarea id="cardText" placeholder="Description (optional)…"></textarea>
+              </div>
+            </div>
+            <div class="modal-field">
+              <label>Tag</label>
+              <div id="cardTag"></div>
+            </div>
+            <div class="modal-field">
+              <label>Priority</label>
+              <div class="priority-selector" id="cardPriority">
+                <button type="button" class="priority-btn priority-btn--none active" data-value="">None</button>
+                <button type="button" class="priority-btn priority-btn--low" data-value="low">Low</button>
+                <button type="button" class="priority-btn priority-btn--medium" data-value="medium">Medium</button>
+                <button type="button" class="priority-btn priority-btn--high" data-value="high">High</button>
+                <button type="button" class="priority-btn priority-btn--critical" data-value="critical">Critical</button>
               </div>
             </div>
             <button type="button" class="modal-more-toggle" id="modalMoreToggle">
@@ -424,6 +446,7 @@
   <script src="js/modal.js"></script>
   <script src="js/ai-assist.js"></script>
   <script src="js/ai-insights.js"></script>
+  <script src="js/bulk.js"></script>
   <script src="js/confetti.js"></script>
   <!-- FullCalendar -->
   <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>

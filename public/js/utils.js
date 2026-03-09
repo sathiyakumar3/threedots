@@ -25,7 +25,7 @@ function showToast(msg, isError) {
 }
 
 // ── Activity feed ──
-const MAX_ACTIVITY = 50;
+const MAX_ACTIVITY = 200;
 function logActivity(type, text, timeLabel, ts, skipPersist) {
   const feed = document.getElementById('activityFeed');
   if (!feed) return;
@@ -94,7 +94,7 @@ function buildTimeline(entries, opts) {
       const displayDate = stripYear(e.date);
       const textDiv = isComment
         ? `<div class="task__tl-text" data-comment="${e.text.replace(/"/g, '&quot;')}">${e.text}<div class="task__tl-meta"><time>${displayDate}</time><b>${authorName}</b></div></div>`
-        : e.type === 'create'
+        : (e.type === 'create' || e.type === 'delete')
           ? `<div class="task__tl-text">${e.text}<div class="task__tl-meta"><time>${displayDate}</time><b>${authorName}</b></div></div>`
           : `<div class="task__tl-text"><b>${authorName}</b> ${e.text}<time>${displayDate}</time></div>`;
       const createClass = (e.type === 'create') ? ' task__tl-entry--create' : '';

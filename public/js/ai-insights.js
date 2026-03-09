@@ -5,7 +5,7 @@
   // ── Collect all cards from the live DOM ─────────────────────────────────
   function collectBoardData() {
     const columns = [];
-    document.querySelectorAll('.project-column:not(.project-column--archive)').forEach(col => {
+    document.querySelectorAll('.project-column:not(.project-column--archive):not(.project-column--trash)').forEach(col => {
       const name  = col.querySelector('.project-column-heading__title')?.textContent?.trim() || 'Untitled';
       const cards = [];
       col.querySelectorAll('.task').forEach(cardEl => {

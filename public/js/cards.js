@@ -97,6 +97,7 @@ function serializeTask(cardEl) {
     priority:  cardEl.dataset.priority  || '',
     created:     cardEl.dataset.created || '',
     author:      cardEl.dataset.createdByUid || '',
+    ...(cardEl.dataset.deletedAt ? { deletedAt: +cardEl.dataset.deletedAt } : {}),
     timeline
   };
 }
@@ -108,11 +109,12 @@ function renderCard(taskData) {
   card.draggable   = true;
   card.dataset.id  = taskData.id;
   if (taskData.order !== undefined) card.dataset.order = taskData.order;
-  if (taskData.created)   card.dataset.created   = taskData.created;
-  if (taskData.startDate) card.dataset.startDate = taskData.startDate;
-  if (taskData.deadline)  card.dataset.deadline  = taskData.deadline;
-  if (taskData.assignee)  card.dataset.assignee  = taskData.assignee;
-  if (taskData.priority)  card.dataset.priority  = taskData.priority;
+  if (taskData.created)    card.dataset.created    = taskData.created;
+  if (taskData.startDate)  card.dataset.startDate  = taskData.startDate;
+  if (taskData.deadline)   card.dataset.deadline   = taskData.deadline;
+  if (taskData.assignee)   card.dataset.assignee   = taskData.assignee;
+  if (taskData.priority)   card.dataset.priority   = taskData.priority;
+  if (taskData.deletedAt)  card.dataset.deletedAt  = taskData.deletedAt;
   // Support new `author` field (UID string) and legacy `createdBy: { uid }` object
   const authorUid  = taskData.author || taskData.createdBy?.uid || '';
   const _cbResolved = (window._uidMap && authorUid) ? window._uidMap[authorUid] : null;
@@ -190,8 +192,12 @@ function addUpdateWidget(card) {
   card.querySelector('.task__tags').insertAdjacentHTML('beforeend',
     `<div class='task__dropdown'>
        <button class='task__opt-edit'><i class='fas fa-pen'></i> Edit</button>
+       <button class='task__opt-restore'><i class='fas fa-trash-restore'></i> Restore</button>
        <button class='task__opt-delete danger'><i class='fas fa-trash-alt'></i> Delete</button>
      </div>`);
+  // Selection checkbox (injected as first child of tags row)
+  card.querySelector('.task__tags').insertAdjacentHTML('afterbegin',
+    `<label class='task__select-wrap' title='Select card'><input type='checkbox' class='task__select-cb'></label>`);
   card.insertAdjacentHTML('beforeend',
     `<div class='task__footer'>
        <button class='task__expand-btn'><i class='fas fa-chevron-down'></i><span></span></button>

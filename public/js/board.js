@@ -10,10 +10,9 @@ function serializeBoard() {
       columns: cols.map((col, i) => ({
         id:       +col.dataset.columnId || i,
         title:    col.querySelector('.project-column-heading__title')?.textContent || `Column ${i + 1}`,
-        owner:    col.dataset.owner || '',
-        users:    col.dataset.users ? JSON.parse(col.dataset.users) : [],
         ...(col.dataset.wipLimit ? { wipLimit: +col.dataset.wipLimit } : {}),
-        ...(col.classList.contains('project-column--archive') ? { archive: true } : {})
+        ...(col.classList.contains('project-column--archive') ? { archive: true } : {}),
+        ...(col.classList.contains('project-column--trash')   ? { trash:   true } : {})
       }))
     }
   };
@@ -28,9 +27,10 @@ function saveChanges(silent) {
   cols.forEach((col, i) => {
     const columnId = +col.dataset.columnId || i;
     [...col.querySelectorAll(':scope > .task')].forEach((cardEl, order) => {
-      const { id: taskId, ...taskFields } = serializeTask(cardEl);
-      const taskRef = db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId);
-      batch.set(taskRef, { ...taskFields, boardId: BOARD_ID, columnId, order }, { merge: true });
+      const taskData = serializeTask(cardEl);
+      const taskId   = taskData.id;
+      const taskRef  = db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId);
+      batch.set(taskRef, { ...taskData, boardId: BOARD_ID, columnId, order }, { merge: true });
     });
   });
 
@@ -49,12 +49,13 @@ function saveTask(cardEl, silent) {
   const columnId = colEl ? (+colEl.dataset.columnId || 0) : 0;
   const siblings = colEl ? [...colEl.querySelectorAll(':scope > .task')] : [];
   const order    = siblings.indexOf(cardEl);
-  const { id: taskId, ...taskFields } = serializeTask(cardEl);
+  const taskData = serializeTask(cardEl);
+  const taskId   = taskData.id;
   // Suppress real-time listener echo for our own writes
   window._localWriteIds = window._localWriteIds || new Set();
   window._localWriteIds.add(taskId);
   return db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId)
-    .set({ ...taskFields, boardId: BOARD_ID, columnId, order }, { merge: true })
+    .set({ ...taskData, boardId: BOARD_ID, columnId, order }, { merge: true })
     .then(() => {
       setTimeout(() => window._localWriteIds?.delete(taskId), 500);
       if (!silent) showToast('Saved ✓');
@@ -67,22 +68,30 @@ function setupColDropdown(colEl) {
   const heading = colEl.querySelector('.project-column-heading');
   if (!heading || heading.querySelector('.col-dropdown')) return;
   const isArchive = colEl.classList.contains('project-column--archive');
+  const isTrash   = colEl.classList.contains('project-column--trash');
+  const isSpecial = isArchive || isTrash;
   const isDone    = +colEl.dataset.columnId === 98;
   heading.insertAdjacentHTML('beforeend',
     `<div class='col-dropdown'>
-       ${isArchive ? '' : `<button class='col-opt-rename'><i class='fas fa-pen'></i> Rename</button>`}
-       ${isArchive ? '' : `<button class='col-opt-add-before'><i class='fas fa-arrow-left'></i> Add column before</button>`}
-       ${isArchive || isDone ? '' : `<button class='col-opt-add-after'><i class='fas fa-arrow-right'></i> Add column after</button>`}
-       ${isArchive || isDone ? '' : `<button class='col-opt-wip'><i class='fas fa-tachometer-alt'></i> WIP Limit</button>`}
-       ${isArchive || isDone ? '' : `<button class='col-opt-delete danger'><i class='fas fa-trash-alt'></i> Delete column</button>`}
+       ${isSpecial ? '' : `<button class='col-opt-rename'><i class='fas fa-pen'></i> Rename</button>`}
+       ${isSpecial ? '' : `<button class='col-opt-add-before'><i class='fas fa-arrow-left'></i> Add column before</button>`}
+       ${isSpecial || isDone ? '' : `<button class='col-opt-add-after'><i class='fas fa-arrow-right'></i> Add column after</button>`}
+       ${isSpecial || isDone ? '' : `<button class='col-opt-wip'><i class='fas fa-tachometer-alt'></i> WIP Limit</button>`}
+       ${isTrash ? `<button class='col-opt-empty-trash danger'><i class='fas fa-fire-alt'></i> Empty Trash</button>` : ''}
+       ${isSpecial || isDone ? '' : `<button class='col-opt-delete danger'><i class='fas fa-trash-alt'></i> Delete column</button>`}
      </div>`);
+  if (isTrash) {
+    colEl.insertAdjacentHTML('beforeend',
+      `<p class='trash-col-notice'><i class='fas fa-clock'></i> All cards are automatically purged after 30 days</p>`);
+  }
 }
 
 // ── Keep the CSS grid in sync with the number of visible columns (+ sub-col spans) ──
 function syncGrid() {
   const board   = document.querySelector('.project-tasks');
-  const colEls  = [...board.querySelectorAll('.project-column:not(.project-column--archive)')];
+  const colEls  = [...board.querySelectorAll('.project-column:not(.project-column--archive):not(.project-column--trash)')];
   const showArc = board.classList.contains('show-archive');
+  const showTrsh= board.classList.contains('show-trash');
   let totalCells = 0;
   colEls.forEach(col => {
     const sub = parseInt(col.dataset.subcols) || 1;
@@ -92,6 +101,11 @@ function syncGrid() {
   if (showArc) {
     const arc = board.querySelector('.project-column--archive');
     if (arc) arc.style.gridColumn = '';
+    totalCells += 1;
+  }
+  if (showTrsh) {
+    const trsh = board.querySelector('.project-column--trash');
+    if (trsh) trsh.style.gridColumn = '';
     totalCells += 1;
   }
   board.style.gridTemplateColumns = `repeat(${totalCells}, 1fr)`;
@@ -104,13 +118,14 @@ const _SUBCOL_MIN_W = 300;
 function checkColumnOverflow() {
   const board = document.querySelector('.project-tasks');
   if (!board) return;
-  const colEls = [...board.querySelectorAll('.project-column:not(.project-column--archive)')];
+  const colEls = [...board.querySelectorAll('.project-column:not(.project-column--archive):not(.project-column--trash)')];
   if (!colEls.length) return;
 
   // 1. Reset sub-col state so we measure natural single-column heights
   colEls.forEach(c => { delete c.dataset.subcols; c.style.gridColumn = ''; });
   const showArc = board.classList.contains('show-archive');
-  board.style.gridTemplateColumns = `repeat(${colEls.length + (showArc ? 1 : 0)}, 1fr)`;
+  const showTrsh = board.classList.contains('show-trash');
+  board.style.gridTemplateColumns = `repeat(${colEls.length + (showArc ? 1 : 0) + (showTrsh ? 1 : 0)}, 1fr)`;
   void board.offsetHeight; // synchronous reflow to get accurate measurements
 
   // 2. Calculate available space

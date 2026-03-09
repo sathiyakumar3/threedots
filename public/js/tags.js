@@ -61,14 +61,20 @@
   function refreshModalSelect(tags) {
     const wrap = document.getElementById('cardTag');
     if (!wrap) return;
-    const picker = wrap.querySelector('.tag-picker');
-    if (!picker) return;
-    const t = tags.find(t => t.id === picker.dataset.value) || tags[0];
-    if (!t) return;
-    const sw = picker.querySelector('.tag-picker__trigger .tags-swatch');
-    const lb = picker.querySelector('.tag-picker__label');
-    if (sw) sw.style.background = t.color;
-    if (lb) lb.textContent = t.label;
+    // Dropdown picker
+    const dropdownPicker = wrap.querySelector('.tag-picker');
+    if (dropdownPicker) {
+      const t = tags.find(t => t.id === dropdownPicker.dataset.value) || tags[0];
+      if (!t) return;
+      const sw = dropdownPicker.querySelector('.tag-picker__trigger .tags-swatch');
+      const lb = dropdownPicker.querySelector('.tag-picker__label');
+      if (sw) sw.style.background = t.color;
+      if (lb) lb.textContent = t.label;
+      return;
+    }
+    // Inline chip picker
+    const inlinePicker = wrap.querySelector('.modal-inline-tag-picker');
+    if (inlinePicker?.refresh) inlinePicker.refresh();
   }
 
   function refreshCardLabels(tags) {
@@ -471,11 +477,11 @@
         swatchWrap.appendChild(colorInput);
         swatchWrap.appendChild(swatch);
 
-        // Label (click = select; dblclick = rename)
+        // Label (click = select)
         const labelEl = document.createElement('span');
         labelEl.className = 'tags-label';
         labelEl.textContent = tag.label;
-        labelEl.title = 'Click to select · Double-click to rename';
+        labelEl.title = 'Click to select';
         labelEl.addEventListener('click', e => {
           e.stopPropagation();
           picker.dataset.value = tag.id;
@@ -483,7 +489,14 @@
           renderPickerList();
           closePickerPanels();
         });
-        labelEl.addEventListener('dblclick', e => {
+
+        // Rename button
+        const renameBtn = document.createElement('button');
+        renameBtn.type = 'button';
+        renameBtn.className = 'tags-rename-btn';
+        renameBtn.title = 'Rename tag';
+        renameBtn.innerHTML = '<i class="fas fa-pen"></i>';
+        renameBtn.addEventListener('click', e => {
           e.stopPropagation();
           const inp = document.createElement('input');
           inp.type = 'text';
@@ -528,6 +541,7 @@
 
         row.appendChild(swatchWrap);
         row.appendChild(labelEl);
+        row.appendChild(renameBtn);
         row.appendChild(delBtn);
         listEl.appendChild(row);
       });
@@ -587,32 +601,32 @@
     return picker;
   };
 
-  // ── Inline tag picker (embedded flat list used in the Add/Edit card modal) ──
+  // ── Inline chip-grid tag picker (Add/Edit card modal) ──
   window._createInlineTagPicker = function(initialId, containerEl) {
     const id = initialId || activeTags[0]?.id || '';
     const picker = document.createElement('div');
     picker.className = 'modal-inline-tag-picker';
     picker.dataset.value = id;
 
-    function getTag(tid) { return activeTags.find(t => t.id === tid) || activeTags[0]; }
-
     picker.innerHTML = `
-      <div class="tags-list modal-inline-tag-picker__list"></div>
+      <div class="modal-inline-tag-picker__grid"></div>
       <div class="modal-inline-tag-picker__footer">
         <input type="text" class="tags-new-input modal-inline-tag-picker__new-input" placeholder="New tag…" autocomplete="off">
         <button type="button" class="tags-new-add modal-inline-tag-picker__new-add" title="Add tag"><i class="fas fa-plus"></i></button>
       </div>`;
 
-    const listEl   = picker.querySelector('.modal-inline-tag-picker__list');
+    const gridEl   = picker.querySelector('.modal-inline-tag-picker__grid');
     const newInput = picker.querySelector('.modal-inline-tag-picker__new-input');
     const newAdd   = picker.querySelector('.modal-inline-tag-picker__new-add');
 
-    function renderList() {
-      listEl.innerHTML = '';
+    function renderGrid() {
+      gridEl.innerHTML = '';
       activeTags.forEach((tag, idx) => {
-        const row = document.createElement('div');
-        row.className = 'tags-row tag-picker__row-item' + (tag.id === picker.dataset.value ? ' tag-picker__row-item--active' : '');
+        const chip = document.createElement('div');
+        chip.className = 'tag-chip' + (tag.id === picker.dataset.value ? ' tag-chip--selected' : '');
+        chip.style.setProperty('--tag-color', tag.color);
 
+        // Color dot (Coloris)
         const swatchWrap = document.createElement('label');
         swatchWrap.className = 'tags-swatch-wrap';
         swatchWrap.title = 'Change colour';
@@ -624,31 +638,39 @@
         const swatch = document.createElement('span');
         swatch.className = 'tags-swatch';
         swatch.style.background = tag.color;
-        colorInput.addEventListener('input', e => { swatch.style.background = e.target.value; });
+        colorInput.addEventListener('input', e => {
+          swatch.style.background = e.target.value;
+          chip.style.setProperty('--tag-color', e.target.value);
+        });
         colorInput.addEventListener('change', e => {
           activeTags[idx].color = e.target.value;
           saveToFirestore();
           logActivity('edit', `Changed colour of tag "${tag.label}" to ${e.target.value}`);
           applyAll([...activeTags]);
-          renderList();
+          renderGrid();
         });
         swatchWrap.appendChild(colorInput);
         swatchWrap.appendChild(swatch);
 
+        // Label
         const labelEl = document.createElement('span');
-        labelEl.className = 'tags-label';
+        labelEl.className = 'tag-chip__label';
         labelEl.textContent = tag.label;
-        labelEl.title = 'Click to select · Double-click to rename';
-        labelEl.addEventListener('click', e => {
-          e.stopPropagation();
-          picker.dataset.value = tag.id;
-          renderList();
-        });
-        labelEl.addEventListener('dblclick', e => {
+
+        // Action buttons
+        const actions = document.createElement('span');
+        actions.className = 'tag-chip__actions';
+
+        const renameBtn = document.createElement('button');
+        renameBtn.type = 'button';
+        renameBtn.className = 'tag-chip__btn tag-chip__btn--rename';
+        renameBtn.title = 'Rename';
+        renameBtn.innerHTML = '<i class="fas fa-pen"></i>';
+        renameBtn.addEventListener('click', e => {
           e.stopPropagation();
           const inp = document.createElement('input');
           inp.type = 'text';
-          inp.className = 'tags-rename-input';
+          inp.className = 'tag-chip__rename-input';
           inp.value = tag.label;
           labelEl.replaceWith(inp);
           inp.focus(); inp.select();
@@ -659,7 +681,7 @@
             if (val && val !== oldLabel) logActivity('edit', `Renamed tag "${oldLabel}" → "${val}"`);
             saveToFirestore();
             applyAll([...activeTags]);
-            renderList();
+            renderGrid();
           };
           inp.addEventListener('blur', commit);
           inp.addEventListener('keydown', ev => {
@@ -670,8 +692,8 @@
 
         const delBtn = document.createElement('button');
         delBtn.type = 'button';
-        delBtn.className = 'tags-del-btn';
-        delBtn.title = 'Delete tag';
+        delBtn.className = 'tag-chip__btn tag-chip__btn--del';
+        delBtn.title = 'Delete';
         delBtn.innerHTML = '<i class="fas fa-times"></i>';
         delBtn.addEventListener('click', e => {
           e.stopPropagation();
@@ -681,18 +703,31 @@
           activeTags.splice(idx, 1);
           saveToFirestore();
           applyAll([...activeTags]);
-          renderList();
+          renderGrid();
         });
 
-        row.appendChild(swatchWrap);
-        row.appendChild(labelEl);
-        row.appendChild(delBtn);
-        listEl.appendChild(row);
+        actions.appendChild(renameBtn);
+        actions.appendChild(delBtn);
+
+        // Click chip body to select
+        chip.addEventListener('click', e => {
+          if (e.target.closest('.tag-chip__actions') || e.target.closest('.tags-swatch-wrap')) return;
+          picker.dataset.value = tag.id;
+          renderGrid();
+        });
+
+        chip.appendChild(swatchWrap);
+        chip.appendChild(labelEl);
+        chip.appendChild(actions);
+        gridEl.appendChild(chip);
       });
       if (window.Coloris) Coloris({ el: '.tags-color-input' });
     }
 
-    const addNewTag = _makeAddNewTag(newInput, listEl, renderList, tid => {
+    // Expose refresh for external callers (e.g. applyAll)
+    picker.refresh = renderGrid;
+
+    const addNewTag = _makeAddNewTag(newInput, gridEl, renderGrid, tid => {
       picker.dataset.value = tid;
     });
 
@@ -703,7 +738,7 @@
     });
     newInput.addEventListener('click', e => e.stopPropagation());
 
-    renderList();
+    renderGrid();
 
     if (containerEl) {
       containerEl.innerHTML = '';

@@ -114,7 +114,7 @@
   }
 
   function refreshColCombo(selectIdx) {
-    const cols = [...document.querySelectorAll('.project-column')];
+    const cols = [...document.querySelectorAll('.project-column:not(.project-column--trash)')];
     colList.innerHTML = '';
     cols.forEach((col, i) => {
       const title     = col.querySelector('.project-column-heading__title')?.textContent || `Column ${i + 1}`;
@@ -139,6 +139,41 @@
       });
 
       row.appendChild(btn);
+
+      // Rename button (always shown, except archive/done columns)
+      const colId2 = +col.dataset.columnId;
+      if (colId2 !== 98 && colId2 !== 99 && colId2 !== 100) {
+        const ren = document.createElement('button');
+        ren.type      = 'button';
+        ren.className = 'tags-rename-btn';
+        ren.title     = 'Rename column';
+        ren.innerHTML = '<i class="fas fa-pen"></i>';
+        ren.addEventListener('click', e => {
+          e.stopPropagation();
+          const inp = document.createElement('input');
+          inp.type      = 'text';
+          inp.className = 'tags-rename-input col-rename-input';
+          inp.value     = btn.textContent;
+          btn.replaceWith(inp);
+          inp.focus(); inp.select();
+          const commit = () => {
+            const val = inp.value.trim();
+            if (val) {
+              const heading = col.querySelector('.project-column-heading__title');
+              if (heading) heading.textContent = val;
+              saveChanges();
+              logActivity('edit', `Renamed column to "${val}"`);
+            }
+            refreshColCombo(selectedColIdx);
+          };
+          inp.addEventListener('blur', commit);
+          inp.addEventListener('keydown', ev => {
+            if (ev.key === 'Enter')  { ev.preventDefault(); inp.blur(); }
+            if (ev.key === 'Escape') { inp.value = btn.textContent; inp.blur(); }
+          });
+        });
+        row.appendChild(ren);
+      }
 
       if (canDelete) {
         const del = document.createElement('button');
@@ -279,10 +314,6 @@
     const newCol = document.createElement('div');
     newCol.className = 'project-column';
     newCol.dataset.columnId = newId;
-    if (typeof currentUser !== 'undefined' && currentUser) {
-      newCol.dataset.owner = currentUser.uid;
-      newCol.dataset.users = JSON.stringify([currentUser.uid]);
-    }
     newCol.innerHTML = `<div class='project-column-heading'><h2 class='project-column-heading__title'>${title}</h2><button class='project-column-heading__options'><i class="fas fa-ellipsis-h"></i></button></div>`;
     const doneCol = document.querySelector('.project-column[data-column-id="98"]');
     const boardEl = document.querySelector('.project-tasks');
@@ -340,7 +371,7 @@
   titleEl.addEventListener('input', refreshAddBtn);
   textEl.addEventListener('input', refreshAddBtn);
 
-  function getTagPicker() { return tagWrap.querySelector('.tag-picker'); }
+  function getTagPicker() { return tagWrap.querySelector('.tag-picker, .modal-inline-tag-picker'); }
 
   function refreshAddBtn() {
     if (_editingCard) return; // don't interfere with "Save Changes"
@@ -357,7 +388,7 @@
     refreshColCombo(0);
     refreshAssigneeCombo();
     const tags = window._getActiveTags ? window._getActiveTags() : [];
-    if (window._createTagPicker) window._createTagPicker(tags[0]?.id || 'task', tagWrap);
+    if (window._createInlineTagPicker) window._createInlineTagPicker(tags[0]?.id || 'task', tagWrap);
     overlay.classList.add('open');
     titleEl.focus();
     refreshAddBtn();
@@ -393,7 +424,7 @@
     const colIdx = cols.indexOf(cardEl.closest('.project-column'));
     refreshColCombo(colIdx >= 0 ? colIdx : 0);
     refreshAssigneeCombo();
-    if (window._createTagPicker) window._createTagPicker(data.tag || 'task', tagWrap);
+    if (window._createInlineTagPicker) window._createInlineTagPicker(data.tag || 'task', tagWrap);
     // Auto-expand More Options when editing an existing card
     document.getElementById('modalMoreFields')?.classList.add('open');
     document.getElementById('modalMoreToggle')?.classList.add('open');

@@ -43,7 +43,7 @@
   // Collect all visible cards on the board as FullCalendar events
   function gatherEvents(boardFilter) {
     const events = [];
-    document.querySelectorAll('.project-column').forEach(col => {
+    document.querySelectorAll('.project-column:not(.project-column--trash)').forEach(col => {
       col.querySelectorAll(':scope > .task').forEach(card => {
         const start    = card.dataset.startDate || '';
         const deadline = card.dataset.deadline  || '';
