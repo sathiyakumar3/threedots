@@ -16,6 +16,7 @@
   const todoInput   = document.getElementById('cardTodoInput');
   const todoAddBtn  = document.getElementById('cardTodoAdd');
   const todoList    = document.getElementById('cardTodoList');
+  const todoCalBtn  = document.getElementById('todoCalBtn');
   const linkInput   = document.getElementById('cardLink');
   const deadlineInput          = document.getElementById('cardDeadline');
   const startDateInput         = document.getElementById('cardStartDate');
@@ -168,8 +169,8 @@
           };
           inp.addEventListener('blur', commit);
           inp.addEventListener('keydown', ev => {
-            if (ev.key === 'Enter')  { ev.preventDefault(); inp.blur(); }
-            if (ev.key === 'Escape') { inp.value = btn.textContent; inp.blur(); }
+            if (ev.key === 'Enter')  { ev.preventDefault(); ev.stopPropagation(); inp.blur(); }
+            if (ev.key === 'Escape') { ev.stopPropagation(); inp.value = btn.textContent; inp.blur(); }
           });
         });
         row.appendChild(ren);
@@ -338,13 +339,29 @@
   let pendingTodos = [];
 
   function renderTodoList() {
-    todoList.innerHTML = pendingTodos.map((t, i) =>
-      `<div class='modal-todo-item'>
+    todoList.innerHTML = pendingTodos.map((t, i) => {
+      const startFmt = t.startDate ? fmtDeadline(t.startDate) : '';
+      const dateFmt  = t.endDate ? fmtDeadline(t.endDate) : '';
+      const od       = t.endDate ? isOverdue(t.endDate) : false;
+      const safeText = t.text.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+      return `<div class='modal-todo-item'>
          <input type='checkbox' ${t.done ? 'checked' : ''} data-idx='${i}'>
-         <span title='${t.text}'>${t.text}</span>
+         <span class='modal-todo-item__text' title='${safeText}'>${t.text}</span>
+         <div class='todo-due-wrap'>
+           <button class='modal-todo-item__date-btn${t.startDate ? ' has-date' : ''}' tabindex='-1' title='Start date'>
+             <i class='fas fa-play-circle'></i>${startFmt ? `<span>${startFmt}</span>` : ''}
+           </button>
+           <input type='text' class='todo-start-input' data-idx='${i}' value='${t.startDate || ''}' readonly autocomplete='off' placeholder='Start date' aria-label='Start date'>
+         </div>
+         <div class='todo-due-wrap'>
+           <button class='modal-todo-item__date-btn${t.endDate ? ' has-date' : ''}${od ? ' overdue' : ''}' tabindex='-1' title='End date'>
+             <i class='fas fa-calendar-alt'></i>${dateFmt ? `<span>${dateFmt}</span>` : ''}
+           </button>
+           <input type='text' class='todo-due-input' data-idx='${i}' value='${t.endDate || ''}' readonly autocomplete='off' placeholder='End date' aria-label='End date'>
+         </div>
          <button class='modal-todo-item__del' data-idx='${i}' title='Remove'><i class='fas fa-times'></i></button>
-       </div>`
-    ).join('');
+       </div>`;
+    }).join('');
     todoList.querySelectorAll('input[type=checkbox]').forEach(cb =>
       cb.addEventListener('change', e => { pendingTodos[+e.target.dataset.idx].done = e.target.checked; })
     );
@@ -354,12 +371,339 @@
         renderTodoList();
       })
     );
+    // Attach VanillaCalendarPro to each start/end-date input overlay
+    if (window.VanillaCalendarPro) {
+      const { Calendar } = window.VanillaCalendarPro;
+      const isDark = document.body.classList.contains('dark');
+      todoList.querySelectorAll('.todo-start-input').forEach(input => {
+        const idx = +input.dataset.idx;
+        new Calendar(input, {
+          inputMode: true,
+          selectedTheme: isDark ? 'dark' : 'light',
+          positionToInput: ['bottom', 'right'],
+          selectedDates: pendingTodos[idx].startDate ? [pendingTodos[idx].startDate] : [],
+          onChangeToInput(self) {
+            const date = self.context.selectedDates[0] || '';
+            pendingTodos[idx].startDate = date;
+            if (date) self.hide();
+            renderTodoList();
+          },
+        }).init();
+      });
+      todoList.querySelectorAll('.todo-due-input').forEach(input => {
+        const idx = +input.dataset.idx;
+        new Calendar(input, {
+          inputMode: true,
+          selectedTheme: isDark ? 'dark' : 'light',
+          positionToInput: ['bottom', 'right'],
+          selectedDates: pendingTodos[idx].endDate ? [pendingTodos[idx].endDate] : [],
+          onChangeToInput(self) {
+            const date = self.context.selectedDates[0] || '';
+            pendingTodos[idx].endDate = date;
+            if (date) self.hide();
+            syncCardDatesToTodos();
+            renderTodoList();
+          },
+        }).init();
+      });
+    }
+    // Show/hide the schedule button when there is at least one todo
+    if (todoCalBtn) todoCalBtn.style.display = pendingTodos.length > 0 ? '' : 'none';
   }
+
+  // Auto-set card start/deadline from earliest/latest todo end dates
+  function syncCardDatesToTodos() {
+    const dates = pendingTodos.map(t => t.endDate).filter(Boolean).sort();
+    if (!dates.length) return;
+    pickerStartDate      = dates[0];
+    pickerDeadline       = dates[dates.length - 1];
+    startDateInput.value = dates[0];
+    deadlineInput.value  = dates[dates.length - 1];
+  }
+
+  // ── Cal-modal: full FullCalendar scheduler ──
+  let _todoFCInstance = null;
+
+  function openCalModal() {
+    renderCalModalBody();
+    document.getElementById('calModalOverlay').classList.add('open');
+  }
+
+  function closeCalModal() {
+    if (_todoFCInstance) { _todoFCInstance.destroy(); _todoFCInstance = null; }
+    document.getElementById('calModalOverlay').classList.remove('open');
+    renderTodoList();
+  }
+
+  function renderCalModalBody() {
+    const body = document.getElementById('calModalBody');
+    if (!body) return;
+    if (_todoFCInstance) { _todoFCInstance.destroy(); _todoFCInstance = null; }
+
+    if (!pendingTodos.length) {
+      body.innerHTML = '<p class="cal-modal__empty">No to-do items yet.</p>';
+      return;
+    }
+
+    body.innerHTML = `
+      <div class="tcal-layout">
+        <div class="tcal-sidebar">
+          <div class="tcal-sidebar__hdr"><i class="fas fa-list-ul"></i> Unscheduled</div>
+          <div class="tcal-unscheduled" id="tcalUnscheduled"></div>
+          <div class="tcal-sidebar__hint"><i class="fas fa-hand-pointer"></i> Drag onto calendar · Click event to edit</div>
+        </div>
+        <div class="tcal-fc-wrap" id="tcalFcWrap"></div>
+      </div>`;
+
+    const colors = ['#6366f1','#0ea5e9','#22c55e','#f59e0b','#ec4899','#14b8a6','#f97316','#8b5cf6','#ef4444','#64748b'];
+    const unscheduledWrap = document.getElementById('tcalUnscheduled');
+
+    // Build FC events for todos that already have dates
+    const fcEvents = pendingTodos.map((t, i) => {
+      if (!t.startDate && !t.endDate) return null;
+      const start = t.startDate || t.endDate;
+      let end = t.endDate || start;
+      // FC allDay end is exclusive — add 1 day
+      const d = new Date(end); d.setDate(d.getDate() + 1);
+      return {
+        id: String(i),
+        title: (t.done ? '✓ ' : '') + t.text,
+        start,
+        end: d.toISOString().split('T')[0],
+        allDay: true,
+        backgroundColor: colors[i % colors.length],
+        borderColor:     colors[i % colors.length],
+        textColor:       '#fff',
+        classNames: t.done ? ['tcal-event--done'] : [],
+        extendedProps: { todoIdx: i },
+      };
+    }).filter(Boolean);
+
+    // Build unscheduled chips
+    let hasUnscheduled = false;
+    pendingTodos.forEach((t, i) => {
+      if (t.startDate || t.endDate) return;
+      hasUnscheduled = true;
+      const chip = document.createElement('div');
+      chip.className = 'tcal-chip' + (t.done ? ' tcal-chip--done' : '');
+      chip.dataset.idx = i;
+      chip.style.setProperty('--chip-color', colors[i % colors.length]);
+      chip.title = t.text;
+      chip.textContent = t.text;
+      chip.dataset.event = JSON.stringify({
+        id: String(i), title: t.text, allDay: true, duration: { days: 1 },
+        backgroundColor: colors[i % colors.length],
+        borderColor:     colors[i % colors.length],
+        textColor:       '#fff',
+        extendedProps:   { todoIdx: i },
+      });
+      unscheduledWrap.appendChild(chip);
+    });
+    if (!hasUnscheduled) {
+      unscheduledWrap.innerHTML = '<p class="tcal-sidebar__all-done"><i class="fas fa-check-circle"></i> All scheduled!</p>';
+    }
+
+    // Determine sensible initial calendar date
+    const existingDates = pendingTodos.map(t => t.startDate || t.endDate).filter(Boolean).sort();
+    const initialDate = existingDates[0] || new Date().toISOString().split('T')[0];
+
+    const fcEl = document.getElementById('tcalFcWrap');
+    const isDark = document.body.classList.contains('dark');
+
+    const cal = new FullCalendar.Calendar(fcEl, {
+      initialView: 'dayGridMonth',
+      initialDate,
+      headerToolbar: { left: 'prev,next today', center: 'title', right: 'dayGridMonth,timeGridWeek' },
+      height: '100%',
+      editable: true,
+      droppable: true,
+      eventResizableFromStart: true,
+      fixedMirrorParent: document.body,
+      dragRevertDuration: 0,
+      events: fcEvents,
+
+      // Highlight sidebar as drop zone while dragging
+      eventDragStart() {
+        unscheduledWrap.closest('.tcal-sidebar')?.classList.add('tcal-sidebar--dropzone');
+      },
+
+      // Drop outside calendar → check if over sidebar → unschedule
+      eventDragStop(info) {
+        const sidebar = unscheduledWrap.closest('.tcal-sidebar');
+        sidebar?.classList.remove('tcal-sidebar--dropzone');
+        const rect = sidebar?.getBoundingClientRect();
+        if (!rect) return;
+        const { clientX, clientY } = info.jsEvent;
+        if (clientX >= rect.left && clientX <= rect.right && clientY >= rect.top && clientY <= rect.bottom) {
+          const idx = info.event.extendedProps.todoIdx;
+          const t   = pendingTodos[idx];
+          pendingTodos[idx].startDate = '';
+          pendingTodos[idx].endDate   = '';
+          info.event.remove();
+          const placeholder = unscheduledWrap.querySelector('.tcal-sidebar__all-done');
+          if (placeholder) placeholder.remove();
+          const chip = document.createElement('div');
+          chip.className = 'tcal-chip' + (t.done ? ' tcal-chip--done' : '');
+          chip.dataset.idx = idx;
+          chip.style.setProperty('--chip-color', colors[idx % colors.length]);
+          chip.title       = t.text;
+          chip.textContent = t.text;
+          chip.dataset.event = JSON.stringify({
+            id: String(idx), title: t.text, allDay: true, duration: { days: 1 },
+            backgroundColor: colors[idx % colors.length],
+            borderColor:     colors[idx % colors.length], textColor: '#fff',
+            extendedProps:   { todoIdx: idx },
+          });
+          unscheduledWrap.appendChild(chip);
+          syncCardDatesToTodos();
+        }
+      },
+
+      // Move existing event
+      eventDrop(info) {
+        const idx   = info.event.extendedProps.todoIdx;
+        const start = info.event.startStr;
+        let end     = info.event.endStr || start;
+        if (info.event.allDay && end !== start) {
+          const d = new Date(end); d.setDate(d.getDate() - 1);
+          end = d.toISOString().split('T')[0];
+        }
+        pendingTodos[idx].startDate = start;
+        pendingTodos[idx].endDate   = end;
+        syncCardDatesToTodos();
+      },
+
+      // Resize existing event
+      eventResize(info) {
+        const idx   = info.event.extendedProps.todoIdx;
+        const start = info.event.startStr;
+        let end     = info.event.endStr || start;
+        if (info.event.allDay && end !== start) {
+          const d = new Date(end); d.setDate(d.getDate() - 1);
+          end = d.toISOString().split('T')[0];
+        }
+        pendingTodos[idx].startDate = start;
+        pendingTodos[idx].endDate   = end;
+        syncCardDatesToTodos();
+      },
+
+      // Unscheduled chip dropped onto calendar
+      eventReceive(info) {
+        const idx   = info.event.extendedProps.todoIdx;
+        const start = info.event.startStr;
+        let end     = info.event.endStr || start;
+        if (info.event.allDay && end !== start) {
+          const d = new Date(end); d.setDate(d.getDate() - 1);
+          end = d.toISOString().split('T')[0];
+        }
+        pendingTodos[idx].startDate = start;
+        pendingTodos[idx].endDate   = end;
+        // Remove chip from sidebar
+        unscheduledWrap.querySelector(`[data-idx="${idx}"]`)?.remove();
+        if (!unscheduledWrap.querySelector('.tcal-chip')) {
+          unscheduledWrap.innerHTML = '<p class="tcal-sidebar__all-done"><i class="fas fa-check-circle"></i> All scheduled!</p>';
+        }
+        syncCardDatesToTodos();
+      },
+
+      // Click event → inline edit dates or clear
+      eventClick(info) {
+        const idx = info.event.extendedProps.todoIdx;
+        const t   = pendingTodos[idx];
+        const start = t.startDate || '';
+        const end   = t.endDate   || '';
+        Swal.fire({
+          title: t.text.length > 40 ? t.text.substring(0, 40) + '…' : t.text,
+          html: `
+            <div style="display:flex;gap:10px;justify-content:center;margin-top:4px">
+              <label style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase">
+                Start
+                <input id="swalTodoStart" type="date" value="${start}" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
+              </label>
+              <label style="display:flex;flex-direction:column;align-items:flex-start;gap:4px;font-size:12px;font-weight:600;color:#64748b;text-transform:uppercase">
+                End
+                <input id="swalTodoEnd" type="date" value="${end}" style="padding:5px 8px;border:1px solid #d1d5db;border-radius:6px;font-size:13px">
+              </label>
+            </div>`,
+          showCancelButton: true,
+          showDenyButton: true,
+          confirmButtonText: '<i class="fas fa-check"></i> Apply',
+          denyButtonText:    '<i class="fas fa-calendar-times"></i> Clear dates',
+          cancelButtonText:  'Cancel',
+          confirmButtonColor: '#6366f1',
+          denyButtonColor:    '#ef4444',
+          reverseButtons: true,
+          focusConfirm: false,
+          preConfirm() {
+            return {
+              start: document.getElementById('swalTodoStart').value,
+              end:   document.getElementById('swalTodoEnd').value,
+            };
+          },
+        }).then(r => {
+          if (r.isDenied) {
+            // Clear dates → move back to unscheduled sidebar
+            pendingTodos[idx].startDate = '';
+            pendingTodos[idx].endDate   = '';
+            info.event.remove();
+            const allDonePlaceholder = unscheduledWrap.querySelector('.tcal-sidebar__all-done');
+            if (allDonePlaceholder) allDonePlaceholder.remove();
+            const chip = document.createElement('div');
+            chip.className   = 'tcal-chip' + (t.done ? ' tcal-chip--done' : '');
+            chip.dataset.idx = idx;
+            chip.style.setProperty('--chip-color', colors[idx % colors.length]);
+            chip.title       = t.text;
+            chip.textContent = t.text;
+            chip.dataset.event = JSON.stringify({
+              id: String(idx), title: t.text, allDay: true, duration: { days: 1 },
+              backgroundColor: colors[idx % colors.length],
+              borderColor: colors[idx % colors.length], textColor: '#fff',
+              extendedProps: { todoIdx: idx },
+            });
+            unscheduledWrap.appendChild(chip);
+            new FullCalendar.Draggable(chip, { eventData: JSON.parse(chip.dataset.event) });
+            syncCardDatesToTodos();
+          } else if (r.isConfirmed && r.value) {
+            const newStart = r.value.start || start;
+            const newEnd   = r.value.end   || newStart;
+            pendingTodos[idx].startDate = newStart;
+            pendingTodos[idx].endDate   = newEnd;
+            // Update FC event
+            const d = new Date(newEnd); d.setDate(d.getDate() + 1);
+            info.event.setStart(newStart);
+            info.event.setEnd(d.toISOString().split('T')[0]);
+            syncCardDatesToTodos();
+          }
+        });
+      },
+    });
+
+    cal.render();
+    _todoFCInstance = cal;
+
+    // Force a size recalculation once the modal has finished laying out
+    requestAnimationFrame(() => { setTimeout(() => { cal.updateSize(); }, 50); });
+
+    // Make unscheduled chips draggable onto the calendar
+    if (typeof FullCalendar !== 'undefined' && FullCalendar.Draggable) {
+      new FullCalendar.Draggable(unscheduledWrap, {
+        itemSelector: '.tcal-chip',
+        eventData(el) { return JSON.parse(el.dataset.event); },
+      });
+    }
+  }
+
+  todoCalBtn?.addEventListener('click', openCalModal);
+  document.getElementById('calModalClose')?.addEventListener('click', closeCalModal);
+  document.getElementById('calModalDone')?.addEventListener('click', closeCalModal);
+  document.getElementById('calModalOverlay')?.addEventListener('click', e => {
+    if (e.target === document.getElementById('calModalOverlay')) closeCalModal();
+  });
 
   function addTodoItem() {
     const val = todoInput.value.trim();
     if (!val) return;
-    pendingTodos.push({ text: val, done: false });
+    pendingTodos.push({ text: val, done: false, startDate: '', endDate: '' });
     todoInput.value = '';
     renderTodoList();
     todoInput.focus();
@@ -411,7 +755,9 @@
     updateAssigneeLabel();
     pendingTodos  = [];
     todoList.innerHTML = '';
+    if (todoCalBtn) todoCalBtn.style.display = 'none';
     setPriority('');
+    document.getElementById('calModalOverlay')?.classList.remove('open');
   }
 
   function openEditModal(cardEl) {
@@ -438,8 +784,9 @@
     selectedAssignees.clear();
     if (data.assignee) data.assignee.split(', ').forEach(n => selectedAssignees.add(n.trim()));
     updateAssigneeLabel();
-    pendingTodos = (data.todos || []).map(t => ({ text: t.text, done: !!t.done }));
+    pendingTodos = (data.todos || []).map(t => ({ text: t.text, done: !!t.done, startDate: t.startDate || '', endDate: t.endDate || t.dueDate || '' }));
     renderTodoList();
+    syncCardDatesToTodos();
     setPriority(data.priority || '');
     addBtn.innerHTML = '<i class="fas fa-check"></i> Save Changes';
     document.getElementById('modalTitle').textContent = 'Edit Card';

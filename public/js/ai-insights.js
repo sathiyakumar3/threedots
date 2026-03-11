@@ -23,10 +23,17 @@
           [...(e.querySelector('.task__tl-dot')?.classList || [])].includes('task__tl-dot--comment')
         );
         const overdue = deadline ? isOverdue(deadline) : false; // isOverdue from cards.js
+        const startDate = cardEl.dataset.startDate || '';
+        // Collect todo items with their scheduled dates
+        const todoItems = [...cardEl.querySelectorAll('.task__todo-item')].map(el => ({
+          text:      el.querySelector('.task__todo-text')?.textContent || '',
+          startDate: el.dataset.startDate || '',
+          endDate:   el.dataset.dueDate   || '',
+        }));
         cards.push({
-          tagLabel, title, deadline, assignee, created,
+          tagLabel, title, deadline, startDate, assignee, created,
           todoDone, todoTotal, comments: commentEls.length, overdue,
-          colName: name
+          colName: name, todoItems
         });
       });
       columns.push({ name, cards });
@@ -68,6 +75,24 @@
       c.created && (now - new Date(c.created).getTime()) < 7 * 24 * 60 * 60 * 1000
     );
 
+    // Cards whose start/deadline conflicts with their todos' dates
+    const dateConflicts = [];
+    allCards.forEach(c => {
+      if (!c.todoItems || !c.todoItems.length) return;
+      const reasons = [];
+      c.todoItems.forEach(t => {
+        if (t.startDate && c.startDate && t.startDate < c.startDate) {
+          const existing = reasons.find(r => r.type === 'cardStartLate');
+          if (!existing) reasons.push({ type: 'cardStartLate', todoText: t.text, todoDate: t.startDate, cardDate: c.startDate });
+        }
+        if (t.endDate && c.deadline && t.endDate > c.deadline) {
+          const existing = reasons.find(r => r.type === 'cardEndEarly');
+          if (!existing) reasons.push({ type: 'cardEndEarly', todoText: t.text, todoDate: t.endDate, cardDate: c.deadline });
+        }
+      });
+      if (reasons.length) dateConflicts.push({ card: c, reasons });
+    });
+
     // Health score 0–100
     let score = 100;
     score -= Math.round((overdueCards.length / total) * 30);
@@ -80,7 +105,8 @@
       total, columns, allCards, colsSorted,
       overdueCards, unassigned, noDeadline, noTitle,
       totalTodoDone, totalTodoItems, todoCompletionPct,
-      tagsSorted, assigneesSorted, recentCards, score
+      tagsSorted, assigneesSorted, recentCards, score,
+      dateConflicts
     };
   }
 
@@ -100,7 +126,7 @@
   function renderDashboard(ins) {
     const { total, columns, colsSorted, overdueCards, unassigned, noDeadline, noTitle,
             totalTodoDone, totalTodoItems, todoCompletionPct,
-            tagsSorted, assigneesSorted, recentCards, score } = ins;
+            tagsSorted, assigneesSorted, recentCards, score, dateConflicts } = ins;
 
     const sc           = scoreColor(score);
     const maxColCards  = colsSorted[0]?.cards.length || 1;
@@ -144,10 +170,11 @@
 
     // Summary bullet list
     const bullets = [];
-    if (overdueCards.length)  bullets.push(`<li>${overdueCards.length} card${overdueCards.length > 1 ? 's are' : ' is'} past deadline.</li>`);
-    if (unassigned.length)    bullets.push(`<li>${unassigned.length} card${unassigned.length > 1 ? 's have' : ' has'} no assignee.</li>`);
-    if (noDeadline.length)    bullets.push(`<li>${noDeadline.length} card${noDeadline.length > 1 ? 's are' : ' is'} missing a deadline.</li>`);
-    if (noTitle.length)       bullets.push(`<li>${noTitle.length} card${noTitle.length > 1 ? 's have' : ' has'} no title.</li>`);
+    if (overdueCards.length)   bullets.push(`<li>${overdueCards.length} card${overdueCards.length > 1 ? 's are' : ' is'} past deadline.</li>`);
+    if (unassigned.length)     bullets.push(`<li>${unassigned.length} card${unassigned.length > 1 ? 's have' : ' has'} no assignee.</li>`);
+    if (noDeadline.length)     bullets.push(`<li>${noDeadline.length} card${noDeadline.length > 1 ? 's are' : ' is'} missing a deadline.</li>`);
+    if (noTitle.length)        bullets.push(`<li>${noTitle.length} card${noTitle.length > 1 ? 's have' : ' has'} no title.</li>`);
+    if (dateConflicts.length)  bullets.push(`<li>${dateConflicts.length} card${dateConflicts.length > 1 ? 's have' : ' has'} date conflicts with their to-do items.</li>`);
     const bottleneck = colsSorted.find(c => c.cards.length / total > 0.4 && columns.length > 1);
     if (bottleneck)           bullets.push(`<li><strong>${esc(bottleneck.name)}</strong> holds ${Math.round(bottleneck.cards.length/total*100)}% of all work — consider redistributing.</li>`);
     if (recentCards.length)   bullets.push(`<li>${recentCards.length} card${recentCards.length > 1 ? 's were' : ' was'} added in the last 7 days.</li>`);
@@ -220,6 +247,34 @@
         </div>`;
     }
 
+    // Date conflict list (card dates vs todo dates)
+    let conflictHtml = '';
+    if (dateConflicts.length) {
+      const items = dateConflicts.slice(0, 8).map(({ card, reasons }) => {
+        const reasonLines = reasons.map(r => {
+          if (r.type === 'cardStartLate') {
+            return `<span class="ins-conflict-reason"><i class="fas fa-play-circle"></i> Card starts <strong>${esc(r.cardDate)}</strong> but todo &ldquo;${esc(r.todoText.length > 28 ? r.todoText.slice(0,28)+'…' : r.todoText)}&rdquo; starts <strong>${esc(r.todoDate)}</strong></span>`;
+          }
+          return `<span class="ins-conflict-reason"><i class="fas fa-flag"></i> Card ends <strong>${esc(r.cardDate)}</strong> but todo &ldquo;${esc(r.todoText.length > 28 ? r.todoText.slice(0,28)+'…' : r.todoText)}&rdquo; ends <strong>${esc(r.todoDate)}</strong></span>`;
+        }).join('');
+        return `<div class="ins-card-row">
+          <i class="fas fa-exclamation-triangle ins-card-row__icon ins-card-row__icon--amber"></i>
+          <div class="ins-card-row__text">
+            <span class="ins-card-row__title">${esc(card.title || '(no title)')}</span>
+            <span class="ins-card-row__meta">${esc(card.colName)}</span>
+            <div class="ins-conflict-reasons">${reasonLines}</div>
+          </div>
+        </div>`;
+      }).join('');
+      const more = dateConflicts.length > 8 ? `<p class="ins-more">+${dateConflicts.length - 8} more</p>` : '';
+      conflictHtml = `
+        <div class="ins-section">
+          <div class="ins-section__title ins-section__title--amber"><i class="fas fa-exclamation-triangle"></i> Card / To-Do Date Conflicts</div>
+          <p class="ins-conflict-intro">Cards whose start or end date falls outside a to-do item's scheduled range.</p>
+          ${items}${more}
+        </div>`;
+    }
+
     // Overdue list
     let overdueHtml = '';
     if (overdueCards.length) {
@@ -240,7 +295,7 @@
     }
 
     return `<div class="ins-dashboard">
-      ${kpiHtml}${healthHtml}${summaryHtml}${colHtml}${tagsHtml}${assigneeHtml}${todoHtml}${overdueHtml}
+      ${kpiHtml}${healthHtml}${summaryHtml}${colHtml}${tagsHtml}${assigneeHtml}${todoHtml}${conflictHtml}${overdueHtml}
     </div>`;
   }
 

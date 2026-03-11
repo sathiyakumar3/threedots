@@ -1976,8 +1976,8 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     inp.addEventListener('blur', commitRename);
     inp.addEventListener('keydown', ev => {
-      if (ev.key === 'Enter')  inp.blur();
-      if (ev.key === 'Escape') { inp.value = current; inp.blur(); }
+      if (ev.key === 'Enter')  { ev.stopPropagation(); inp.blur(); }
+      if (ev.key === 'Escape') { ev.stopPropagation(); inp.value = current; inp.blur(); }
     });
   }
 

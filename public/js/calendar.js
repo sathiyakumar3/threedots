@@ -47,39 +47,80 @@
       col.querySelectorAll(':scope > .task').forEach(card => {
         const start    = card.dataset.startDate || '';
         const deadline = card.dataset.deadline  || '';
-        if (!start && !deadline) return; // no dates → skip
 
-        const startFC = toFCDate(start)    || toFCDate(deadline);
-        const endFC   = toFCDate(deadline) || toFCDate(start);
+        if (start || deadline) {
+          const startFC = toFCDate(start)    || toFCDate(deadline);
+          const endFC   = toFCDate(deadline) || toFCDate(start);
 
-        const tagClass = [...card.querySelector('.task__tag').classList]
-          .find(c => c.startsWith('task__tag--'));
-        const tagId  = tagClass ? tagClass.replace('task__tag--', '') : 'task';
-        const color  = getTagColor(tagId);
-        const title  = card.dataset.title || card.querySelector('p')?.textContent || '(Untitled)';
+          const tagClass = [...card.querySelector('.task__tag').classList]
+            .find(c => c.startsWith('task__tag--'));
+          const tagId  = tagClass ? tagClass.replace('task__tag--', '') : 'task';
+          const color  = getTagColor(tagId);
+          const title  = card.dataset.title || card.querySelector('p')?.textContent || '(Untitled)';
 
-        // For FullCalendar, if end is same as start, add 1 day to make the block visible
-        let endDate = endFC;
-        if (endFC && endFC === startFC && !endFC.includes('T')) {
-          const d = new Date(endFC);
-          d.setDate(d.getDate() + 1);
-          endDate = d.toISOString().split('T')[0];
+          // For FullCalendar, if end is same as start, add 1 day to make the block visible
+          let endDate = endFC;
+          if (endFC && endFC === startFC && !endFC.includes('T')) {
+            const d = new Date(endFC);
+            d.setDate(d.getDate() + 1);
+            endDate = d.toISOString().split('T')[0];
+          }
+
+          events.push({
+            id:    card.dataset.id,
+            title,
+            start: startFC,
+            end:   endDate || undefined,
+            allDay: !(startFC && startFC.includes('T')),
+            backgroundColor:   color,
+            borderColor:       color,
+            textColor:         contrastColor(color),
+            extendedProps: {
+              cardEl:  card,
+              tagId,
+              colName: col.querySelector('.project-column-heading__title')?.textContent || ''
+            }
+          });
         }
 
-        events.push({
-          id:    card.dataset.id,
-          title,
-          start: startFC,
-          end:   endDate || undefined,
-          allDay: !(startFC && startFC.includes('T')),
-          backgroundColor:   color,
-          borderColor:       color,
-          textColor:         contrastColor(color),
-          extendedProps: {
-            cardEl:  card,
-            tagId,
-            colName: col.querySelector('.project-column-heading__title')?.textContent || ''
+        // ── Todo items with individual due dates ──
+        card.querySelectorAll('.task__todo-item[data-due-date]').forEach((todoEl, tiIdx) => {
+          const dueDate   = todoEl.dataset.dueDate;
+          const startDate = todoEl.dataset.startDate;
+          if (!dueDate && !startDate) return;
+          const todoText = todoEl.querySelector('.task__todo-text')?.textContent?.trim() || '';
+          const isDone   = todoEl.querySelector('.task__todo-cb')?.checked || false;
+          const cardTitle = card.dataset.title || card.querySelector('p')?.textContent || '(Untitled)';
+          const tagClass = [...card.querySelector('.task__tag').classList]
+            .find(c => c.startsWith('task__tag--'));
+          const tagId = tagClass ? tagClass.replace('task__tag--', '') : 'task';
+          const color = getTagColor(tagId);
+          const fcStart = toFCDate(startDate || dueDate);
+          const fcEnd   = dueDate ? toFCDate(dueDate) : fcStart;
+          let endDate = fcEnd;
+          if (fcEnd && !fcEnd.includes('T')) {
+            const d = new Date(fcEnd);
+            d.setDate(d.getDate() + 1);
+            endDate = d.toISOString().split('T')[0];
           }
+          events.push({
+            id:    `${card.dataset.id}-todo-${tiIdx}`,
+            title: `${isDone ? '✓' : '☐'} ${todoText}`,
+            start: fcStart,
+            end:   endDate || undefined,
+            allDay: !(fcStart && fcStart.includes('T')),
+            backgroundColor: color + '28',
+            borderColor:     color,
+            textColor:       '#374151',
+            classNames: ['fc-todo-event', ...(isDone ? ['fc-todo-event--done'] : [])],
+            extendedProps: {
+              cardEl:   card,
+              isTodo:   true,
+              todoIdx:  tiIdx,
+              colName:  col.querySelector('.project-column-heading__title')?.textContent || '',
+              cardTitle
+            }
+          });
         });
       });
     });
@@ -112,8 +153,14 @@
 
       // ── Event tooltip ──
       eventDidMount(info) {
-        const col = info.event.extendedProps.colName;
-        info.el.title = `${info.event.title}${col ? '\n📋 ' + col : ''}`;
+        const col       = info.event.extendedProps.colName;
+        const isTodo    = info.event.extendedProps.isTodo;
+        const cardTitle = info.event.extendedProps.cardTitle;
+        if (isTodo) {
+          info.el.title = `${info.event.title}\n📋 ${cardTitle}${col ? '  (' + col + ')' : ''}`;
+        } else {
+          info.el.title = `${info.event.title}${col ? '\n📋 ' + col : ''}`;
+        }
       },
 
       // ── Click event → open edit modal ──
@@ -124,13 +171,15 @@
         }
       },
 
-      // ── Drag / drop → update card dates ──
+      // ── Drag / drop → update card dates (todo events are not draggable) ──
       eventDrop(info) {
+        if (info.event.extendedProps.isTodo) { info.revert(); return; }
         applyDateChange(info.event);
       },
 
       // ── Resize → update card dates ──
       eventResize(info) {
+        if (info.event.extendedProps.isTodo) { info.revert(); return; }
         applyDateChange(info.event);
       },
 
@@ -222,7 +271,9 @@
     if (!stats) {
       stats = document.createElement('div');
       stats.className = 'task__stats';
-      cardEl.appendChild(stats);
+      const anchor = cardEl.querySelector('.task__timeline, .task__footer');
+      if (anchor) cardEl.insertBefore(stats, anchor);
+      else cardEl.appendChild(stats);
     }
     const fmt = typeof fmtDeadline === 'function' ? fmtDeadline : v => v;
     if (newEnd) {
@@ -274,7 +325,7 @@
     const list = document.getElementById('calSidebarList');
     if (!list) return;
     const query = (filter || '').toLowerCase().trim();
-    const allCards = [...document.querySelectorAll('.project-column:not(.project-column--archive) .task')];
+    const allCards = [...document.querySelectorAll('.project-column:not(.project-column--archive):not(.project-column--trash) .task')];
     list.innerHTML = '';
     allCards.forEach(card => {
       const title = card.dataset.title || card.querySelector('p')?.textContent?.trim() || '(Untitled)';

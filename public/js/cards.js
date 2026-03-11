@@ -31,12 +31,23 @@ function buildTodosHTML(todos) {
   const done  = todos.filter(t => t.done).length;
   const total = todos.length;
   const pct   = total ? Math.round(done / total * 100) : 0;
-  const items = todos.map((t, i) =>
-    `<label class='task__todo-item'>
+  const items = todos.map((t, i) => {
+    const displayDate = t.endDate || t.dueDate || '';
+    const startDate   = t.startDate || '';
+    let dateBadge = '';
+    if (startDate && displayDate) {
+      dateBadge = `<span class='task__todo-date${isOverdue(displayDate) ? " task__todo-date--overdue" : ""}'><i class='fas fa-play-circle'></i>${fmtDeadline(startDate)}<i class='fas fa-arrow-right' style='font-size:7px;margin:0 2px'></i>${fmtDeadline(displayDate)}</span>`;
+    } else if (displayDate) {
+      dateBadge = `<span class='task__todo-date${isOverdue(displayDate) ? " task__todo-date--overdue" : ""}'><i class='fas fa-calendar-alt'></i>${fmtDeadline(displayDate)}</span>`;
+    } else if (startDate) {
+      dateBadge = `<span class='task__todo-date'><i class='fas fa-play-circle'></i>${fmtDeadline(startDate)}</span>`;
+    }
+    return `<label class='task__todo-item'${displayDate ? ` data-due-date='${displayDate}'` : ''}${startDate ? ` data-start-date='${startDate}'` : ''}>
        <input type='checkbox' class='task__todo-cb' data-idx='${i}' ${t.done ? 'checked' : ''}>
        <span class='task__todo-text${t.done ? ' task__todo-text--done' : ''}'>${t.text}</span>
-     </label>`
-  ).join('');
+       ${dateBadge}
+     </label>`;
+  }).join('');
   return `<div class='task__todos'>
     ${items}
     <div class='task__todos-progress'>
@@ -59,8 +70,10 @@ function serializeTask(cardEl) {
   const comments    = parseInt(statsSpans[1]?.textContent) || 0;
   const attachments = parseInt(statsSpans[2]?.textContent) || 0;
   const todos = [...cardEl.querySelectorAll('.task__todo-item')].map(el => ({
-    text: el.querySelector('.task__todo-text')?.textContent || '',
-    done: el.querySelector('.task__todo-cb')?.checked || false
+    text:      el.querySelector('.task__todo-text')?.textContent || '',
+    done:      el.querySelector('.task__todo-cb')?.checked || false,
+    startDate: el.dataset.startDate || '',
+    endDate:   el.dataset.dueDate   || ''
   }));
   const link = cardEl.querySelector('.task__link a')?.getAttribute('href') || '';
   const timeline    = [];

@@ -12,11 +12,13 @@
   const movePopup = document.getElementById('bulkMovePopup');
 
   const _selectedIds = new Set();
+  const _boardEl = document.querySelector('.project-tasks');
 
   // ── State helpers ─────────────────────────────────────────────────────────
   function _update() {
     const n = _selectedIds.size;
     bar.classList.toggle('active', n > 0);
+    if (_boardEl) _boardEl.classList.toggle('board--bulk-active', n > 0);
     countEl.textContent = `${n} card${n !== 1 ? 's' : ''} selected`;
   }
 

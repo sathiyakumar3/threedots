@@ -314,7 +314,10 @@
             </button>
             <div class="modal-more-fields" id="modalMoreFields">
               <div class="modal-field">
-                <label>To-Do</label>
+                <div class="modal-todo-label-row">
+                  <label>To-Do</label>
+                  <button type="button" id="todoCalBtn" class="todo-cal-btn" style="display:none" title="Schedule todos"><i class="fas fa-calendar-alt"></i></button>
+                </div>
                 <div class="modal-todo-wrap" id="cardTodoWrap">
                   <div class="modal-todo-list" id="cardTodoList"></div>
                   <div class="modal-todo-input-row">
@@ -358,6 +361,24 @@
         </div><!-- /.modal -->
       </div><!-- /.modal-wrapper -->
     </div><!-- /.modal-overlay -->
+
+    <!-- Cal Modal: schedule todos with start/end dates -->
+    <div class="cal-modal-overlay" id="calModalOverlay">
+      <div class="cal-modal cal-modal--sched">
+        <div class="cal-modal__hdr">
+          <div class="cal-modal__hdr-brand">
+            <i class="fas fa-calendar-check"></i>
+            <h3>Schedule Todos</h3>
+          </div>
+          <button type="button" class="cal-modal__close" id="calModalClose" title="Close"><i class="fas fa-times"></i></button>
+        </div>
+        <div class="cal-modal__hdr-bar"></div>
+        <div class="cal-modal__body" id="calModalBody"></div>
+        <div class="cal-modal__footer">
+          <button type="button" class="btn-add" id="calModalDone"><i class="fas fa-check"></i> Done</button>
+        </div>
+      </div>
+    </div><!-- /.cal-modal-overlay -->
 
   </div>
 
