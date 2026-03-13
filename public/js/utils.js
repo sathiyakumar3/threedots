@@ -1,3 +1,14 @@
+// ── HTML escaping (prevents stored XSS in innerHTML) ──
+function escapeHTML(s) {
+  if (s == null) return '';
+  return String(s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&#39;');
+}
+
 // ── Shared tag labels (keys must match DEFAULT_TAGS ids in tags.js) ──
 const tagLabels = {
   urgent:      'Urgent',
@@ -87,16 +98,17 @@ function buildTimeline(entries, opts) {
       const authorName  = _resolved ? _resolved.name  : (e.author || 'User');
       const authorPhoto = _resolved ? _resolved.photo : (window._userPhotoMap && e.author ? (window._userPhotoMap[e.author] || '') : '');
       const initial     = authorName[0].toUpperCase();
-      const avatarFallback = `this.replaceWith(Object.assign(document.createElement('span'),{className:'tl-avatar tl-avatar--initial',title:'${authorName}',textContent:'${initial}'}))`;
+      const _safeAuthor = String(authorName).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const avatarFallback = `this.replaceWith(Object.assign(document.createElement('span'),{className:'tl-avatar tl-avatar--initial',title:'${_safeAuthor}',textContent:'${initial}'}))`;
       const avatarHTML  = authorPhoto
-        ? `<img class='tl-avatar' src='${authorPhoto}' alt='${authorName}' title='${authorName}' onerror="${avatarFallback}">`
-        : `<span class='tl-avatar tl-avatar--initial' title='${authorName}'>${initial}</span>`;
+        ? `<img class='tl-avatar' src='${authorPhoto}' alt='${escapeHTML(authorName)}' title='${escapeHTML(authorName)}' onerror="${avatarFallback}">`
+        : `<span class='tl-avatar tl-avatar--initial' title='${escapeHTML(authorName)}'>${initial}</span>`;
       const displayDate = stripYear(e.date);
       const textDiv = isComment
-        ? `<div class="task__tl-text" data-comment="${e.text.replace(/"/g, '&quot;')}">${e.text}<div class="task__tl-meta"><time>${displayDate}</time><b>${authorName}</b></div></div>`
+        ? `<div class="task__tl-text" data-comment="${escapeHTML(e.text)}">${escapeHTML(e.text)}<div class="task__tl-meta"><time>${displayDate}</time><b>${escapeHTML(authorName)}</b></div></div>`
         : (e.type === 'create' || e.type === 'delete')
-          ? `<div class="task__tl-text">${e.text}<div class="task__tl-meta"><time>${displayDate}</time><b>${authorName}</b></div></div>`
-          : `<div class="task__tl-text"><b>${authorName}</b> ${e.text}<time>${displayDate}</time></div>`;
+          ? `<div class="task__tl-text">${escapeHTML(e.text)}<div class="task__tl-meta"><time>${displayDate}</time><b>${escapeHTML(authorName)}</b></div></div>`
+          : `<div class="task__tl-text"><b>${escapeHTML(authorName)}</b> ${escapeHTML(e.text)}<time>${displayDate}</time></div>`;
       const createClass = (e.type === 'create') ? ' task__tl-entry--create' : '';
       return `<div class="task__tl-entry${createClass}" data-ts="${e.ts || ''}" data-author-uid="${e.author || ''}"><span class="task__tl-dot task__tl-dot--${e.type || 'create'}">${avatarHTML}</span>${textDiv}</div>`;
     }).join('')}
@@ -110,8 +122,9 @@ window._uidMap = window._uidMap || {};
 // ── Resolve an assignee name → avatar HTML (img or initial circle) with tooltip ──
 function resolveAssigneeAvatar(name) {
   const initial = name && name[0] ? name[0].toUpperCase() : '?';
-  const fallback = `this.replaceWith(Object.assign(document.createElement('span'),{className:'tl-avatar tl-avatar--initial tl-avatar--assignee',title:'${name}',textContent:'${initial}'}))`;
-  const imgTag = (src) => `<img class='tl-avatar tl-avatar--assignee' src='${src}' alt='${name}' title='${name}' onerror="${fallback}">`;
+  const _safeJsName = String(name).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const fallback = `this.replaceWith(Object.assign(document.createElement('span'),{className:'tl-avatar tl-avatar--initial tl-avatar--assignee',title:'${_safeJsName}',textContent:'${initial}'}))`;
+  const imgTag = (src) => `<img class='tl-avatar tl-avatar--assignee' src='${src}' alt='${escapeHTML(name)}' title='${escapeHTML(name)}' onerror="${fallback}">`;
   // 1. Fast path: pre-built photo map
   const mapped = window._userPhotoMap[name];
   if (mapped) return imgTag(mapped);
@@ -120,9 +133,9 @@ function resolveAssigneeAvatar(name) {
   if (navName && navName === name) {
     const navImg = document.querySelector('#navAvatar img');
     if (navImg) return imgTag(navImg.src);
-    return `<span class='tl-avatar tl-avatar--initial tl-avatar--assignee' title='${name}'>${initial}</span>`;
+    return `<span class='tl-avatar tl-avatar--initial tl-avatar--assignee' title='${escapeHTML(name)}'>${initial}</span>`;
   }
-  // 3. Participants DOM fallback
+  // 3. Participants DOM fallback — result cached in _userPhotoMap to avoid repeat traversals
   let photo = '';
   document.querySelectorAll('#projectParticipants .participant-avatar').forEach(av => {
     const n = av.querySelector('.pcard__name')?.textContent?.trim();
@@ -131,8 +144,8 @@ function resolveAssigneeAvatar(name) {
       if (img) photo = img.src;
     }
   });
-  if (photo) return imgTag(photo);
-  return `<span class='tl-avatar tl-avatar--initial tl-avatar--assignee' title='${name}'>${initial}</span>`;
+  if (photo) { window._userPhotoMap[name] = photo; return imgTag(photo); }
+  return `<span class='tl-avatar tl-avatar--initial tl-avatar--assignee' title='${escapeHTML(name)}'>${initial}</span>`;
 }
 
 // ── Refresh all card assignee avatars after photo map is updated ──

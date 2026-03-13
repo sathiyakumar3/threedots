@@ -45,6 +45,13 @@
     const events = [];
     document.querySelectorAll('.project-column:not(.project-column--trash)').forEach(col => {
       col.querySelectorAll(':scope > .task').forEach(card => {
+        // ── Tag filter ──
+        if (activeTagFilter !== null) {
+          const tagClass = [...(card.querySelector('.task__tag')?.classList || [])]
+            .find(c => c.startsWith('task__tag--'));
+          const cardTag = tagClass ? tagClass.replace('task__tag--', '') : 'task';
+          if (cardTag !== activeTagFilter) return;
+        }
         const start    = card.dataset.startDate || '';
         const deadline = card.dataset.deadline  || '';
 
@@ -83,50 +90,62 @@
           });
         }
 
-        // ── Todo items with individual due dates ──
-        card.querySelectorAll('.task__todo-item[data-due-date]').forEach((todoEl, tiIdx) => {
-          const dueDate   = todoEl.dataset.dueDate;
-          const startDate = todoEl.dataset.startDate;
-          if (!dueDate && !startDate) return;
-          const todoText = todoEl.querySelector('.task__todo-text')?.textContent?.trim() || '';
-          const isDone   = todoEl.querySelector('.task__todo-cb')?.checked || false;
-          const cardTitle = card.dataset.title || card.querySelector('p')?.textContent || '(Untitled)';
-          const tagClass = [...card.querySelector('.task__tag').classList]
-            .find(c => c.startsWith('task__tag--'));
-          const tagId = tagClass ? tagClass.replace('task__tag--', '') : 'task';
-          const color = getTagColor(tagId);
-          const fcStart = toFCDate(startDate || dueDate);
-          const fcEnd   = dueDate ? toFCDate(dueDate) : fcStart;
-          let endDate = fcEnd;
-          if (fcEnd && !fcEnd.includes('T')) {
-            const d = new Date(fcEnd);
-            d.setDate(d.getDate() + 1);
-            endDate = d.toISOString().split('T')[0];
-          }
-          events.push({
-            id:    `${card.dataset.id}-todo-${tiIdx}`,
-            title: `${isDone ? '✓' : '☐'} ${todoText}`,
-            start: fcStart,
-            end:   endDate || undefined,
-            allDay: !(fcStart && fcStart.includes('T')),
-            backgroundColor: color + '28',
-            borderColor:     color,
-            textColor:       '#374151',
-            classNames: ['fc-todo-event', ...(isDone ? ['fc-todo-event--done'] : [])],
-            extendedProps: {
-              cardEl:   card,
-              isTodo:   true,
-              todoIdx:  tiIdx,
-              colName:  col.querySelector('.project-column-heading__title')?.textContent || '',
-              cardTitle
-            }
-          });
-        });
       });
     });
     return events;
   }
 
+  // ── Tag filter state ─────────────────────────────────────────────────────
+  let activeTagFilter = null; // null = show all
+
+  function buildTagFilter() {
+    const container = document.getElementById('calTagFilter');
+    if (!container) return;
+    const tags = window._getActiveTags ? window._getActiveTags() : [];
+    container.innerHTML = '';
+
+    // "All" chip
+    const allChip = document.createElement('button');
+    allChip.className = 'cal-tag-chip' + (activeTagFilter === null ? ' active' : '');
+    allChip.textContent = 'All';
+    allChip.addEventListener('click', () => {
+      activeTagFilter = null;
+      buildTagFilter();
+      reloadCalendarEvents();
+    });
+    container.appendChild(allChip);
+
+    tags.forEach(tag => {
+      const chip = document.createElement('button');
+      const isActive = activeTagFilter === tag.id;
+      chip.className = 'cal-tag-chip' + (isActive ? ' active' : '');
+      chip.style.setProperty('--chip-color', tag.color);
+      chip.style.setProperty('--chip-bg',    tag.color + '22');
+      chip.style.setProperty('--chip-text',  tag.color);
+      chip.innerHTML =
+        `<span class="cal-tag-chip__dot" style="background:${tag.color}"></span>${tag.label}`;
+      chip.addEventListener('click', () => {
+        activeTagFilter = isActive ? null : tag.id;
+        buildTagFilter();
+        reloadCalendarEvents();
+      });
+      container.appendChild(chip);
+    });
+  }
+  // ── Lazy-load FullCalendar CSS + JS on first calendar open ────────────────────
+  function loadFullCalendar(cb) {
+    if (typeof FullCalendar !== 'undefined') { cb(); return; }
+    if (!document.querySelector('link[href*="fullcalendar@6.1.15"]')) {
+      const link = document.createElement('link');
+      link.rel = 'stylesheet';
+      link.href = 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css';
+      document.head.appendChild(link);
+    }
+    const s = document.createElement('script');
+    s.src = 'https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js';
+    s.onload = cb;
+    document.head.appendChild(s);
+  }
   // ── Calendar instance ──────────────────────────────────────────────────────
   let calendar = null;
   let calendarInited = false;
@@ -150,6 +169,21 @@
       selectable: true,
       nowIndicator: true,
       dayMaxEvents: 4,
+      dragRevertDuration: 0,
+
+      // ── Custom event render ──
+      eventContent(arg) {
+        const isTodo = arg.event.extendedProps.isTodo;
+        const isDone = isTodo && arg.event.classNames.includes('fc-todo-event--done');
+        const icon   = isTodo ? (isDone ? '✓' : '○') : '●';
+        const title  = arg.event.title;
+        return {
+          html: `<div class="fc-event-main-frame">` +
+                  `<span class="fc-evt-icon">${icon}</span>` +
+                  `<span class="fc-event-title">${title}</span>` +
+                `</div>`
+        };
+      },
 
       // ── Event tooltip ──
       eventDidMount(info) {
@@ -168,6 +202,17 @@
         const cardEl = info.event.extendedProps.cardEl;
         if (cardEl && window._openEditModal) {
           window._openEditModal(cardEl);
+        }
+      },
+
+      // ── Drag event back to sidebar → unschedule ──
+      eventDragStop(info) {
+        const sidebarEl = document.getElementById('calSidebar');
+        if (!sidebarEl) return;
+        const rect = sidebarEl.getBoundingClientRect();
+        const { clientX: x, clientY: y } = info.jsEvent;
+        if (x >= rect.left && x <= rect.right && y >= rect.top && y <= rect.bottom) {
+          unscheduleCard(info.event);
         }
       },
 
@@ -330,6 +375,13 @@
     allCards.forEach(card => {
       const title = card.dataset.title || card.querySelector('p')?.textContent?.trim() || '(Untitled)';
       if (query && !title.toLowerCase().includes(query)) return;
+      // ── Tag filter ──
+      if (activeTagFilter !== null) {
+        const tagClass = [...(card.querySelector('.task__tag')?.classList || [])]
+          .find(c => c.startsWith('task__tag--'));
+        const cardTag = tagClass ? tagClass.replace('task__tag--', '') : 'task';
+        if (cardTag !== activeTagFilter) return;
+      }
 
       const colName = card.closest('.project-column')
         ?.querySelector('.project-column-heading__title')?.textContent?.trim() || '';
@@ -338,9 +390,10 @@
       const tagId  = tagClass ? tagClass.replace('task__tag--', '') : 'task';
       const color  = getTagColor(tagId);
       const hasDates = !!(card.dataset.startDate || card.dataset.deadline);
+      if (hasDates) return; // already on calendar — hide from sidebar
 
       const el = document.createElement('div');
-      el.className = `cal-sidebar__card${hasDates ? ' has-dates' : ''}`;
+      el.className = 'cal-sidebar__card';
       el.style.setProperty('--card-color', color);
       el.dataset.id = card.dataset.id;
       el.dataset.event = JSON.stringify({
@@ -351,14 +404,25 @@
         textColor:       contrastColor(color),
         duration:        { days: 1 }
       });
+
+      // Get tag label
+      const tagLabel = window._getActiveTags
+        ? (window._getActiveTags().find(t => t.id === tagId)?.label || tagId)
+        : tagId;
+
       el.innerHTML =
-        `<div class="cs-title">${title}</div>` +
-        (colName ? `<div class="cs-meta"><i class="fas fa-columns"></i>${colName}</div>` : '') +
-        (hasDates ? `<div class="cs-meta cs-meta--sched"><i class="fas fa-calendar-check"></i>Scheduled</div>` : '');
+        `<div class="cs-card-accent"></div>` +
+        `<div class="cs-card-body">` +
+          `<div class="cs-card-row">` +
+            `<i class="fas fa-grip-vertical cs-drag-handle"></i>` +
+            `<span class="cs-title">${title}</span>` +
+          `</div>` +
+          `<span class="cs-tag-chip"><span class="cs-tag-dot"></span>${tagLabel}</span>` +
+        `</div>`;
       list.appendChild(el);
     });
     if (!list.children.length) {
-      list.innerHTML = '<p class="cal-sidebar__empty">No cards</p>';
+      list.innerHTML = '<p class="cal-sidebar__empty">No unscheduled cards</p>';
     }
   }
 
@@ -369,6 +433,27 @@
     draggable = new FullCalendar.Draggable(listEl, {
       itemSelector: '.cal-sidebar__card'
     });
+  }
+
+  // ── Unschedule a card (dragged from calendar back to sidebar) ─────────────
+  function unscheduleCard(fcEvent) {
+    if (fcEvent.extendedProps.isTodo) return;
+    const cardEl = fcEvent.extendedProps.cardEl;
+    if (!cardEl) return;
+
+    delete cardEl.dataset.startDate;
+    delete cardEl.dataset.deadline;
+    cardEl.querySelector('.task__startdate')?.remove();
+    cardEl.querySelector('.task__deadline')?.remove();
+
+    fcEvent.remove();
+
+    if (typeof saveTask === 'function') saveTask(cardEl).catch(e => console.error(e));
+    if (typeof logActivity === 'function') {
+      const author = typeof _authorName === 'function' ? _authorName() : 'Someone';
+      logActivity('edit', `<b>${author}</b> unscheduled <em>${cardEl.dataset.title || ''}</em>`);
+    }
+    buildSidebar(document.getElementById('calSidebarSearch')?.value || '');
   }
 
   // ── Reload events into the calendar ──────────────────────────────────────
@@ -385,20 +470,23 @@
   function openCalendar() {
     overlay.classList.add('open');
     document.body.classList.add('cal-open');
+    buildTagFilter();
     buildSidebar();
-    if (!calendarInited) {
-      // Small delay so the container has layout dimensions
-      requestAnimationFrame(() => {
-        setTimeout(() => {
-          initCalendar();
-          initDraggable();
-          reloadCalendarEvents();
-        }, 30);
-      });
-    } else {
-      calendar.updateSize();
-      reloadCalendarEvents();
-    }
+    loadFullCalendar(function () {
+      if (!calendarInited) {
+        // Small delay so the container has layout dimensions
+        requestAnimationFrame(() => {
+          setTimeout(() => {
+            initCalendar();
+            initDraggable();
+            reloadCalendarEvents();
+          }, 30);
+        });
+      } else {
+        calendar.updateSize();
+        reloadCalendarEvents();
+      }
+    });
   }
 
   function closeCalendar() {
@@ -427,9 +515,13 @@
   // FullCalendar uses CSS vars; we drive dark mode via body.dark class
   // No extra work needed — CSS handles it.
 
-  // ── Sidebar search ───────────────────────────────────────────────────────
+  // ── Sidebar search (debounced) ───────────────────────────────────────────
+  let _sidebarSearchTimer;
   document.getElementById('calSidebarSearch')
-    ?.addEventListener('input', e => buildSidebar(e.target.value));
+    ?.addEventListener('input', e => {
+      clearTimeout(_sidebarSearchTimer);
+      _sidebarSearchTimer = setTimeout(() => buildSidebar(e.target.value), 200);
+    });
 
   // ── Expose setter hooks for modal.js date pre-fill on select ──────────────
   // modal.js sets pickerStartDate / pickerDeadline directly; we expose wrappers

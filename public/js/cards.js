@@ -8,6 +8,15 @@ function shortLinkLabel(url) {
   } catch (e) { return url; }
 }
 
+// ── Validate a URL: only allow http(s) to prevent javascript: injection ──
+function safeUrl(url) {
+  if (!url) return '';
+  try {
+    const u = new URL(url);
+    return (u.protocol === 'https:' || u.protocol === 'http:') ? url : '';
+  } catch (e) { return ''; }
+}
+
 // ── Deadline helpers ──
 function fmtDeadline(iso) {
   if (!iso) return '';
@@ -44,7 +53,7 @@ function buildTodosHTML(todos) {
     }
     return `<label class='task__todo-item'${displayDate ? ` data-due-date='${displayDate}'` : ''}${startDate ? ` data-start-date='${startDate}'` : ''}>
        <input type='checkbox' class='task__todo-cb' data-idx='${i}' ${t.done ? 'checked' : ''}>
-       <span class='task__todo-text${t.done ? ' task__todo-text--done' : ''}'>${t.text}</span>
+       <span class='task__todo-text${t.done ? ' task__todo-text--done' : ''}'>${escapeHTML(t.text)}</span>
        ${dateBadge}
      </label>`;
   }).join('');
@@ -142,8 +151,9 @@ function renderCard(taskData) {
         : `<span class='tl-avatar tl-avatar--initial' title='${ownerName}'>${ownerName[0].toUpperCase()}</span>`)
     : '';
   const todosHTML = buildTodosHTML(taskData.todos);
-  const linkHTML  = taskData.link
-    ? `<div class='task__link'><a href='${taskData.link}' target='_blank' rel='noopener'><i class='fas fa-link'></i>${shortLinkLabel(taskData.link)}</a></div>`
+  const _safeLink = safeUrl(taskData.link);
+  const linkHTML  = _safeLink
+    ? `<div class='task__link'><a href='${_safeLink}' target='_blank' rel='noopener'><i class='fas fa-link'></i>${escapeHTML(shortLinkLabel(_safeLink))}</a></div>`
     : '';
   const hasDeadline  = !!taskData.deadline;
   const hasStartDate = !!taskData.startDate;
@@ -163,12 +173,12 @@ function renderCard(taskData) {
   if (taskData.title) card.dataset.title = taskData.title;
   card.innerHTML   = `
     <div class='task__tags'>
-      <span class='task__tag task__tag--${taskData.tag}'>${tagLabels[taskData.tag]}</span>
-      ${taskData.priority ? `<span class='task__priority task__priority--${taskData.priority}'>${taskData.priority[0].toUpperCase() + taskData.priority.slice(1)}</span>` : ''}
+      <span class='task__tag task__tag--${taskData.tag}'>${escapeHTML(tagLabels[taskData.tag] || '')}</span>
+      ${taskData.priority ? `<span class='task__priority task__priority--${taskData.priority}'>${escapeHTML(taskData.priority[0].toUpperCase() + taskData.priority.slice(1))}</span>` : ''}
       <button class='task__options'><i class='fas fa-ellipsis-h'></i></button>
     </div>
-    ${taskData.title ? `<h4 class='task__title'>${taskData.title}</h4>` : ''}
-    <p>${taskData.text}</p>
+    ${taskData.title ? `<h4 class='task__title'>${escapeHTML(taskData.title)}</h4>` : ''}
+    <p>${escapeHTML(taskData.text)}</p>
     ${todosHTML}
     ${linkHTML}
     ${statsHTML}`;

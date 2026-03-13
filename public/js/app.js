@@ -924,6 +924,7 @@ document.addEventListener('DOMContentLoaded', () => {
   const participantEmail  = document.getElementById('participantEmail');
   const participantMsg    = document.getElementById('participantMsg');
   const participantAddConfirm = document.getElementById('participantAddConfirm');
+  let _teamPanelData = { admins: [], members: [], nonMembers: [] };
 
   function openTeamPanel() {
     closeAllPopups(['teamPanel']);
@@ -961,6 +962,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function renderTeamPanel(admins, members, nonMembers = [], filter = '') {
+    _teamPanelData = { admins, members, nonMembers };
     const body = document.getElementById('teamPanelBody');
     const q    = filter.toLowerCase();
 
@@ -1044,14 +1046,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   document.getElementById('teamSearch').addEventListener('input', e => {
-    db.doc(`boards/${BOARD_ID}`).get().then(snap => {
-      if (!snap.exists) return;
-      const bd         = snap.data();
-      const admins     = bd.users?.admins     || (bd.admins ? bd.admins : (bd.owner ? [bd.owner] : []));
-      const members    = bd.users?.members    || [];
-      const nonMembers = bd.users?.nonMembers || [];
-      renderTeamPanel(admins, members, nonMembers, e.target.value.trim());
-    });
+    renderTeamPanel(_teamPanelData.admins, _teamPanelData.members, _teamPanelData.nonMembers, e.target.value.trim());
   });
 
   // Promote / demote / remove via panel

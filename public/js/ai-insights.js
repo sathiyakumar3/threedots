@@ -200,10 +200,12 @@
       </div>`;
 
     // Tag breakdown
+    const _activeTags      = window._getActiveTags ? window._getActiveTags() : [];
+    const _tagColorByLabel = {};
+    _activeTags.forEach(t => { const lbl = tagLabels[t.id] || t.id; _tagColorByLabel[lbl] = t.color; });
     const tagRows = tagsSorted.map(([label, count]) => {
-      const tagEl = [...document.querySelectorAll('.task__tag')].find(el => el.textContent.trim() === label);
-      const bg    = tagEl ? getComputedStyle(tagEl).backgroundColor : '#94a3b8';
-      const pct   = Math.round(count / maxTag * 100);
+      const bg  = _tagColorByLabel[label] || '#94a3b8';
+      const pct = Math.round(count / maxTag * 100);
       return `<div class="ins-row">
         <span class="ins-row__label"><span class="ins-dot" style="background:${bg}"></span>${esc(label)}</span>
         <div class="ins-row__bar-wrap">${pctBar(pct, 'tag')}<span class="ins-row__count">${count}</span></div>

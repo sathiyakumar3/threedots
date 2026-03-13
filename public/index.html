@@ -11,16 +11,14 @@
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/layout.css">
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/themes/light.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css">
-  <!-- FullCalendar -->
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.css">
   <link rel="stylesheet" href="css/styles.css?v=7">
-  <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
-  <script src="js/firebase-init.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-analytics-compat.js"></script>
+  <script defer src="js/firebase-init.js"></script>
 </head>
 <body>
 
@@ -31,8 +29,8 @@
         <!-- Left group -->
         <div class="topbar-left">
           <div class="topbar-logo">
-            <img class="logo-mode-light" src="images/logo-icon-light.svg" width="32" height="32" alt="Taskbz logo">
-            <img class="logo-mode-dark"  src="images/logo-icon-dark.svg"  width="32" height="32" alt="Taskbz logo">
+            <img class="logo-mode-light" src="images/logo-icon-light.svg" width="24" height="24" alt="Taskbz logo">
+            <img class="logo-mode-dark"  src="images/logo-icon-dark.svg"  width="24" height="24" alt="Taskbz logo">
           </div>
           <div class="board-title-wrap">
             <div class="board-combo" id="boardCombo">
@@ -84,6 +82,19 @@
               </div>
             </div>
           </div>
+          <!-- ── Density picker ── -->
+          <div class="density-picker" id="densityPicker">
+            <button class="topbar-icon-btn density-picker__trigger" id="densityTrigger" title="Card density"><i class="fas fa-th-large"></i></button>
+            <div class="density-picker__menu" id="densityMenu">
+              <div class="density-picker__menu-title">Card Density</div>
+              <div class="density-picker__list">
+                <button class="density-picker__opt" data-view="tight"><span class="density-picker__opt-name">Tight</span><span class="density-picker__opt-desc">Title Only</span></button>
+                <button class="density-picker__opt" data-view="compact"><span class="density-picker__opt-name">Compact</span><span class="density-picker__opt-desc">Title · Desc · Latest Update</span></button>
+                <button class="density-picker__opt" data-view="cozy"><span class="density-picker__opt-name">Cozy</span><span class="density-picker__opt-desc">Title · Desc · Options · Latest Update</span></button>
+                <button class="density-picker__opt" data-view="roomy"><span class="density-picker__opt-name">Roomy</span><span class="density-picker__opt-desc">Title · Desc · Options · All Updates</span></button>
+              </div>
+            </div>
+          </div>
           <button class="topbar-icon-btn" id="insightsBtn" title="Board Insights (AI)"><i class="fas fa-lightbulb"></i></button>
           <button class="topbar-icon-btn" id="activityToggle" title="Activity"><i class="fas fa-stream"></i></button>
           <div class="topbar-divider"></div>
@@ -125,7 +136,6 @@
           </div>
            <div class="topbar-divider"></div>
 
-          <button class="topbar-icon-btn" id="calendarBtn" title="Calendar View"><i class="fas fa-calendar-alt"></i></button>
           <button class="topbar-icon-btn" id="archiveBtn" title="Archive"><i class="fas fa-archive"></i></button>
           <button class="topbar-icon-btn" id="trashBtn" title="Trash"><i class="fas fa-trash-alt"></i></button>
 
@@ -148,20 +158,6 @@
                   <div class="topbar-user__hd-email" id="navUserEmail"></div>
                 </div>
               </div>
-              <div class="topbar-user__divider"></div>
-              <button class="topbar-user__item" id="profileBtn"><i class="fas fa-user-circle"></i> My Profile</button>
-              <button class="topbar-user__item" id="settingsBtn"><i class="fas fa-cog"></i> Settings</button>
-              <div class="topbar-user__divider"></div>
-              <div class="topbar-user__view-section">
-                <div class="topbar-user__view-label"><i class="fas fa-th-large"></i> View</div>
-                <div class="topbar-user__view-options" id="profileViewOptions">
-                  <button class="topbar-user__view-opt" data-view="tight" title="Tight"><i class="fas fa-compress"></i><span>Tight</span></button>
-                  <button class="topbar-user__view-opt" data-view="compact" title="Compact"><i class="fas fa-minus"></i><span>Compact</span></button>
-                  <button class="topbar-user__view-opt" data-view="cozy" title="Cozy"><i class="fas fa-align-left"></i><span>Cozy</span></button>
-                  <button class="topbar-user__view-opt" data-view="roomy" title="Roomy"><i class="fas fa-expand-alt"></i><span>Roomy</span></button>
-                </div>
-              </div>
-              <div class="topbar-user__divider"></div>
               <button class="topbar-user__item" id="themeToggleBtn"><i class="fas fa-moon" id="themeToggleIcon"></i> <span id="themeToggleLabel">Dark mode</span></button>
               <button class="topbar-user__item" id="fullscreenBtn"><i class="fas fa-expand" id="fullscreenIcon"></i> <span id="fullscreenLabel">Full screen</span></button>
               <div class="topbar-user__divider"></div>
@@ -245,6 +241,7 @@
       </div>
     </div>
 
+    <button class="fab fab--calendar" id="calendarBtn" title="Calendar View"><i class="fas fa-calendar-alt"></i></button>
     <button class="fab" id="fabBtn" title="Add card (Enter)"><i class="fas fa-plus"></i></button>
 
     <div class="modal-overlay" id="modalOverlay">
@@ -442,6 +439,7 @@
             <button class="cal-close-btn" id="calCloseBtn" title="Close"><i class="fas fa-times"></i></button>
           </div>
         </div>
+        <div class="cal-tag-filter" id="calTagFilter"></div>
         <div class="cal-modal__header-bar"></div>
       </div>
       <div class="cal-modal__body">
@@ -457,32 +455,34 @@
     </div>
   </div>
 
-  <script src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
-  <script src="js/utils.js"></script>
-  <script src="js/cards.js"></script>
-  <script src="js/board.js"></script>
-  <script src="js/app.js"></script>
-  <script src="js/tags.js"></script>
-  <script src="https://unpkg.com/vanilla-calendar-pro@3.1.0/index.js"></script>
-  <script src="js/modal.js"></script>
-  <script src="js/ai-assist.js"></script>
-  <script src="js/ai-insights.js"></script>
-  <script src="js/bulk.js"></script>
-  <script src="js/confetti.js"></script>
-  <!-- FullCalendar -->
-  <script src="https://cdn.jsdelivr.net/npm/fullcalendar@6.1.15/index.global.min.js"></script>
-  <script src="js/calendar.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
+  <script defer src="js/utils.js"></script>
+  <script defer src="js/cards.js"></script>
+  <script defer src="js/board.js"></script>
+  <script defer src="js/app.js"></script>
+  <script defer src="js/tags.js"></script>
+  <script defer src="https://unpkg.com/vanilla-calendar-pro@3.1.0/index.js"></script>
+  <script defer src="js/modal.js"></script>
+  <script defer src="js/ai-assist.js"></script>
+  <script defer src="js/ai-insights.js"></script>
+  <script defer src="js/bulk.js"></script>
+  <script defer src="js/confetti.js"></script>
+  <script defer src="js/calendar.js"></script>
   <script>
   (function () {
     const STORAGE_KEY = 'qnotes_view';
+
+    function syncDensityPicker(view) {
+      document.querySelectorAll('.density-picker__opt').forEach(btn => {
+        btn.classList.toggle('active', btn.dataset.view === view);
+      });
+    }
 
     window.applyView = function(view, persist) {
       if (persist === undefined) persist = true;
       document.body.classList.remove('view-tight', 'view-cozy', 'view-roomy');
       if (['tight', 'cozy', 'roomy'].includes(view)) document.body.classList.add('view-' + view);
-      document.querySelectorAll('.topbar-user__view-opt').forEach(el => {
-        el.classList.toggle('active', el.dataset.view === view);
-      });
+      syncDensityPicker(view);
       localStorage.setItem(STORAGE_KEY, view);
       if (persist && window.saveViewPreference) window.saveViewPreference(view);
     };
@@ -490,10 +490,24 @@
     // Restore saved preference (no Firestore write on initial load)
     window.applyView(localStorage.getItem(STORAGE_KEY) || 'cozy', false);
 
-    document.getElementById('profileViewOptions').addEventListener('click', e => {
-      const opt = e.target.closest('.topbar-user__view-opt');
-      if (!opt) return;
-      window.applyView(opt.dataset.view);
+    // Density picker: trigger toggles open (touch/click), opts apply view + close
+    document.addEventListener('click', e => {
+      const picker  = document.getElementById('densityPicker');
+      if (!picker) return;
+      const opt     = e.target.closest('.density-picker__opt');
+      const trigger = e.target.closest('.density-picker__trigger');
+      if (opt) {
+        window.applyView(opt.dataset.view);
+        picker.classList.remove('open');
+        return;
+      }
+      if (trigger) {
+        picker.classList.toggle('open');
+        return;
+      }
+      if (!e.target.closest('.density-picker')) {
+        picker.classList.remove('open');
+      }
     });
 
     // Handle invite URL params — pre-fill register form with invited email
