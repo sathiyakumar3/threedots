@@ -315,7 +315,7 @@
     const newCol = document.createElement('div');
     newCol.className = 'project-column';
     newCol.dataset.columnId = newId;
-    newCol.innerHTML = `<div class='project-column-heading'><h2 class='project-column-heading__title'>${title}</h2><button class='project-column-heading__options'><i class="fas fa-ellipsis-h"></i></button></div>`;
+    newCol.innerHTML = `<div class='project-column-heading'><h2 class='project-column-heading__title'>${escapeHTML(title)}</h2><button class='project-column-heading__options'><i class="fas fa-ellipsis-h"></i></button></div>`;
     const doneCol = document.querySelector('.project-column[data-column-id="98"]');
     const boardEl = document.querySelector('.project-tasks');
     if (doneCol) boardEl.insertBefore(newCol, doneCol);
@@ -343,10 +343,10 @@
       const startFmt = t.startDate ? fmtDeadline(t.startDate) : '';
       const dateFmt  = t.endDate ? fmtDeadline(t.endDate) : '';
       const od       = t.endDate ? isOverdue(t.endDate) : false;
-      const safeText = t.text.replace(/'/g, '&#39;').replace(/"/g, '&quot;');
+      const safeText = escapeHTML(t.text);
       return `<div class='modal-todo-item'>
          <input type='checkbox' ${t.done ? 'checked' : ''} data-idx='${i}'>
-         <span class='modal-todo-item__text' title='${safeText}'>${t.text}</span>
+         <span class='modal-todo-item__text' title='${safeText}'>${safeText}</span>
          <div class='todo-due-wrap'>
            <button class='modal-todo-item__date-btn${t.startDate ? ' has-date' : ''}' tabindex='-1' title='Start date'>
              <i class='fas fa-play-circle'></i>${startFmt ? `<span>${startFmt}</span>` : ''}
@@ -965,12 +965,12 @@
     card.draggable  = true;
     card.innerHTML  = `
       <div class='task__tags'>
-        <span class='task__tag task__tag--${tag}'>${tagLabels[tag]}</span>
-        ${priority ? `<span class='task__priority task__priority--${priority}'>${priority[0].toUpperCase() + priority.slice(1)}</span>` : ''}
+        <span class='task__tag task__tag--${tag}'>${escapeHTML(tagLabels[tag] || '')}</span>
+        ${priority ? `<span class='task__priority task__priority--${priority}'>${escapeHTML(priority[0].toUpperCase() + priority.slice(1))}</span>` : ''}
         <button class='task__options'><i class='fas fa-ellipsis-h'></i></button>
       </div>
-      ${title ? `<h4 class='task__title'>${title}</h4>` : ''}
-      <p>${text}</p>
+      ${title ? `<h4 class='task__title'>${escapeHTML(title)}</h4>` : ''}
+      <p>${escapeHTML(text)}</p>
       ${todosHTML}
       ${linkHTML}
       ${statsHTML}`;

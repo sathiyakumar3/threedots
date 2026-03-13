@@ -865,8 +865,8 @@ document.addEventListener('DOMContentLoaded', () => {
       av.className = 'participant-avatar' + (isAdmin ? ' participant-avatar--admin' : '');
       av.dataset.uid = uid;
       const inner = photo
-        ? `<img src='${photo}' alt='${name}'>`
-        : `<span>${name[0].toUpperCase()}</span>`;
+        ? `<img src='${photo}' alt='${escapeHTML(name)}'>`
+        : `<span>${escapeHTML(name[0].toUpperCase())}</span>`;
       const crown = isAdmin ? `<span class='pa-crown'><i class='fas fa-crown'></i></span>` : '';
       const roleClass = isAdmin ? 'pcard__title--admin' : 'pcard__title--member';
       const roleLabel = isAdmin ? '<i class="fas fa-shield-alt"></i> Admin' : '<i class="fas fa-user"></i> Member';
@@ -874,8 +874,8 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class='participant-card'>
           <div class='pcard__title ${roleClass}'>${roleLabel}</div>
           <div class='pcard__info'>
-            <div class='pcard__row'><div class='pcard__name'>${name}</div></div>
-            <div class='pcard__row'><div class='pcard__email'>${cached.email || ''}</div></div>
+            <div class='pcard__row'><div class='pcard__name'>${escapeHTML(name)}</div></div>
+            <div class='pcard__row'><div class='pcard__email'>${escapeHTML(cached.email || '')}</div></div>
           </div>
         </div>`;
       return av;
