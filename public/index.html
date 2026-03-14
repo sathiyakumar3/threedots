@@ -54,6 +54,7 @@
               <button id="boardOptFavourite"><i class="fas fa-star"></i> <span id="boardOptFavouriteLabel">Make favourite</span></button>
               <div class="board-dropdown__divider"></div>
               <button id="boardOptRename"><i class="fas fa-pen"></i> Rename board</button>
+              <button id="boardOptExport"><i class="fas fa-file-export"></i> Export board</button>
               <button id="boardOptDelete" class="danger"><i class="fas fa-trash-alt"></i> Delete board</button>
               <div class="board-dropdown__divider" id="boardOptLeaveDivider"></div>
               <button id="boardOptLeave" class="danger"><i class="fas fa-sign-out-alt"></i> Leave board</button>
@@ -136,6 +137,7 @@
           </div>
            <div class="topbar-divider"></div>
 
+          <button class="topbar-icon-btn" id="filterToggle" title="Filter &amp; Sort"><i class="fas fa-filter"></i></button>
           <button class="topbar-icon-btn" id="archiveBtn" title="Archive"><i class="fas fa-archive"></i></button>
           <button class="topbar-icon-btn" id="trashBtn" title="Trash"><i class="fas fa-trash-alt"></i></button>
 
@@ -160,6 +162,7 @@
               </div>
               <button class="topbar-user__item" id="themeToggleBtn"><i class="fas fa-moon" id="themeToggleIcon"></i> <span id="themeToggleLabel">Dark mode</span></button>
               <button class="topbar-user__item" id="fullscreenBtn"><i class="fas fa-expand" id="fullscreenIcon"></i> <span id="fullscreenLabel">Full screen</span></button>
+              <button class="topbar-user__item" id="shortcutsBtn"><i class="fas fa-keyboard"></i> Keyboard shortcuts</button>
               <div class="topbar-user__divider"></div>
               <button class="topbar-user__item danger" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
             </div>
@@ -187,6 +190,52 @@
             </div>
             <button class="bulk-bar__btn bulk-bar__btn--danger" id="bulkDeleteBtn"><i class="fas fa-trash-alt"></i> Delete</button>
           </div>
+        </div>
+      </div>
+
+      <!-- Filter & Sort bar -->
+      <div class="filter-bar" id="filterBar">
+        <div class="filter-bar__inner">
+          <i class="fas fa-filter filter-bar__icon"></i>
+          <span class="filter-bar__label">Filter:</span>
+
+          <div class="filter-chip-wrap" id="filterTagWrap">
+            <button class="filter-chip" id="filterTagBtn"><i class="fas fa-tag"></i> Tag <i class="fas fa-chevron-down filter-chip__caret"></i></button>
+            <div class="filter-chip__menu" id="filterTagMenu"></div>
+          </div>
+
+          <div class="filter-chip-wrap" id="filterPrioWrap">
+            <button class="filter-chip" id="filterPrioBtn"><i class="fas fa-flag"></i> Priority <i class="fas fa-chevron-down filter-chip__caret"></i></button>
+            <div class="filter-chip__menu" id="filterPrioMenu">
+              <button class="filter-chip__opt filter-chip__opt--active" data-value="">All</button>
+              <button class="filter-chip__opt" data-value="critical">Critical</button>
+              <button class="filter-chip__opt" data-value="high">High</button>
+              <button class="filter-chip__opt" data-value="medium">Medium</button>
+              <button class="filter-chip__opt" data-value="low">Low</button>
+              <button class="filter-chip__opt" data-value="none">None</button>
+            </div>
+          </div>
+
+          <div class="filter-chip-wrap" id="filterAssigneeWrap">
+            <button class="filter-chip" id="filterAssigneeBtn"><i class="fas fa-user"></i> Assignee <i class="fas fa-chevron-down filter-chip__caret"></i></button>
+            <div class="filter-chip__menu" id="filterAssigneeMenu"></div>
+          </div>
+
+          <div class="filter-bar__divider"></div>
+          <span class="filter-bar__label">Sort:</span>
+
+          <div class="filter-chip-wrap" id="filterSortWrap">
+            <button class="filter-chip" id="filterSortBtn"><i class="fas fa-sort"></i> Default <i class="fas fa-chevron-down filter-chip__caret"></i></button>
+            <div class="filter-chip__menu" id="filterSortMenu">
+              <button class="filter-chip__opt filter-chip__opt--active" data-value="default">Default (manual)</button>
+              <button class="filter-chip__opt" data-value="priority">Priority (high → low)</button>
+              <button class="filter-chip__opt" data-value="deadline">Deadline (soonest first)</button>
+              <button class="filter-chip__opt" data-value="created">Created (newest first)</button>
+              <button class="filter-chip__opt" data-value="title">Title (A → Z)</button>
+            </div>
+          </div>
+
+          <button class="filter-bar__clear" id="filterClear" title="Clear all filters"><i class="fas fa-times"></i> Clear</button>
         </div>
       </div>
 
@@ -466,6 +515,8 @@
   <script defer src="js/ai-assist.js"></script>
   <script defer src="js/ai-insights.js"></script>
   <script defer src="js/bulk.js"></script>
+  <script defer src="js/filter.js"></script>
+  <script defer src="js/keyboard.js"></script>
   <script defer src="js/confetti.js"></script>
   <script defer src="js/calendar.js"></script>
   <script>

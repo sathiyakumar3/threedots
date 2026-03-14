@@ -657,6 +657,8 @@ document.addEventListener('DOMContentLoaded', () => {
     };
     const srch = document.getElementById('boardSearch');
     if (srch) { srch.value = ''; searchClear.classList.remove('visible'); }
+    // Reset filters when switching boards
+    if (window._resetBoardFilters) window._resetBoardFilters();
     // Highlight active item in combo
     document.getElementById('boardComboMenu').querySelectorAll('.board-combo__item')
       .forEach(b => b.classList.toggle('active', b.dataset.boardId === id));
@@ -822,6 +824,8 @@ document.addEventListener('DOMContentLoaded', () => {
                 }, err => console.error('Tasks listener error:', err));
             }
             renderParticipants(_adminUids, _boardUsers);
+            // Refresh filter assignee list after board loads
+            setTimeout(() => { if (window._refreshFilterAssignees) window._refreshFilterAssignees(); }, 500);
             // ── Load persisted activity feed from subcollection ──
             db.collection(`boards/${id}/activity`)
               .orderBy('ts', 'desc')
@@ -1391,6 +1395,72 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
+  // -- Export board -------------------------------------------------------
+  document.getElementById('boardOptExport').addEventListener('click', () => {
+    boardDropdown.classList.remove('open');
+    if (!BOARD_ID) return;
+    const boardName = document.getElementById('boardComboLabel').textContent || 'board';
+    // Build export data from live DOM
+    const cols = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
+    const exportData = {
+      board: boardName,
+      exportedAt: new Date().toISOString(),
+      columns: cols.map(col => ({
+        id:    col.dataset.columnId,
+        title: col.querySelector('.project-column-heading__title')?.textContent || '',
+        cards: [...col.querySelectorAll(':scope > .task')].map(c => serializeTask(c))
+      }))
+    };
+    Swal.fire({
+      title: 'Export Board',
+      html: `<p style="margin-bottom:12px">Choose export format for <b>${boardName}</b>:</p>`,
+      showCancelButton: true,
+      confirmButtonText: '<i class="fas fa-file-code"></i> JSON',
+      cancelButtonText:  '<i class="fas fa-file-csv"></i> CSV',
+      showDenyButton: false,
+      confirmButtonColor: 'var(--purple)',
+      cancelButtonColor: '#6b7280',
+      reverseButtons: false
+    }).then(result => {
+      if (result.isConfirmed) {
+        // JSON export
+        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `${boardName.replace(/\s+/g, '-')}-export.json`;
+        a.click();
+        URL.revokeObjectURL(url);
+      } else if (result.isDismissed && result.dismiss === Swal.DismissReason.cancel) {
+        // CSV export — flatten all cards
+        const rows = [['Column','Title','Description','Tag','Priority','Assignee','Start Date','Deadline','Created']];
+        exportData.columns.forEach(col => {
+          col.cards.forEach(card => {
+            rows.push([
+              col.title,
+              card.title  || '',
+              card.text   || '',
+              card.tag    || '',
+              card.priority || '',
+              card.assignee || '',
+              card.startDate || '',
+              card.deadline  || '',
+              card.created   || ''
+            ].map(v => `"${String(v).replace(/"/g, '""')}"`));
+          });
+        });
+        const csv  = rows.map(r => r.join(',')).join('\r\n');
+        const blob = new Blob([csv], { type: 'text/csv' });
+        const url  = URL.createObjectURL(blob);
+        const a    = document.createElement('a');
+        a.href     = url;
+        a.download = `${boardName.replace(/\s+/g, '-')}-export.csv`;
+        a.click();
+        URL.revokeObjectURL(url);
+      }
+    });
+  });
+
   // -- Custom board combobox toggle --------------------------------------------
   const boardComboTrigger = document.getElementById('boardComboTrigger');
   const boardComboMenu    = document.getElementById('boardComboMenu');
@@ -1695,6 +1765,37 @@ document.addEventListener('DOMContentLoaded', () => {
       openDropdown = !isOpen ? dd : null;
       return;
     }
+    // Duplicate card
+    if (e.target.closest('.task__opt-duplicate')) {
+      const task = e.target.closest('.task');
+      task.querySelector('.task__dropdown').classList.remove('open');
+      openDropdown = null;
+      if (task.closest('.project-column--trash')) {
+        showToast('Cannot duplicate a trashed card.', true);
+        return;
+      }
+      const srcData  = serializeTask(task);
+      const newId    = db.collection(`boards/${BOARD_ID}/tasks`).doc().id;
+      const now      = new Date().toISOString();
+      const copyData = {
+        ...srcData,
+        id:       newId,
+        title:    (srcData.title || '') + ' (copy)',
+        created:  now,
+        author:   currentUser?.uid || '',
+        timeline: [],
+        order:    (task.nextElementSibling
+          ? parseInt(task.nextElementSibling.dataset.order, 10) : 9999)
+      };
+      const copyCard = renderCard(copyData);
+      task.after(copyCard);
+      _addCardTlEntry(copyCard, 'create', 'Card Duplicated');
+      refreshAllColCounts();
+      saveTask(copyCard, true);
+      logActivity('create', `<b>${_authorName()}</b> duplicated "${srcData.title || 'Card'}"`);
+      return;
+    }
+
     // Edit — open modal
     if (e.target.closest('.task__opt-edit')) {
       const task = e.target.closest('.task');

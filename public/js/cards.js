@@ -215,6 +215,7 @@ function addUpdateWidget(card) {
   card.querySelector('.task__tags').insertAdjacentHTML('beforeend',
     `<div class='task__dropdown'>
        <button class='task__opt-edit'><i class='fas fa-pen'></i> Edit</button>
+       <button class='task__opt-duplicate'><i class='fas fa-copy'></i> Duplicate</button>
        <button class='task__opt-restore'><i class='fas fa-trash-restore'></i> Restore</button>
        <button class='task__opt-delete danger'><i class='fas fa-trash-alt'></i> Delete</button>
      </div>`);
