@@ -859,6 +859,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderParticipants(adminUids, allUids) {
     const container = document.getElementById('projectParticipants');
     container.querySelectorAll('.participant-avatar, .participants-sep').forEach(el => el.remove());
+    return; // avatars hidden — only the team button is shown
     const addBtn = document.getElementById('addParticipantBtn');
 
     const makeAvatar = (uid, isAdmin) => {

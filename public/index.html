@@ -11,7 +11,7 @@
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/layout.css">
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/themes/light.css">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css">
-  <link rel="stylesheet" href="css/styles.css?v=7">
+  <link rel="stylesheet" href="css/styles.css?v=10">
   <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -98,12 +98,12 @@
           </div>
           <button class="topbar-icon-btn" id="insightsBtn" title="Board Insights (AI)"><i class="fas fa-lightbulb"></i></button>
           <button class="topbar-icon-btn" id="activityToggle" title="Activity"><i class="fas fa-stream"></i></button>
-          <div class="topbar-divider"></div>
+          <button class="topbar-icon-btn" id="calendarBtn" title="Calendar View"><i class="fas fa-calendar-alt"></i></button>
                     <div class="project-participants" id="projectParticipants">
-            <!-- avatars injected by renderParticipants() -->
-            <button class="project-participants__add" id="addParticipantBtn" title="Manage team">
+            <button class="topbar-icon-btn" id="addParticipantBtn" title="Manage team">
               <i class="fas fa-users"></i>
             </button>
+            <button class="topbar-icon-btn topbar-icon-btn--add" id="fabBtn" title="Add card (Enter)"><i class="fas fa-plus"></i></button>
             <div class="team-panel" id="teamPanel">
               <div class="team-panel__hdr">
                 <span class="team-panel__title"><i class="fas fa-users"></i> Team <span class="team-panel__count" id="teamPanelCount"></span></span>
@@ -135,13 +135,9 @@
             <input type="text" id="boardSearch" placeholder="Search cards&hellip;" autocomplete="off">
             <button class="topbar-search__clear" id="searchClear" title="Clear"><i class="fas fa-times"></i></button>
           </div>
-           <div class="topbar-divider"></div>
-
           <button class="topbar-icon-btn" id="filterToggle" title="Filter &amp; Sort"><i class="fas fa-filter"></i></button>
           <button class="topbar-icon-btn" id="archiveBtn" title="Archive"><i class="fas fa-archive"></i></button>
           <button class="topbar-icon-btn" id="trashBtn" title="Trash"><i class="fas fa-trash-alt"></i></button>
-
-          <div class="topbar-divider"></div>
 
           <!-- User dropdown -->
           <div class="topbar-user" id="topbarUser">
@@ -290,8 +286,7 @@
       </div>
     </div>
 
-    <button class="fab fab--calendar" id="calendarBtn" title="Calendar View"><i class="fas fa-calendar-alt"></i></button>
-    <button class="fab" id="fabBtn" title="Add card (Enter)"><i class="fas fa-plus"></i></button>
+    <!-- modals below -->
 
     <div class="modal-overlay" id="modalOverlay">
       <div class="modal-wrapper">
