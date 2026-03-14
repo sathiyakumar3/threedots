@@ -59,13 +59,60 @@ function sendInvitationEmail({ email, boardName, invitedByName, inviteLink }) {
 document.addEventListener('DOMContentLoaded', () => {
 
   // ── Auth: gate the whole app behind Google sign-in ──────────────────────
-  const loginOverlay = document.getElementById('loginOverlay');
-  const appShell     = document.getElementById('appShell');
-  const btnGoogle    = document.getElementById('btnGoogleSignIn');
-  const loginError   = document.getElementById('loginError');
+  const loginOverlay  = document.getElementById('loginOverlay');
+  const appShell      = document.getElementById('appShell');
+  const btnGoogle     = document.getElementById('btnGoogleSignIn');
+  const loginError    = document.getElementById('loginError');
+  const verifyBanner  = document.getElementById('verifyBanner');
 
-  function setLoginError(msg) { loginError.textContent = msg; }
-  function clearLoginError()  { loginError.textContent = ''; }
+  // Auto-focus email input when login overlay is visible
+  setTimeout(() => { document.getElementById('loginEmail')?.focus(); }, 80);
+
+  // ── Progressive email disclosure ──
+  document.getElementById('toggleEmailForm').addEventListener('click', () => {
+    const section = document.getElementById('loginEmailSection');
+    const btn     = document.getElementById('toggleEmailForm');
+    const isOpen  = section.classList.contains('open');
+    section.classList.toggle('open', !isOpen);
+    btn.classList.toggle('open', !isOpen);
+    if (!isOpen) setTimeout(() => document.getElementById('loginEmail')?.focus(), 320);
+  });
+
+  function setLoginError(msg)   { loginError.textContent = msg; loginError.classList.remove('login-success-msg'); }
+  function setLoginSuccess(msg)  { loginError.textContent = msg; loginError.classList.add('login-success-msg'); }
+  function clearLoginError()     { loginError.textContent = ''; loginError.classList.remove('login-success-msg'); }
+
+  function friendlyAuthError(code) {
+    const map = {
+      'auth/user-not-found':          'No account found with that email.',
+      'auth/wrong-password':          'Incorrect password. Try again.',
+      'auth/invalid-credential':      'Incorrect email or password.',
+      'auth/email-already-in-use':    'An account with this email already exists.',
+      'auth/weak-password':           'Password must be at least 6 characters.',
+      'auth/invalid-email':           'Please enter a valid email address.',
+      'auth/too-many-requests':       'Too many attempts. Please try again later.',
+      'auth/network-request-failed':  'Network error. Check your connection.',
+      'auth/popup-blocked':           'Popup was blocked. Please allow popups for this site and try again.',
+      'auth/popup-closed-by-user':    '',
+      'auth/cancelled-popup-request': '',
+      'auth/operation-not-allowed':   'This sign-in method is not enabled. Contact support.',
+      'auth/account-exists-with-different-credential': 'An account already exists with this email using a different sign-in method.',
+      'auth/user-disabled':           'This account has been disabled.',
+      'auth/internal-error':          'An internal error occurred. Please try again.',
+    };
+    return map[code] ?? null;
+  }
+
+  function setAuthLoading(btn, loading) {
+    btn.disabled = loading;
+    if (loading) {
+      btn.dataset.origHtml = btn.innerHTML;
+      btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i>';
+    } else {
+      btn.innerHTML = btn.dataset.origHtml || btn.innerHTML;
+      delete btn.dataset.origHtml;
+    }
+  }
 
   // ── Show / hide app ──
   function showApp(user) {
@@ -223,28 +270,64 @@ document.addEventListener('DOMContentLoaded', () => {
   };
 
   appShell.style.display = 'none';
-  auth.onAuthStateChanged(user => { if (user) showApp(user); else hideApp(); });
+  auth.onAuthStateChanged(user => {
+    if (user) {
+      // Enforce email verification for email/password accounts only
+      if (!user.emailVerified && user.providerData.every(p => p.providerId === 'password')) {
+        verifyBanner.style.display = '';
+        document.getElementById('loginForm').style.display    = 'none';
+        document.getElementById('registerForm').style.display = 'none';
+        loginOverlay.classList.remove('hidden');
+        appShell.style.display = 'none';
+        return;
+      }
+      verifyBanner.style.display = 'none';
+      showApp(user);
+    } else {
+      hideApp();
+    }
+  });
 
   // ── Google sign-in ──
   btnGoogle.addEventListener('click', () => {
     clearLoginError();
-    auth.signInWithPopup(googleProvider).catch(err => setLoginError(err.message));
+    btnGoogle.classList.add('btn-social--loading');
+    auth.signInWithPopup(googleProvider)
+      .catch(err => {
+        console.error('Google sign-in error:', err.code, err.message);
+        const msg = friendlyAuthError(err.code);
+        if (msg !== null) { if (msg) setLoginError(msg); }
+        else setLoginError(err.message);
+      })
+      .finally(() => btnGoogle.classList.remove('btn-social--loading'));
   });
 
   // ── Microsoft sign-in ──
   document.getElementById('btnMicrosoftSignIn').addEventListener('click', () => {
     clearLoginError();
-    auth.signInWithPopup(microsoftProvider).catch(err => setLoginError(err.message));
+    const btn = document.getElementById('btnMicrosoftSignIn');
+    btn.classList.add('btn-social--loading');
+    auth.signInWithPopup(microsoftProvider)
+      .catch(err => {
+        console.error('Microsoft sign-in error:', err.code, err.message);
+        const msg = friendlyAuthError(err.code);
+        if (msg !== null) { if (msg) setLoginError(msg); }
+        else setLoginError(err.message);
+      })
+      .finally(() => btn.classList.remove('btn-social--loading'));
   });
 
   // ── Email / password sign-in ──
   document.getElementById('btnEmailSignIn').addEventListener('click', () => {
     clearLoginError();
+    const btn      = document.getElementById('btnEmailSignIn');
     const email    = document.getElementById('loginEmail').value.trim();
     const password = document.getElementById('loginPassword').value;
     if (!email || !password) { setLoginError('Please enter your email and password.'); return; }
+    setAuthLoading(btn, true);
     auth.signInWithEmailAndPassword(email, password)
-      .catch(err => setLoginError(err.message));
+      .catch(err => setLoginError(friendlyAuthError(err.code)))
+      .finally(() => setAuthLoading(btn, false));
   });
   document.getElementById('loginFormEl').addEventListener('submit', () =>
     document.getElementById('btnEmailSignIn').click()
@@ -253,6 +336,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Email / password register ──
   document.getElementById('btnRegister').addEventListener('click', () => {
     clearLoginError();
+    const btn      = document.getElementById('btnRegister');
     const email    = document.getElementById('regEmail').value.trim();
     const name     = document.getElementById('regDisplayName').value.trim();
     const password = document.getElementById('regPassword').value;
@@ -260,16 +344,35 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!email || !password) { setLoginError('Please fill in all fields.'); return; }
     if (password.length < 6) { setLoginError('Password must be at least 6 characters.'); return; }
     if (password !== confirm) { setLoginError('Passwords do not match.'); return; }
+    setAuthLoading(btn, true);
     auth.createUserWithEmailAndPassword(email, password)
       .then(cred => {
-        if (name) return cred.user.updateProfile({ displayName: name });
+        const tasks = [];
+        if (name) tasks.push(cred.user.updateProfile({ displayName: name }));
+        tasks.push(cred.user.sendEmailVerification());
+        return Promise.all(tasks).then(() => cred.user.reload());
       })
-      .then(() => auth.currentUser.reload())
-      .catch(err => setLoginError(err.message));
+      .then(() => {
+        // Show verification banner instead of letting user in
+        verifyBanner.style.display = '';
+        document.getElementById('registerForm').style.display = 'none';
+        clearLoginError();
+      })
+      .catch(err => setLoginError(friendlyAuthError(err.code)))
+      .finally(() => setAuthLoading(btn, false));
   });
   document.getElementById('registerFormEl').addEventListener('submit', () =>
     document.getElementById('btnRegister').click()
   );
+
+  // ── Resend verification email ──
+  document.getElementById('resendVerification').addEventListener('click', () => {
+    const user = auth.currentUser;
+    if (!user) return;
+    user.sendEmailVerification()
+      .then(() => setLoginSuccess('Verification email resent — check your inbox.'))
+      .catch(() => setLoginError('Could not resend. Please try again shortly.'));
+  });
 
   // ── Toggle sign-in ↔ register ──
   document.getElementById('showRegister').addEventListener('click', () => {
@@ -281,6 +384,40 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('registerForm').style.display = 'none';
     document.getElementById('loginForm').style.display    = '';
     clearLoginError();
+  });
+
+  // ── Forgot password ──
+  document.getElementById('showForgotPassword').addEventListener('click', () => {
+    const email = document.getElementById('loginEmail').value.trim();
+    if (!email) { setLoginError('Enter your email address first, then click Forgot password.'); return; }
+    clearLoginError();
+    auth.sendPasswordResetEmail(email)
+      .then(() => setLoginSuccess('Reset email sent — check your inbox.'))
+      .catch(err => setLoginError(friendlyAuthError(err.code)));
+  });
+
+  // ── Show / hide password toggle ──
+  document.getElementById('loginOverlay').addEventListener('click', e => {
+    const toggleBtn = e.target.closest('.login-pwd-toggle');
+    if (!toggleBtn) return;
+    const input = document.getElementById(toggleBtn.dataset.target);
+    if (!input) return;
+    const show = input.type === 'password';
+    input.type = show ? 'text' : 'password';
+    toggleBtn.querySelector('i').className = show ? 'fas fa-eye-slash' : 'fas fa-eye';
+  });
+
+  // ── Password strength indicator ──
+  document.getElementById('regPassword').addEventListener('input', () => {
+    const val  = document.getElementById('regPassword').value;
+    const wrap = document.getElementById('pwdStrength');
+    const lbl  = document.getElementById('pwdStrengthLabel');
+    if (!val) { wrap.className = 'pwd-strength'; lbl.textContent = ''; return; }
+    const isStrong = val.length >= 10 && /[A-Z]/.test(val) && /[0-9]/.test(val) && /[^A-Za-z0-9]/.test(val);
+    const isFair   = val.length >= 8  && (/[A-Z]/.test(val) || /[0-9]/.test(val));
+    if (isStrong)    { wrap.className = 'pwd-strength pwd-strength--strong'; lbl.textContent = 'Strong'; }
+    else if (isFair) { wrap.className = 'pwd-strength pwd-strength--fair';   lbl.textContent = 'Fair'; }
+    else             { wrap.className = 'pwd-strength pwd-strength--weak';   lbl.textContent = 'Weak'; }
   });
 
   document.getElementById('logoutBtn').addEventListener('click', () => {
@@ -2322,13 +2459,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ── Settings ─────────────────────────────────────────────────────────────
-  document.getElementById('settingsBtn').addEventListener('click', () => {
+  document.getElementById('settingsBtn')?.addEventListener('click', () => {
     topbarUser.classList.remove('open');
     Swal.fire({ title: 'Settings', text: 'Settings panel coming soon.', icon: 'info', confirmButtonColor: 'var(--purple)' });
   });
 
   // ── Profile ───────────────────────────────────────────────────────────────
-  document.getElementById('profileBtn').addEventListener('click', () => {
+  document.getElementById('profileBtn')?.addEventListener('click', () => {
     topbarUser.classList.remove('open');
     Swal.fire({ title: 'My Profile', text: 'Profile panel coming soon.', icon: 'info', confirmButtonColor: 'var(--purple)' });
   });

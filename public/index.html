@@ -426,47 +426,87 @@
   <div class="login-overlay" id="loginOverlay">
     <div class="login-card">
       <div class="login-card__logo">
-        <img class="logo-mode-light" src="images/logo-light.svg" width="160" height="42" alt="Taskbz logo">
-        <img class="logo-mode-dark"  src="images/logo-dark.svg"  width="160" height="42" alt="Taskbz logo">
+        <img class="logo-mode-light" src="images/logo-light.svg" width="148" height="40" alt="Taskbz logo">
+        <img class="logo-mode-dark"  src="images/logo-dark.svg"  width="148" height="40" alt="Taskbz logo">
       </div>
-      <h2>Clarity in Simplicity</h2>
-      <p id="loginTagline">Welcome back. Please sign in.</p>
       <div class="login-invite-banner" id="inviteBanner" style="display:none"></div>
-      
 
       <!-- Social providers -->
       <button class="btn-google" id="btnGoogleSignIn">
         <img src="https://www.gstatic.com/firebasejs/ui/2.0.0/images/auth/google.svg" alt="Google">
-        Sign in with Google
+        Continue with Google
       </button>
       <button class="btn-microsoft" id="btnMicrosoftSignIn">
         <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 21 21" width="20" height="20"><rect x="1" y="1" width="9" height="9" fill="#f25022"/><rect x="11" y="1" width="9" height="9" fill="#7fba00"/><rect x="1" y="11" width="9" height="9" fill="#00a4ef"/><rect x="11" y="11" width="9" height="9" fill="#ffb900"/></svg>
-        Sign in with Microsoft
+        Continue with Microsoft
       </button>
 
-      <!-- Divider -->
-      <div class="login-divider"><span>or continue with email</span></div>
+      <!-- Progressive email disclosure -->
+      <button class="login-email-toggle" id="toggleEmailForm" type="button">
+        <span>Continue with email</span>
+        <i class="fas fa-chevron-down login-email-toggle__icon"></i>
+      </button>
 
-      <!-- Sign-in form -->
-      <div class="login-form" id="loginForm">
-        <form id="loginFormEl" onsubmit="return false;">
-          <input type="email"    id="loginEmail"    class="login-input" placeholder="Email address" autocomplete="email">
-          <input type="password" id="loginPassword" class="login-input" placeholder="Password" autocomplete="current-password">
-          <button class="btn-email-action" id="btnEmailSignIn" type="submit"><i class="fas fa-sign-in-alt"></i> Sign in</button>
-        </form>
-        <p class="login-switch">No account? <button class="login-switch__btn" id="showRegister">Register</button></p>
+      <!-- Email section (hidden via CSS by default) -->
+      <div class="login-email-section" id="loginEmailSection">
+        <div class="login-divider"><span>email</span></div>
+
+        <!-- Sign-in form -->
+        <div class="login-form" id="loginForm">
+          <form id="loginFormEl" onsubmit="return false;">
+            <div class="login-field">
+              <input type="email" id="loginEmail" class="login-input" placeholder=" " autocomplete="email">
+              <label for="loginEmail">Email address</label>
+            </div>
+            <div class="login-field login-input-wrap">
+              <input type="password" id="loginPassword" class="login-input" placeholder=" " autocomplete="current-password">
+              <label for="loginPassword">Password</label>
+              <button type="button" class="login-pwd-toggle" data-target="loginPassword" aria-label="Show password" tabindex="-1"><i class="fas fa-eye"></i></button>
+            </div>
+            <button class="btn-email-action" id="btnEmailSignIn" type="submit">Sign in</button>
+            <p class="login-switch" style="margin-top:.15rem"><button class="login-switch__btn" id="showForgotPassword" type="button">Forgot password?</button></p>
+          </form>
+          <p class="login-switch">No account? <button class="login-switch__btn" id="showRegister">Register</button></p>
+        </div>
+
+        <!-- Register form (hidden by default) -->
+        <div class="login-form" id="registerForm" style="display:none">
+          <form id="registerFormEl" onsubmit="return false;">
+            <div class="login-field">
+              <input type="email" id="regEmail" class="login-input" placeholder=" " autocomplete="email">
+              <label for="regEmail">Email address</label>
+            </div>
+            <div class="login-field">
+              <input type="text" id="regDisplayName" class="login-input" placeholder=" ">
+              <label for="regDisplayName">Display name (optional)</label>
+            </div>
+            <div class="login-field login-input-wrap">
+              <input type="password" id="regPassword" class="login-input" placeholder=" " autocomplete="new-password">
+              <label for="regPassword">Password (min 6 chars)</label>
+              <button type="button" class="login-pwd-toggle" data-target="regPassword" aria-label="Show password" tabindex="-1"><i class="fas fa-eye"></i></button>
+            </div>
+            <div class="pwd-strength" id="pwdStrength">
+              <div class="pwd-strength__bar"><div class="pwd-strength__fill" id="pwdStrengthFill"></div></div>
+              <span class="pwd-strength__label" id="pwdStrengthLabel"></span>
+            </div>
+            <div class="login-field login-input-wrap">
+              <input type="password" id="regPasswordConfirm" class="login-input" placeholder=" " autocomplete="new-password">
+              <label for="regPasswordConfirm">Confirm password</label>
+              <button type="button" class="login-pwd-toggle" data-target="regPasswordConfirm" aria-label="Show password" tabindex="-1"><i class="fas fa-eye"></i></button>
+            </div>
+            <button class="btn-email-action" id="btnRegister" type="submit">Create account</button>
+          </form>
+          <p class="login-switch">Have an account? <button class="login-switch__btn" id="showLogin">Sign in</button></p>
+        </div>
       </div>
 
-      <!-- Register form (hidden by default) -->
-      <div class="login-form" id="registerForm" style="display:none">
-        <form id="registerFormEl" onsubmit="return false;">
-          <input type="email"    id="regEmail"           class="login-input" placeholder="Email address" autocomplete="email">
-          <input type="text"     id="regDisplayName"     class="login-input" placeholder="Display name">
-          <input type="password" id="regPassword"        class="login-input" placeholder="Password (min 6 chars)" autocomplete="new-password">
-          <input type="password" id="regPasswordConfirm" class="login-input" placeholder="Confirm password" autocomplete="new-password">
-          <button class="btn-email-action" id="btnRegister" type="submit"><i class="fas fa-user-plus"></i> Create account</button>
-        </form>
-        <p class="login-switch">Have an account? <button class="login-switch__btn" id="showLogin">Sign in</button></p>
+      <!-- Email verification notice (shown after register) -->
+      <div class="login-verify-banner" id="verifyBanner" style="display:none">
+        <i class="fas fa-envelope-circle-check"></i>
+        <div>
+          <strong>Check your email</strong> to verify your account.
+          <button class="login-switch__btn" id="resendVerification" type="button" style="margin-left:.4rem">Resend</button>
+        </div>
       </div>
 
       <div class="login-error" id="loginError"></div>
@@ -566,17 +606,24 @@
       const regEmail     = document.getElementById('regEmail');
       const loginForm    = document.getElementById('loginForm');
       const registerForm = document.getElementById('registerForm');
+      const emailSection = document.getElementById('loginEmailSection');
       const banner       = document.getElementById('inviteBanner');
-      const tagline      = document.getElementById('loginTagline');
       if (regEmail)     regEmail.value = decodeURIComponent(inviteEmail);
+      if (emailSection) emailSection.classList.add('open');
       if (loginForm)    loginForm.style.display = 'none';
       if (registerForm) registerForm.style.display = '';
-      if (tagline)      tagline.textContent = "You've been invited! Create an account to get started.";
       if (banner) {
         banner.style.display = '';
-        banner.innerHTML = inviteName
-          ? `<i class='fas fa-envelope-open-text'></i> You've been invited to join <b>${inviteName}</b>`
-          : `<i class='fas fa-envelope-open-text'></i> You have a board invitation waiting`;
+        const _bIcon = document.createElement('i');
+        _bIcon.className = 'fas fa-envelope-open-text';
+        banner.innerHTML = '';
+        if (inviteName) {
+          const _bBold = document.createElement('b');
+          _bBold.textContent = inviteName;
+          banner.append(_bIcon, document.createTextNode(" You've been invited to join "), _bBold);
+        } else {
+          banner.append(_bIcon, document.createTextNode(' You have a board invitation waiting'));
+        }
       }
       if (inviteBoard) sessionStorage.setItem('pendingInviteBoard', decodeURIComponent(inviteBoard));
     })();
