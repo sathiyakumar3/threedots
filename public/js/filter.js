@@ -55,6 +55,29 @@
           return 0;
         });
         sorted.forEach(card => col.appendChild(card));
+
+        // Persist new order to Firestore
+        if (typeof db !== 'undefined' && typeof BOARD_ID !== 'undefined' && BOARD_ID) {
+          const batch = db.batch();
+          window._localWriteIds = window._localWriteIds || new Set();
+          sorted.forEach((card, idx) => {
+            const taskId = card.dataset.id;
+            if (!taskId) return;
+            window._localWriteIds.add(taskId);
+            batch.update(
+              db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId),
+              { order: idx }
+            );
+          });
+          batch.commit()
+            .then(() => {
+              sorted.forEach(card => {
+                const id = card.dataset.id;
+                if (id) setTimeout(() => window._localWriteIds?.delete(id), 500);
+              });
+            })
+            .catch(err => console.error('Order save failed:', err));
+        }
       }
     });
 

@@ -32,6 +32,7 @@ window.closeAllPopups = function(skip = []) {
     { id: 'tagsPopup',            cls: 'open', extra: 'tagsBtn' },
     { id: 'teamPanel',            cls: 'open', extra: null },
     { id: 'topbarUser',           cls: 'open', extra: null },
+    { id: 'viewsDropdown',        cls: 'open', extra: null },
   ];
   all.forEach(({ id, cls, extra }) => {
     if (skip.includes(id)) return;
@@ -272,15 +273,6 @@ document.addEventListener('DOMContentLoaded', () => {
   appShell.style.display = 'none';
   auth.onAuthStateChanged(user => {
     if (user) {
-      // Enforce email verification for email/password accounts only
-      if (!user.emailVerified && user.providerData.every(p => p.providerId === 'password')) {
-        verifyBanner.style.display = '';
-        document.getElementById('loginForm').style.display    = 'none';
-        document.getElementById('registerForm').style.display = 'none';
-        loginOverlay.classList.remove('hidden');
-        appShell.style.display = 'none';
-        return;
-      }
       verifyBanner.style.display = 'none';
       showApp(user);
     } else {
@@ -807,6 +799,7 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('trashBtn').classList.remove('active');
     // Close board options dropdown if open
     document.getElementById('boardDropdown').classList.remove('open');
+    document.getElementById('viewsDropdown')?.classList.remove('open');
     // Reset activity panel to collapsed
     const actPanel = document.getElementById('activityPanel');
     const actToggle = document.getElementById('activityToggle');
@@ -1414,6 +1407,24 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
+  // ── Views dropdown (Insights / Activity / Calendar) ─────────────────────
+  const viewsDropdownTrigger = document.getElementById('viewsDropdownTrigger');
+  const viewsDropdown        = document.getElementById('viewsDropdown');
+  viewsDropdownTrigger.addEventListener('click', e => {
+    e.stopPropagation();
+    const willOpen = !viewsDropdown.classList.contains('open');
+    closeAllPopups(['viewsDropdown']);
+    viewsDropdown.classList.toggle('open', willOpen);
+  });
+  document.getElementById('viewsDropdownMenu').addEventListener('click', () => {
+    viewsDropdown.classList.remove('open');
+  });
+  document.addEventListener('click', e => {
+    if (!viewsDropdown.contains(e.target)) viewsDropdown.classList.remove('open');
+  });
+
+  // ── Storage dropdown (Archive + Trash) removed ──
+
   document.getElementById('boardOptFavourite').addEventListener('click', () => {
     boardDropdown.classList.remove('open');
     if (!currentUser) return;
@@ -1870,6 +1881,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.task__tl-edit-actions'))  return;
     if (e.target.closest('.task__tl-edit-input'))    return;
     if (e.target.closest('.task__tl-entry--editing')) return;
+    if (e.target.closest('.task__select-wrap'))       return;
     if (task.classList.contains('task--expanded') && e.target.closest('.task__tl-text')) return;
     // Close any open timeline edit inputs across the whole board before toggling
     board.querySelectorAll('.task__tl-entry--editing').forEach(entry => {

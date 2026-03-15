@@ -8,6 +8,26 @@ function shortLinkLabel(url) {
   } catch (e) { return url; }
 }
 
+// ── Render markdown safely (bold, italic, code, links, lists) ──
+// Only called after marked.js is loaded; falls back to escaped plain text.
+function _renderMarkdown(text) {
+  if (!text) return '';
+  if (typeof marked === 'undefined') return escapeHTML(text);
+  const renderer = new marked.Renderer();
+  // Restrict links to safe protocols only
+  renderer.link = function(href, title, txt) {
+    const safe = safeUrl(href);
+    if (!safe) return escapeHTML(txt || href);
+    const t = title ? ` title="${escapeHTML(title)}"` : '';
+    return `<a href="${safe}"${t} target="_blank" rel="noopener">${txt}</a>`;
+  };
+  try {
+    return marked.parse(text, { renderer, breaks: true, html: false, gfm: true });
+  } catch (e) {
+    return escapeHTML(text);
+  }
+}
+
 // ── Validate a URL: only allow http(s) to prevent javascript: injection ──
 function safeUrl(url) {
   if (!url) return '';
@@ -70,7 +90,8 @@ function buildTodosHTML(todos) {
 function serializeTask(cardEl) {
   const tagClass = [...cardEl.querySelector('.task__tag').classList].find(c => c.startsWith('task__tag--'));
   const tag      = tagClass ? tagClass.replace('task__tag--', '') : 'copyright';
-  const text     = cardEl.querySelector('p')?.textContent || '';
+  const text     = cardEl.querySelector('.task__desc')?.dataset.raw
+               ?? cardEl.querySelector('p')?.textContent ?? '';
   const timeEl   = cardEl.querySelector('.task__stats time');
   const flagDate = timeEl
     ? [...timeEl.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent.trim()).join('')
@@ -178,7 +199,7 @@ function renderCard(taskData) {
       <button class='task__options'><i class='fas fa-ellipsis-h'></i></button>
     </div>
     ${taskData.title ? `<h4 class='task__title'>${escapeHTML(taskData.title)}</h4>` : ''}
-    <p>${escapeHTML(taskData.text)}</p>
+    <div class='task__desc' data-raw='${escapeHTML(taskData.text)}'>${_renderMarkdown(taskData.text)}</div>
     ${todosHTML}
     ${linkHTML}
     ${statsHTML}`;

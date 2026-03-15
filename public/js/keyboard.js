@@ -3,6 +3,10 @@
   document.addEventListener('DOMContentLoaded', () => {
 
     document.addEventListener('keydown', e => {
+      // Disable all shortcuts on the login screen
+      const loginOverlay = document.getElementById('loginOverlay');
+      if (loginOverlay && !loginOverlay.classList.contains('hidden')) return;
+
       // Never fire when typing in an input / textarea / contenteditable
       const tag = document.activeElement?.tagName;
       const inInput = tag === 'INPUT' || tag === 'TEXTAREA' || document.activeElement?.isContentEditable;
