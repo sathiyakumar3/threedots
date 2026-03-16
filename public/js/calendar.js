@@ -146,6 +146,7 @@
     s.onload = cb;
     document.head.appendChild(s);
   }
+  window._loadFullCalendar = loadFullCalendar;
   // ── Calendar instance ──────────────────────────────────────────────────────
   let calendar = null;
   let calendarInited = false;

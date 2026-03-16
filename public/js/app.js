@@ -85,9 +85,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function friendlyAuthError(code) {
     const map = {
-      'auth/user-not-found':          'No account found with that email.',
-      'auth/wrong-password':          'Incorrect password. Try again.',
-      'auth/invalid-credential':      'Incorrect email or password.',
+      'auth/user-not-found':             'No account found with that email.',
+      'auth/wrong-password':             'Incorrect password. Try again.',
+      'auth/invalid-credential':         'Incorrect email or password.',
+      'auth/invalid-login-credentials':  'Incorrect email or password.',
       'auth/email-already-in-use':    'An account with this email already exists.',
       'auth/weak-password':           'Password must be at least 6 characters.',
       'auth/invalid-email':           'Please enter a valid email address.',
@@ -273,6 +274,13 @@ document.addEventListener('DOMContentLoaded', () => {
   appShell.style.display = 'none';
   auth.onAuthStateChanged(user => {
     if (user) {
+      const isEmailPassword = user.providerData.some(p => p.providerId === 'password');
+      if (isEmailPassword && !user.emailVerified) {
+        // Email/password account that hasn't verified yet — keep on login screen
+        verifyBanner.style.display = '';
+        auth.signOut();
+        return;
+      }
       verifyBanner.style.display = 'none';
       showApp(user);
     } else {
@@ -318,7 +326,17 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!email || !password) { setLoginError('Please enter your email and password.'); return; }
     setAuthLoading(btn, true);
     auth.signInWithEmailAndPassword(email, password)
-      .catch(err => setLoginError(friendlyAuthError(err.code)))
+      .then(cred => {
+        if (!cred.user.emailVerified) {
+          setLoginError('Please verify your email first — check your inbox for the verification link.');
+          verifyBanner.style.display = '';
+          return auth.signOut();
+        }
+      })
+      .catch(err => {
+        const msg = friendlyAuthError(err.code);
+        setLoginError(msg !== null ? msg : 'Sign-in failed. Please try again.');
+      })
       .finally(() => setAuthLoading(btn, false));
   });
   document.getElementById('loginFormEl').addEventListener('submit', () =>
@@ -350,7 +368,10 @@ document.addEventListener('DOMContentLoaded', () => {
         document.getElementById('registerForm').style.display = 'none';
         clearLoginError();
       })
-      .catch(err => setLoginError(friendlyAuthError(err.code)))
+      .catch(err => {
+        const msg = friendlyAuthError(err.code);
+        setLoginError(msg !== null ? msg : 'Registration failed. Please try again.');
+      })
       .finally(() => setAuthLoading(btn, false));
   });
   document.getElementById('registerFormEl').addEventListener('submit', () =>
@@ -382,10 +403,20 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('showForgotPassword').addEventListener('click', () => {
     const email = document.getElementById('loginEmail').value.trim();
     if (!email) { setLoginError('Enter your email address first, then click Forgot password.'); return; }
+    const btn = document.getElementById('showForgotPassword');
     clearLoginError();
+    btn.disabled = true;
+    btn.textContent = 'Sending…';
     auth.sendPasswordResetEmail(email)
       .then(() => setLoginSuccess('Reset email sent — check your inbox.'))
-      .catch(err => setLoginError(friendlyAuthError(err.code)));
+      .catch(err => {
+        const msg = friendlyAuthError(err.code);
+        setLoginError(msg !== null ? msg : 'Could not send reset email. Please try again.');
+      })
+      .finally(() => {
+        btn.disabled = false;
+        btn.textContent = 'Forgot password?';
+      });
   });
 
   // ── Show / hide password toggle ──
@@ -1671,6 +1702,44 @@ document.addEventListener('DOMContentLoaded', () => {
     return db.collection('boards').add(data)
       .then(docRef => {
         addBoardSelectOption(docRef.id, name);
+        // ── Add default "Get started" card to the first column (To Do = id 1) ──
+        const taskId = db.collection(`boards/${docRef.id}/tasks`).doc().id;
+        const taskTs = Date.now();
+        const welcomeTask = {
+          id:          taskId,
+          boardId:     docRef.id,
+          columnId:    1,
+          order:       0,
+          title:       'Get started with your board!',
+          text:        'Welcome! This board is your workspace — customize it and start tracking your work.',
+          tag:         'feature',
+          priority:    'low',
+          todos: [
+            { text: 'Rename this board to something meaningful',  done: false, startDate: '', endDate: '' },
+            { text: 'Add/remove/rename columns',                  done: false, startDate: '', endDate: '' },
+            { text: 'Create your first real card',                done: false, startDate: '', endDate: '' },
+            { text: 'Set a deadline or priority on a card',       done: false, startDate: '', endDate: '' },
+            { text: 'Try filtering or searching cards',           done: false, startDate: '', endDate: '' },
+            { text: 'Delete this card when you\'re ready',        done: false, startDate: '', endDate: '' },
+          ],
+          link:        '',
+          startDate:   '',
+          deadline:    '',
+          assignee:    '',
+          flagDate:    '',
+          comments:    0,
+          attachments: 0,
+          created:     new Date(taskTs).toISOString(),
+          createdBy:   uid || '',
+          timeline: [{
+            type:   'create',
+            author: uid || '',
+            text:   `<b>${author}</b> created this card`,
+            date:   now,
+            ts:     taskTs
+          }]
+        };
+        db.collection(`boards/${docRef.id}/tasks`).doc(taskId).set(welcomeTask).catch(() => {});
         loadBoard(docRef.id);
         return docRef;
       })

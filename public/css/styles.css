@@ -2866,6 +2866,11 @@ body.dark .modal-more-toggle { color:#6b7280; }
 body.dark .modal-more-toggle:hover { color:var(--purple); }
 /* deadline input looks clickable */
 #cardDeadline, #cardStartDate { cursor:pointer; }
+
+/* ── VanillaCalendarPro: ensure popup appears above the modal overlay ── */
+[data-vc="calendar"] {
+  z-index: 10500 !important;
+}
 /* assignee combo placeholder + unassigned option */
 .assignee-placeholder { color:#9ca3af; }
 .assignee-none { color:#9ca3af; font-style:italic; }
@@ -2873,8 +2878,6 @@ body.dark .modal-more-toggle:hover { color:var(--purple); }
 .assignee-item--pending { opacity:.8; }
 .assignee-check { font-size:11px; color:var(--purple); min-width:11px; }
 .assignee-pending-sep { font-size:10px; font-weight:700; color:var(--muted); text-transform:uppercase; letter-spacing:.5px; padding:6px 12px 2px; }
-/* Vanilla Calendar Pro � render above modal */
-[data-vc="calendar"] { z-index:9999 !important; }
 
 /* -- Column combo (modal) -- */
 .col-combo { position:relative; }
@@ -3003,6 +3006,26 @@ body.dark .col-combo__menu .board-combo__footer { border-color:var(--border); }
   transition:background .15s, color .15s, border-color .15s;
 }
 .btn-cancel:hover { background:#f9fafb; color:#374151; border-color:#d1d5db; }
+.btn-delete {
+  flex:1;
+  padding:9px 0;
+  border-radius:8px;
+  font-size:13px;
+  font-weight:500;
+  cursor:pointer;
+  border:1.5px solid #fecaca;
+  background:#fff5f5;
+  color:#e05252;
+  font-family:inherit;
+  transition:background .15s, color .15s, border-color .15s;
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:6px;
+}
+.btn-delete:hover { background:#fee2e2; border-color:#f87171; color:#dc2626; }
+body.dark .btn-delete { background:#2a1a1a; border-color:#7f1d1d; color:#f87171; }
+body.dark .btn-delete:hover { background:#3a1f1f; border-color:#ef4444; color:#fca5a5; }
 .btn-add {
   flex:2;
   padding:9px 0;
@@ -4144,6 +4167,21 @@ html, body { height:100%; }
   text-overflow:ellipsis;
   white-space:nowrap;
   font-size:12.5px;
+  cursor:text;
+}
+.modal-todo-item__text:hover { text-decoration:underline dotted #94a3b8; }
+.modal-todo-item__inline-edit {
+  flex:1;
+  min-width:0;
+  font-size:12.5px;
+  font-family:inherit;
+  padding:1px 5px;
+  border:1px solid #6366f1;
+  border-radius:4px;
+  outline:none;
+  background:var(--input-bg, #fff);
+  color:inherit;
+  box-shadow:0 0 0 2px #6366f133;
 }
 /* Date button per todo item */
 .modal-todo-item__date-btn {

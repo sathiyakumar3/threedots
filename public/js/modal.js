@@ -3,6 +3,7 @@
   const fab         = document.getElementById('fabBtn');
   const overlay     = document.getElementById('modalOverlay');
   const cancel      = document.getElementById('modalCancel');
+  const deleteBtn   = document.getElementById('modalDelete');
   const addBtn      = document.getElementById('modalAdd');
   const colTrigger  = document.getElementById('colComboTrigger');
   const colMenu     = document.getElementById('colComboMenu');
@@ -371,6 +372,30 @@
         renderTodoList();
       })
     );
+    // Double-click text span → inline edit
+    todoList.querySelectorAll('.modal-todo-item__text').forEach(span => {
+      span.addEventListener('dblclick', () => {
+        const idx  = +span.closest('.modal-todo-item').querySelector('input[type=checkbox]').dataset.idx;
+        const orig = pendingTodos[idx].text;
+        const inp  = document.createElement('input');
+        inp.type      = 'text';
+        inp.value     = orig;
+        inp.className = 'modal-todo-item__inline-edit';
+        span.replaceWith(inp);
+        inp.focus();
+        inp.select();
+        function commit() {
+          const val = inp.value.trim();
+          if (val) pendingTodos[idx].text = val;
+          renderTodoList();
+        }
+        inp.addEventListener('keydown', e => {
+          if (e.key === 'Enter')  { e.preventDefault(); commit(); }
+          if (e.key === 'Escape') { renderTodoList(); }
+        });
+        inp.addEventListener('blur', commit);
+      });
+    });
     // Attach VanillaCalendarPro to each start/end-date input overlay
     if (window.VanillaCalendarPro) {
       const { Calendar } = window.VanillaCalendarPro;
@@ -413,20 +438,32 @@
 
   // Auto-set card start/deadline from earliest/latest todo end dates
   function syncCardDatesToTodos() {
-    const dates = pendingTodos.map(t => t.endDate).filter(Boolean).sort();
-    if (!dates.length) return;
-    pickerStartDate      = dates[0];
-    pickerDeadline       = dates[dates.length - 1];
-    startDateInput.value = dates[0];
-    deadlineInput.value  = dates[dates.length - 1];
+    const startDates = pendingTodos.map(t => t.startDate || t.endDate).filter(Boolean).sort();
+    const endDates   = pendingTodos.map(t => t.endDate).filter(Boolean).sort();
+    if (!startDates.length && !endDates.length) return;
+    if (startDates.length) {
+      pickerStartDate      = startDates[0];
+      startDateInput.value = startDates[0];
+    }
+    if (endDates.length) {
+      pickerDeadline      = endDates[endDates.length - 1];
+      deadlineInput.value = endDates[endDates.length - 1];
+    }
   }
 
   // ── Cal-modal: full FullCalendar scheduler ──
   let _todoFCInstance = null;
 
   function openCalModal() {
-    renderCalModalBody();
-    document.getElementById('calModalOverlay').classList.add('open');
+    const doOpen = () => {
+      renderCalModalBody();
+      document.getElementById('calModalOverlay').classList.add('open');
+    };
+    if (typeof window._loadFullCalendar === 'function') {
+      window._loadFullCalendar(doOpen);
+    } else {
+      doOpen();
+    }
   }
 
   function closeCalModal() {
@@ -733,12 +770,14 @@
     refreshAssigneeCombo();
     const tags = window._getActiveTags ? window._getActiveTags() : [];
     if (window._createInlineTagPicker) window._createInlineTagPicker(tags[0]?.id || 'task', tagWrap);
+    if (deleteBtn) deleteBtn.style.display = 'none';
     overlay.classList.add('open');
     titleEl.focus();
     refreshAddBtn();
   }
   function closeModal() {
     _editingCard = null;
+    if (deleteBtn) deleteBtn.style.display = 'none';
     addBtn.innerHTML = '<i class="fas fa-plus"></i> Add Card';
     document.getElementById('modalTitle').textContent = 'Add New Card';
     overlay.classList.remove('open');
@@ -790,6 +829,7 @@
     setPriority(data.priority || '');
     addBtn.innerHTML = '<i class="fas fa-check"></i> Save Changes';
     document.getElementById('modalTitle').textContent = 'Edit Card';
+    if (deleteBtn) deleteBtn.style.display = '';
     overlay.classList.add('open');
     titleEl.focus();
   }
@@ -808,6 +848,11 @@
     }
   });
   cancel.addEventListener('click', closeModal);
+  deleteBtn?.addEventListener('click', () => {
+    if (!_editingCard) return;
+    _editingCard.querySelector('.task__opt-delete')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
+    closeModal();
+  });
   document.getElementById('modalMoreToggle')?.addEventListener('click', () => {
     const fields = document.getElementById('modalMoreFields');
     const btn    = document.getElementById('modalMoreToggle');
@@ -852,7 +897,7 @@
     // ── Edit existing card ──
     if (_editingCard) {
       const card = _editingCard;
-      const oldText = card.querySelector('p')?.textContent || '';
+      const oldText = card.querySelector('.task__desc')?.dataset.raw || card.querySelector('.task__desc')?.textContent || '';
       // update title
       const existingTitle = card.querySelector('.task__title');
       if (title) {
@@ -862,7 +907,21 @@
         existingTitle?.remove();
       }
       card.dataset.title = title;
-      card.querySelector('p').textContent = text;
+      let descDiv = card.querySelector('.task__desc');
+      if (text) {
+        if (descDiv) {
+          descDiv.dataset.raw = text;
+          descDiv.innerHTML   = typeof _renderMarkdown === 'function' ? _renderMarkdown(text) : escapeHTML(text);
+        } else {
+          const titleEl = card.querySelector('.task__title') || card.querySelector('.task__tags');
+          const rendered = typeof _renderMarkdown === 'function' ? _renderMarkdown(text) : escapeHTML(text);
+          titleEl.insertAdjacentHTML('afterend', `<div class='task__desc' data-raw='${escapeHTML(text)}'>${rendered}</div>`);
+          descDiv = card.querySelector('.task__desc');
+        }
+      } else {
+        descDiv?.remove();
+        descDiv = null;
+      }
       const tagSpan = card.querySelector('.task__tag');
       tagSpan.className   = `task__tag task__tag--${tag}`;
       tagSpan.textContent = tagLabels[tag];
@@ -874,10 +933,13 @@
       if (priority) card.dataset.priority = priority; else delete card.dataset.priority;
       card.querySelector('.task__todos')?.remove();
       const newTodosHTML = todos.length ? buildTodosHTML(todos) : '';
-      if (newTodosHTML) card.querySelector('p').insertAdjacentHTML('afterend', newTodosHTML);
+      if (newTodosHTML) {
+        const anchorEl = card.querySelector('.task__desc') || card.querySelector('.task__title') || card.querySelector('.task__tags');
+        anchorEl.insertAdjacentHTML('afterend', newTodosHTML);
+      }
       card.querySelector('.task__link')?.remove();
       if (link) {
-        const anchor = card.querySelector('.task__todos') || card.querySelector('p');
+        const anchor = card.querySelector('.task__todos') || card.querySelector('.task__desc') || card.querySelector('.task__title') || card.querySelector('.task__tags');
         anchor.insertAdjacentHTML('afterend',
           `<div class='task__link'><a href='${link}' target='_blank' rel='noopener'><i class='fas fa-link'></i>${shortLinkLabel(link)}</a></div>`);
       }
