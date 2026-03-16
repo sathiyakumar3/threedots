@@ -334,6 +334,7 @@
 
     btn.addEventListener('click', e => {
       e.stopPropagation();
+      document.getElementById('boardDropdown')?.classList.remove('open');
       if (isOpen) { closePanel(); return; }
       openPanel();
       runInsights();

@@ -53,11 +53,29 @@
             <div class="board-dropdown" id="boardDropdown">
               <button id="boardOptFavourite"><i class="fas fa-star"></i> <span id="boardOptFavouriteLabel">Make favourite</span></button>
               <div class="board-dropdown__divider"></div>
+              <button id="insightsBtn"><i class="fas fa-lightbulb"></i> Insights</button>
+              <button id="activityToggle"><i class="fas fa-stream"></i> Activity</button>
+              <div class="board-dropdown__divider"></div>
+              <button id="boardOptBackground"><i class="fas fa-image"></i> Background</button>
               <button id="boardOptRename"><i class="fas fa-pen"></i> Rename board</button>
               <button id="boardOptExport"><i class="fas fa-file-export"></i> Export board</button>
               <button id="boardOptDelete" class="danger"><i class="fas fa-trash-alt"></i> Delete board</button>
               <div class="board-dropdown__divider" id="boardOptLeaveDivider"></div>
               <button id="boardOptLeave" class="danger"><i class="fas fa-sign-out-alt"></i> Leave board</button>
+            </div>
+            <!-- Board background picker panel -->
+            <div class="board-bg-panel" id="boardBgPanel">
+              <div class="board-bg-panel__hdr">
+                <button class="board-bg-panel__back" id="boardBgPanelBack" title="Back"><i class="fas fa-chevron-left"></i></button>
+                <span>Background</span>
+              </div>
+              <div class="board-bg-panel__presets" id="boardBgPresets"></div>
+              <div class="board-bg-panel__divider"></div>
+              <div class="board-bg-panel__url-row">
+                <input type="url" id="boardBgUrlInput" placeholder="Paste image URL…" autocomplete="off">
+                <button id="boardBgUrlApply" title="Apply"><i class="fas fa-check"></i></button>
+              </div>
+              <button class="board-bg-panel__clear" id="boardBgClear"><i class="fas fa-times-circle"></i> Remove background</button>
             </div>
           </div>
 
@@ -96,20 +114,13 @@
               </div>
             </div>
           </div>
-          <div class="views-dropdown" id="viewsDropdown">
-            <button class="topbar-icon-btn views-dropdown__trigger" id="viewsDropdownTrigger" title="Views"><i class="fas fa-layer-group"></i></button>
-            <div class="views-dropdown__menu" id="viewsDropdownMenu">
-              <button class="views-dropdown__item" id="insightsBtn"><i class="fas fa-lightbulb"></i> Insights</button>
-              <button class="views-dropdown__item" id="activityToggle"><i class="fas fa-stream"></i> Activity</button>
-              <button class="views-dropdown__item" id="calendarBtn"><i class="fas fa-calendar-alt"></i> Calendar</button>
-            </div>
-          </div>
+          <button class="topbar-icon-btn" id="calendarBtn" title="Calendar"><i class="fas fa-calendar-alt"></i></button>
                     <div class="project-participants" id="projectParticipants">
             <button class="topbar-icon-btn" id="addParticipantBtn" title="Manage team">
               <i class="fas fa-users"></i>
             </button>
             <div class="topbar-divider"></div>
-            <button class="topbar-icon-btn topbar-icon-btn--add" id="fabBtn" title="Add card (Enter)"><i class="fas fa-plus"></i><span>Add Card</span></button>
+            <button class="topbar-icon-btn topbar-icon-btn--add" id="fabBtn" title="Add card (Enter)"><i class="fas fa-plus"></i></button>
             <div class="team-panel" id="teamPanel">
               <div class="team-panel__hdr">
                 <span class="team-panel__title"><i class="fas fa-users"></i> Team <span class="team-panel__count" id="teamPanelCount"></span></span>

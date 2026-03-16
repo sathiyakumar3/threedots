@@ -55,13 +55,11 @@ body.dark .project-info {
   backdrop-filter: blur(32px) saturate(2);
   -webkit-backdrop-filter: blur(32px) saturate(2);
   box-shadow:
-    0 2px 0 0 rgba(255,255,255,0.22) inset,
     0 0 0 1px rgba(255,255,255,0.12) inset,
     0 0 28px 8px rgba(255,255,255,0.04) inset,
     0 -8px 32px rgba(0,0,0,0.55),
     0 -16px 48px rgba(0,0,0,0.35),
     0 -24px 64px rgba(0,0,0,0.20);
-  border-top: 1.5px solid rgba(255,255,255,0.22);
   border-left: 1px solid rgba(255,255,255,0.10);
   border-right: 1px solid rgba(255,255,255,0.10);
 }
@@ -267,7 +265,6 @@ h1 {
   backdrop-filter: blur(32px) saturate(2);
   -webkit-backdrop-filter: blur(32px) saturate(2);
   box-shadow:
-    0 2px 0 0 rgba(255,255,255,0.90) inset,
     0 0 28px 8px rgba(255,255,255,0.18) inset,
     0 -8px 32px rgba(17,17,26,0.18),
     0 -16px 48px rgba(17,17,26,0.12),
@@ -800,28 +797,11 @@ body.dark .tags-theme-row__name { color:var(--text); }
 .topbar-icon-btn:hover { background:#f5f6fa; color:var(--purple); }
 .topbar-icon-btn.active { background:#eef1fd; color:var(--purple); }
 
-/* -- Add card highlight button -- */
-.topbar-icon-btn--add {
-  background: linear-gradient(135deg,#4a1a6b 0%,#2d1052 100%);
-  color: #fff !important;
-  border-radius: 14px;
-  width: auto;
-  height: 34px;
-  padding: 0 14px 0 10px;
-  gap: 6px;
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: 0.01em;
-  box-shadow: 0 2px 10px rgba(74,26,107,.4);
-  transition: opacity .15s, transform .12s, box-shadow .15s;
-}
-.topbar-icon-btn--add:hover {
-  background: linear-gradient(135deg,#4a1a6b 0%,#2d1052 100%) !important;
-  color: #fff !important;
-  opacity: .9;
-  transform: scale(1.05);
-  box-shadow: 0 4px 18px rgba(149,64,165,.45) !important;
-}
+/* -- Add card button -- */
+.topbar-icon-btn--add { background: #fff !important; }
+.topbar-icon-btn--add:hover { background: #f5f6fa !important; }
+body.dark .topbar-icon-btn--add { background: rgba(255,255,255,0.12) !important; }
+body.dark .topbar-icon-btn--add:hover { background: #2a2d45 !important; }
 
 /* -- Search (collapsible) -- */
 .topbar-search {
@@ -5340,28 +5320,24 @@ body.dark .cs-tag-chip {
 
 /* ── Topbar ── */
 .project-info {
-  background: rgba(255,255,255,0.15) !important;
-  backdrop-filter: blur(32px) saturate(2) !important;
-  -webkit-backdrop-filter: blur(32px) saturate(2) !important;
-  border: none !important;
-  border-radius: 20px !important;
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(20px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(200%) !important;
+  border: 1px solid rgba(255,255,255,0.35) !important;
+  border-radius: 12px !important;
   box-shadow:
-    0 2px 0 0 rgba(255,255,255,0.90) inset,
-    0 0 28px 8px rgba(255,255,255,0.18) inset,
-    0 -8px 32px rgba(17,17,26,0.18),
-    0 -16px 48px rgba(17,17,26,0.12) !important;
+    0 8px 32px rgba(99,102,241,0.10),
+    0 1px 4px rgba(0,0,0,0.06) !important;
 }
 body.dark .project-info {
-  background: rgba(10,10,20,0.25) !important;
-  backdrop-filter: blur(32px) saturate(2) !important;
-  -webkit-backdrop-filter: blur(32px) saturate(2) !important;
-  border: none !important;
-  border-radius: 20px !important;
+  background: var(--glass-bg) !important;
+  backdrop-filter: blur(20px) saturate(200%) !important;
+  -webkit-backdrop-filter: blur(20px) saturate(200%) !important;
+  border: 1px solid rgba(255,255,255,0.10) !important;
+  border-radius: 12px !important;
   box-shadow:
-    0 2px 0 0 rgba(255,255,255,0.22) inset,
-    0 0 28px 8px rgba(255,255,255,0.04) inset,
-    0 -8px 32px rgba(0,0,0,0.55),
-    0 -16px 48px rgba(0,0,0,0.35) !important;
+    0 8px 32px rgba(0,0,0,0.45),
+    0 1px 4px rgba(0,0,0,0.25) !important;
 }
 
 /* ── Columns ── */
@@ -6362,6 +6338,242 @@ body.dark .board-dropdown__density .density-picker__opt-name { color: var(--text
 body.dark .board-dropdown__density .density-picker__opt.active .density-picker__opt-name { color: var(--purple); }
 body.dark .board-dropdown__section-hdr { color: #64748b; }
 
+/* ── Board background picker panel ──────────────────────────────────────── */
+.board-bg-panel {
+  display: none;
+  position: absolute;
+  bottom: calc(100% + 6px);
+  right: 0;
+  background: var(--white);
+  border: 1px solid #e0e6ef;
+  border-radius: 8px;
+  box-shadow: 0 4px 16px rgba(0,0,0,.12);
+  width: 220px;
+  z-index: 101;
+  padding-bottom: 8px;
+}
+.board-bg-panel.open { display: block; }
+.board-bg-panel__hdr {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px 6px;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text);
+  border-bottom: 1px solid #f1f5f9;
+}
+.board-bg-panel__back {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: transparent;
+  border: none;
+  cursor: pointer;
+  color: #9ca3af;
+  padding: 2px 5px;
+  border-radius: 4px;
+  font-size: 11px;
+}
+.board-bg-panel__back:hover { background: #f1f5f9; color: var(--text); }
+.board-bg-panel__presets {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 6px;
+  padding: 10px 10px 6px;
+}
+.board-bg-preset {
+  width: 100%;
+  aspect-ratio: 1;
+  border-radius: 6px;
+  border: 2px solid transparent;
+  cursor: pointer;
+  transition: transform .15s, border-color .15s;
+  outline: none;
+}
+.board-bg-preset:hover { transform: scale(1.1); }
+.board-bg-preset.active { border-color: var(--purple); box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--purple); }
+.board-bg-panel__divider { height: 1px; background: #f1f5f9; margin: 4px 0; }
+.board-bg-panel__url-row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 10px;
+}
+.board-bg-panel__url-row input {
+  flex: 1;
+  border: 1px solid #e0e6ef;
+  border-radius: 5px;
+  padding: 5px 8px;
+  font-size: 11px;
+  font-family: inherit;
+  color: var(--text);
+  background: var(--bg);
+  outline: none;
+  min-width: 0;
+}
+.board-bg-panel__url-row input:focus { border-color: var(--purple); }
+.board-bg-panel__url-row button {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--purple);
+  border: none;
+  border-radius: 5px;
+  color: #fff;
+  width: 28px;
+  height: 28px;
+  cursor: pointer;
+  font-size: 11px;
+  flex-shrink: 0;
+}
+.board-bg-panel__url-row button:hover { opacity: .85; }
+.board-bg-panel__clear {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: calc(100% - 20px);
+  margin: 2px 10px 0;
+  background: transparent;
+  border: 1px solid #e0e6ef;
+  border-radius: 5px;
+  padding: 5px 10px;
+  font-size: 11px;
+  font-family: inherit;
+  color: #6b7280;
+  cursor: pointer;
+}
+.board-bg-panel__clear:hover { background: #fee2e2; color: #dc2626; border-color: #fca5a5; }
+
+/* Dark mode */
+body.dark .board-bg-panel { background: var(--surface); border-color: var(--border); }
+body.dark .board-bg-panel__hdr { border-color: var(--border); }
+body.dark .board-bg-panel__divider { background: var(--border); }
+body.dark .board-bg-panel__url-row input { background: var(--bg); border-color: var(--border); }
+body.dark .board-bg-panel__clear { border-color: var(--border); color: #9ca3af; }
+body.dark .board-bg-panel__clear:hover { background: #3b1515; color: #f87171; border-color: #7f1d1d; }
+body.dark .board-bg-panel__back:hover { background: #2a2d45; }
+body.dark .board-bg-preset.active { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--purple); }
+
+/* ── Board background active — frosted topbar/filter-bar ──────────────── */
+body.has-bg {
+  background-size: cover !important;
+  background-position: center !important;
+  background-repeat: no-repeat !important;
+  background-attachment: fixed !important;
+}
+.app-content.has-bg {
+  background-image: none !important;
+}
+.app-content.has-bg .project-info {
+  background: rgba(255,255,255,.82);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+}
+.app-content.has-bg .filter-bar {
+  background: rgba(255,255,255,.72);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+.app-content.has-bg .bulk-bar {
+  background: rgba(255,255,255,.85);
+  backdrop-filter: blur(8px);
+  -webkit-backdrop-filter: blur(8px);
+}
+body.dark .app-content.has-bg .project-info { background: rgba(15,17,30,.84); }
+body.dark .app-content.has-bg .filter-bar   { background: rgba(15,17,30,.75); }
+body.dark .app-content.has-bg .bulk-bar      { background: rgba(15,17,30,.85); }
+
+/* ── Dark background — brighten UI chrome for visibility ─────────────────── */
+/* Topbar icon buttons */
+.app-content.has-bg.bg-is-dark .topbar-icon-btn:not(.topbar-icon-btn--add) {
+  color: rgba(255,255,255,.80);
+}
+.app-content.has-bg.bg-is-dark .topbar-icon-btn:not(.topbar-icon-btn--add):hover {
+  background: rgba(255,255,255,.14);
+  color: #fff;
+}
+.app-content.has-bg.bg-is-dark .topbar-icon-btn:not(.topbar-icon-btn--add).active {
+  background: rgba(255,255,255,.18);
+  color: #fff;
+}
+/* ... board options button */
+.app-content.has-bg.bg-is-dark .project-column-heading__options:not(#boardOptionsBtn) {
+  color: rgba(255,255,255,.70);
+}
+.app-content.has-bg.bg-is-dark .project-column-heading__options:not(#boardOptionsBtn):hover {
+  background: rgba(255,255,255,.15);
+  color: #fff;
+}
+.app-content.has-bg.bg-is-dark #boardOptionsBtn {
+  color: rgba(255,255,255,.70);
+}
+.app-content.has-bg.bg-is-dark #boardOptionsBtn:hover {
+  background: rgba(255,255,255,.15);
+  color: #fff;
+}
+/* Column title text */
+.app-content.has-bg.bg-is-dark .project-column-heading__title {
+  color: #fff;
+  text-shadow: 0 1px 6px rgba(0,0,0,.50);
+}
+/* Column task-count pill */
+.app-content.has-bg.bg-is-dark .col-count {
+  background: rgba(255,255,255,.22);
+  color: #fff;
+}
+.app-content.has-bg.bg-is-dark .col-count.wip-over {
+  background: rgba(239,68,68,.40);
+  color: #fecaca;
+}
+.app-content.has-bg.bg-is-dark .col-count.wip-near {
+  background: rgba(245,158,11,.35);
+  color: #fde68a;
+}
+
+/* Tags button */
+.app-content.has-bg.bg-is-dark .tags-btn {
+  color: rgba(255,255,255,.80);
+}
+.app-content.has-bg.bg-is-dark .tags-btn:hover,
+.app-content.has-bg.bg-is-dark .tags-btn.open {
+  background: rgba(255,255,255,.14);
+  color: #fff;
+}
+/* Search icon + filter button */
+.app-content.has-bg.bg-is-dark .topbar-search__icon-btn {
+  color: rgba(255,255,255,.80);
+}
+.app-content.has-bg.bg-is-dark .topbar-search__icon-btn:hover {
+  background: rgba(255,255,255,.14);
+  color: #fff;
+}
+.app-content.has-bg.bg-is-dark .topbar-search.open .topbar-search__icon-btn {
+  color: #fff;
+}
+.app-content.has-bg.bg-is-dark .topbar-search__filter {
+  color: rgba(255,255,255,.80);
+}
+.app-content.has-bg.bg-is-dark .topbar-search__filter:hover {
+  background: rgba(255,255,255,.14);
+  color: #fff;
+}
+.app-content.has-bg.bg-is-dark .topbar-search__filter.active {
+  background: rgba(255,255,255,.18);
+  color: #fff;
+}
+/* Search input text on dark bg */
+.app-content.has-bg.bg-is-dark .topbar-search.open {
+  background: rgba(0,0,0,.30);
+  border-color: rgba(255,255,255,.20);
+}
+.app-content.has-bg.bg-is-dark .topbar-search input {
+  color: #fff;
+}
+.app-content.has-bg.bg-is-dark .topbar-search input::placeholder {
+  color: rgba(255,255,255,.45);
+}
+
 /* ── Tags button hidden anchor ──────────────────────────────────────────── */
 .tags-btn--anchor {
   visibility: hidden;
@@ -6410,4 +6622,62 @@ body.dark .topbar-search.open .topbar-search__filter { border-left-color: var(--
   border: 1.5px solid var(--glass-border) !important;
   box-shadow: var(--glass-shadow-lg) !important;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   PER-ICON ADAPTIVE CONTRAST
+   Each button independently samples what is behind it via JS (elementsFromPoint)
+   and toggles .icon--on-dark / .icon--on-light.  These rules do the visual work.
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+/* ── Dark background behind icon → light (white-ish) icon ── */
+.topbar-icon-btn.icon--on-dark:not(.topbar-icon-btn--add),
+.topbar-search__icon-btn.icon--on-dark,
+.topbar-search__filter.icon--on-dark,
+.tags-btn.icon--on-dark,
+.nav-toggle.icon--on-dark {
+  color: rgba(255,255,255,.85) !important;
+}
+.topbar-icon-btn.icon--on-dark:not(.topbar-icon-btn--add):hover,
+.topbar-search__icon-btn.icon--on-dark:hover,
+.topbar-search__filter.icon--on-dark:hover,
+.tags-btn.icon--on-dark:hover,
+.nav-toggle.icon--on-dark:hover {
+  background: rgba(255,255,255,.15) !important;
+  color: #fff !important;
+}
+.topbar-icon-btn.icon--on-dark:not(.topbar-icon-btn--add).active,
+.topbar-search__icon-btn.icon--on-dark.active,
+.topbar-search__filter.icon--on-dark.active,
+.tags-btn.icon--on-dark.active,
+.tags-btn.icon--on-dark.open {
+  background: rgba(255,255,255,.20) !important;
+  color: #fff !important;
+}
+
+/* Board options button on dark */
+#boardOptionsBtn.icon--on-dark {
+  color: rgba(255,255,255,.85) !important;
+}
+#boardOptionsBtn.icon--on-dark:hover {
+  background: rgba(255,255,255,.15) !important;
+  color: #fff !important;
+}
+#boardOptionsBtn.icon--on-light {
+  color: #6b7280 !important;
+}
+
+/* User avatar trigger on dark */
+.topbar-user__trigger.icon--on-dark .nav-user__avatar {
+  box-shadow: 0 0 0 2px rgba(255,255,255,.45) !important;
+}
+
+/* ── Light background behind icon → restore default dark icon ── */
+.topbar-icon-btn.icon--on-light:not(.topbar-icon-btn--add),
+.topbar-search__icon-btn.icon--on-light,
+.topbar-search__filter.icon--on-light,
+.tags-btn.icon--on-light,
+.nav-toggle.icon--on-light {
+  color: #6b7280 !important;
+}
+
 

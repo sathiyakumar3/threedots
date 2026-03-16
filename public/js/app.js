@@ -32,7 +32,6 @@ window.closeAllPopups = function(skip = []) {
     { id: 'tagsPopup',            cls: 'open', extra: 'tagsBtn' },
     { id: 'teamPanel',            cls: 'open', extra: null },
     { id: 'topbarUser',           cls: 'open', extra: null },
-    { id: 'viewsDropdown',        cls: 'open', extra: null },
   ];
   all.forEach(({ id, cls, extra }) => {
     if (skip.includes(id)) return;
@@ -514,6 +513,7 @@ document.addEventListener('DOMContentLoaded', () => {
   function openActivityPanel()  { activityPanel.classList.remove('collapsed'); activityToggle.classList.add('active');    activityToggle.title = 'Hide activity'; }
   function closeActivityPanel() { activityPanel.classList.add('collapsed');    activityToggle.classList.remove('active'); activityToggle.title = 'Show activity'; }
   activityToggle.addEventListener('click', () => {
+    document.getElementById('boardDropdown')?.classList.remove('open');
     activityPanel.classList.contains('collapsed') ? openActivityPanel() : closeActivityPanel();
   });
   document.getElementById('activityPanelClose')?.addEventListener('click', () => closeActivityPanel());
@@ -830,7 +830,6 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('trashBtn').classList.remove('active');
     // Close board options dropdown if open
     document.getElementById('boardDropdown').classList.remove('open');
-    document.getElementById('viewsDropdown')?.classList.remove('open');
     // Reset activity panel to collapsed
     const actPanel = document.getElementById('activityPanel');
     const actToggle = document.getElementById('activityToggle');
@@ -847,6 +846,8 @@ document.addEventListener('DOMContentLoaded', () => {
           if (item) { item.textContent = name; }
           document.getElementById('boardComboLabel').textContent = name;
           if (data.tags && window._applyBoardTags) window._applyBoardTags(data.tags);
+          if (window._applyBoardBackground) window._applyBoardBackground(data.background || null);
+          setTimeout(() => window._updateIconContrast?.(), 200);
           const _adminUids  = data.users?.admins  || (data.admins ? data.admins : (data.owner ? [data.owner] : []));
           const _memberUids = data.users?.members || [];
           const _boardUsers = [...new Set([..._adminUids, ..._memberUids])];
@@ -1438,22 +1439,6 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   });
 
-  // ── Views dropdown (Insights / Activity / Calendar) ─────────────────────
-  const viewsDropdownTrigger = document.getElementById('viewsDropdownTrigger');
-  const viewsDropdown        = document.getElementById('viewsDropdown');
-  viewsDropdownTrigger.addEventListener('click', e => {
-    e.stopPropagation();
-    const willOpen = !viewsDropdown.classList.contains('open');
-    closeAllPopups(['viewsDropdown']);
-    viewsDropdown.classList.toggle('open', willOpen);
-  });
-  document.getElementById('viewsDropdownMenu').addEventListener('click', () => {
-    viewsDropdown.classList.remove('open');
-  });
-  document.addEventListener('click', e => {
-    if (!viewsDropdown.contains(e.target)) viewsDropdown.classList.remove('open');
-  });
-
   // ── Storage dropdown (Archive + Trash) removed ──
 
   document.getElementById('boardOptFavourite').addEventListener('click', () => {
@@ -1639,6 +1624,98 @@ document.addEventListener('DOMContentLoaded', () => {
         URL.revokeObjectURL(url);
       }
     });
+  });
+
+  // ── Board background picker ─────────────────────────────────────────────────
+  const BG_PRESETS = [
+    { label: 'Ocean',    value: 'linear-gradient(135deg,#667eea 0%,#764ba2 100%)',                    dark: true  },
+    { label: 'Sunset',   value: 'linear-gradient(135deg,#f093fb 0%,#f5576c 100%)',                    dark: false },
+    { label: 'Forest',   value: 'linear-gradient(135deg,#11998e 0%,#38ef7d 100%)',                    dark: true  },
+    { label: 'Midnight', value: 'linear-gradient(135deg,#0f0c29 0%,#302b63 50%,#24243e 100%)',        dark: true  },
+    { label: 'Peach',    value: 'linear-gradient(135deg,#ffecd2 0%,#fcb69f 100%)',                    dark: false },
+    { label: 'Sky',      value: 'linear-gradient(135deg,#a1c4fd 0%,#c2e9fb 100%)',                    dark: false },
+    { label: 'Rose',     value: 'linear-gradient(135deg,#fbc2eb 0%,#a6c1ee 100%)',                    dark: false },
+    { label: 'Dusk',     value: 'linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)',        dark: true  },
+    { label: 'Sand',     value: 'linear-gradient(135deg,#f5f7fa 0%,#c3cfe2 100%)',                    dark: false },
+    { label: 'Lime',     value: 'linear-gradient(135deg,#d4fc79 0%,#96e6a1 100%)',                    dark: false },
+    { label: 'Ember',    value: 'linear-gradient(135deg,#f7971e 0%,#ffd200 100%)',                    dark: false },
+    { label: 'Steel',    value: 'linear-gradient(135deg,#606c88 0%,#3f4c6b 100%)',                    dark: true  },
+  ];
+
+  const bgPanel      = document.getElementById('boardBgPanel');
+  const bgPresetsEl  = document.getElementById('boardBgPresets');
+  const bgUrlInput   = document.getElementById('boardBgUrlInput');
+  const bgUrlApply   = document.getElementById('boardBgUrlApply');
+  const bgClearBtn   = document.getElementById('boardBgClear');
+  const appContent   = document.querySelector('.app-content');
+  let _currentBg     = null; // { type, value }
+
+  // Build preset swatches
+  BG_PRESETS.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'board-bg-preset';
+    btn.title = p.label;
+    btn.style.background = p.value;
+    btn.dataset.bgValue = p.value;
+    btn.addEventListener('click', () => applyBackground(p.value, 'gradient', p.dark));
+    bgPresetsEl.appendChild(btn);
+  });
+
+  function applyBackground(value, type, isDark = true) {
+    _currentBg = value ? { type, value, dark: isDark } : null;
+    document.body.style.backgroundImage = value || '';
+    document.body.classList.toggle('has-bg', !!value);
+    document.body.classList.toggle('bg-is-dark', !!value && !!isDark);
+    appContent.classList.toggle('has-bg', !!value);
+    appContent.classList.toggle('bg-is-dark', !!value && !!isDark);
+    bgPresetsEl.querySelectorAll('.board-bg-preset').forEach(b => {
+      b.classList.toggle('active', b.dataset.bgValue === value);
+    });
+    if (BOARD_ID) {
+      db.doc(`boards/${BOARD_ID}`).update({
+        background: value ? { type, value, dark: isDark } : firebase.firestore.FieldValue.delete()
+      }).catch(() => showToast('Could not save background', true));
+    }
+    bgPanel.classList.remove('open');
+  }
+
+  window._applyBoardBackground = function(bg) {
+    _currentBg = bg || null;
+    const value = bg?.value || '';
+    const isDark = bg ? (bg.dark !== false) : false;
+    document.body.style.backgroundImage = value;
+    document.body.classList.toggle('has-bg', !!value);
+    document.body.classList.toggle('bg-is-dark', !!value && isDark);
+    appContent.classList.toggle('has-bg', !!value);
+    appContent.classList.toggle('bg-is-dark', !!value && isDark);
+    bgPresetsEl.querySelectorAll('.board-bg-preset').forEach(b => {
+      b.classList.toggle('active', b.dataset.bgValue === value);
+    });
+  };
+
+  document.getElementById('boardOptBackground').addEventListener('click', () => {
+    boardDropdown.classList.remove('open');
+    bgPanel.classList.toggle('open');
+    bgUrlInput.value = (_currentBg?.type === 'url' && _currentBg.value)
+      ? _currentBg.value.replace(/^url\(["']?/, '').replace(/["']?\)$/, '')
+      : '';
+  });
+
+  document.getElementById('boardBgPanelBack').addEventListener('click', () => bgPanel.classList.remove('open'));
+
+  bgUrlApply.addEventListener('click', () => {
+    const raw = bgUrlInput.value.trim();
+    if (!raw) return;
+    applyBackground(`url(${JSON.stringify(raw)})`, 'url', true); // image URLs default to dark treatment
+  });
+  bgUrlInput.addEventListener('keydown', e => { if (e.key === 'Enter') bgUrlApply.click(); });
+
+  bgClearBtn.addEventListener('click', () => applyBackground('', null));
+
+  document.addEventListener('click', e => {
+    if (!bgPanel.contains(e.target) && e.target !== document.getElementById('boardOptBackground')) {
+      bgPanel.classList.remove('open');
+    }
   });
 
   // -- Custom board combobox toggle --------------------------------------------
@@ -2550,5 +2627,104 @@ document.addEventListener('DOMContentLoaded', () => {
     topbarUser.classList.remove('open');
     Swal.fire({ title: 'My Profile', text: 'Profile panel coming soon.', icon: 'info', confirmButtonColor: 'var(--purple)' });
   });
+
+  // ── Per-icon adaptive contrast ───────────────────────────────────────────
+  // Each button independently samples the element directly behind it using
+  // document.elementsFromPoint(), so icons adapt as content scrolls under them.
+  (function () {
+    const navBar = document.querySelector('.project-info');
+    if (!navBar) return;
+
+    // Walk the DOM upward from `el` to find the first solid background color.
+    function getEffectiveBg(el) {
+      let node = el;
+      while (node && node !== document.documentElement) {
+        const bg = window.getComputedStyle(node).backgroundColor;
+        const m  = bg.match(/rgba?\((\d+),\s*(\d+),\s*(\d+)(?:,\s*([\d.]+))?\)/);
+        if (m) {
+          const alpha = m[4] !== undefined ? parseFloat(m[4]) : 1;
+          if (alpha > 0.1) return { r: +m[1], g: +m[2], b: +m[3] };
+        }
+        node = node.parentElement;
+      }
+      return null;
+    }
+
+    // WCAG relative luminance (0 = black, 1 = white).
+    function luminance(r, g, b) {
+      const lin = c => { c /= 255; return c <= 0.04045 ? c / 12.92 : Math.pow((c + 0.055) / 1.055, 2.4); };
+      return 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
+    }
+
+    // Return the luminance of the content visually behind `btn`.
+    function luminanceBehind(btn) {
+      const rect = btn.getBoundingClientRect();
+      const cx   = Math.round(rect.left + rect.width  / 2);
+      const cy   = Math.round(rect.top  + rect.height / 2);
+
+      // elementsFromPoint returns all stacked elements; skip the nav bar itself.
+      const all    = document.elementsFromPoint(cx, cy);
+      const behind = all.find(el => el !== navBar && !navBar.contains(el));
+
+      if (!behind || behind === document.documentElement || behind === document.body) {
+        // No board content at this point — fall back to bg-is-dark metadata.
+        return document.body.classList.contains('bg-is-dark') ? 0.05 : 0.95;
+      }
+
+      const bg = getEffectiveBg(behind);
+      if (!bg) {
+        // Transparent all the way up — fall back to bg-is-dark metadata.
+        return document.body.classList.contains('bg-is-dark') ? 0.05 : 0.95;
+      }
+
+      return luminance(bg.r, bg.g, bg.b);
+    }
+
+    // Selectors for all adaptable icon elements inside the nav bar.
+    const ICON_SEL = [
+      '.topbar-icon-btn:not(.topbar-icon-btn--add)',
+      '.topbar-search__icon-btn',
+      '.topbar-search__filter',
+      '.tags-btn',
+      '.nav-toggle',
+      '.topbar-user__trigger',
+      '#boardOptionsBtn',
+    ].join(',');
+
+    let _rafId = null;
+    function updateContrast() {
+      if (_rafId) return;
+      _rafId = requestAnimationFrame(() => {
+        _rafId = null;
+        navBar.querySelectorAll(ICON_SEL).forEach(btn => {
+          const lum    = luminanceBehind(btn);
+          const isDark = lum < 0.35;   // background is dark → use light icons
+          btn.classList.toggle('icon--on-dark',  isDark);
+          btn.classList.toggle('icon--on-light', !isDark);
+        });
+      });
+    }
+
+    // Trigger on scroll (window and any inner scroll containers).
+    window.addEventListener('scroll', updateContrast, { passive: true });
+    window.addEventListener('resize', updateContrast, { passive: true });
+    document.querySelector('.project-tasks')
+      ?.addEventListener('scroll', updateContrast, { passive: true });
+
+    // Re-run whenever the board background is applied (gradient / image / cleared).
+    const _origApplyBg = window._applyBoardBackground;
+    if (_origApplyBg) {
+      window._applyBoardBackground = function (bg) {
+        _origApplyBg.call(this, bg);
+        setTimeout(updateContrast, 60);
+      };
+    }
+
+    // Initial pass after everything has painted.
+    setTimeout(updateContrast, 150);
+
+    // Expose so other modules (e.g. board load) can trigger a refresh.
+    window._updateIconContrast = updateContrast;
+  })();
 
 }); // end DOMContentLoaded
