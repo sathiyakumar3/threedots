@@ -101,6 +101,17 @@
               </div>
             </div>
           </div>
+
+          <div class="tags-wrap" id="tplWrap">
+            <button class="tags-btn" id="tplBtn" title="Templates"><i class="fas fa-layer-group"></i></button>
+            <div class="tags-popup" id="tplPopup">
+              <div class="tags-popup__title">Templates</div>
+              <div class="tags-list" id="tplPopupList">
+                <p class="template-combo__empty">No saved templates yet.</p>
+              </div>
+            </div>
+          </div>
+
           <!-- ── Density picker ── -->
           <div class="density-picker" id="densityPicker">
             <button class="topbar-icon-btn density-picker__trigger" id="densityTrigger" title="Card density"><i class="fas fa-th-large"></i></button>
@@ -371,6 +382,18 @@
               <i class="fas fa-chevron-down modal-more-toggle__icon"></i> More Options
             </button>
             <div class="modal-more-fields" id="modalMoreFields">
+              <div class="modal-field modal-template-row" id="modalTemplateRow">
+                <label>From Template</label>
+                <div class="template-combo" id="templateCombo">
+                  <button type="button" class="col-combo__trigger" id="templateComboTrigger">
+                    <span id="templateComboLabel" class="assignee-placeholder">Select a template…</span>
+                    <i class="fas fa-chevron-down col-combo__chevron"></i>
+                  </button>
+                  <div class="col-combo__menu template-combo__menu" id="templateComboMenu">
+                    <div id="templateComboList"><p class="template-combo__empty">No saved templates yet.</p></div>
+                  </div>
+                </div>
+              </div>
               <div class="modal-field">
                 <div class="modal-todo-label-row">
                   <label>To-Do</label>
@@ -571,6 +594,7 @@
   <script defer src="js/bulk.js"></script>
   <script defer src="js/filter.js"></script>
   <script defer src="js/keyboard.js"></script>
+  <script defer src="js/templates-popup.js"></script>
   <script defer src="js/confetti.js"></script>
   <script defer src="js/calendar.js"></script>
   <script>

@@ -40,6 +40,8 @@ service cloud.firestore {
     match /users/{uid} {
       allow read:  if isAuthed();
       allow write: if isAuthed() && request.auth.uid == uid;
+
+
     }
 
     // ── Boards collection ─────────────────────────────────────────────────
@@ -68,6 +70,11 @@ service cloud.firestore {
 
       // ── Activity subcollection ──────────────────────────────────────────
       match /activity/{activityId} {
+        allow read, write: if isBoardMember(boardId);
+      }
+
+      // ── Templates subcollection ─────────────────────────────────────────
+      match /templates/{templateId} {
         allow read, write: if isBoardMember(boardId);
       }
     }

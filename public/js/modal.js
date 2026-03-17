@@ -86,6 +86,108 @@
     startDatePicker.init();
   }
 
+  const templateComboTrigger = document.getElementById('templateComboTrigger');
+  const templateComboMenu    = document.getElementById('templateComboMenu');
+  const templateComboLabel   = document.getElementById('templateComboLabel');
+  const templateComboList    = document.getElementById('templateComboList');
+  const templateRow          = document.getElementById('modalTemplateRow');
+
+  let _templates = [];
+
+  function loadTemplates() {
+    if (typeof db === 'undefined' || !BOARD_ID) { templateRow.style.display = 'none'; return; }
+    db.collection(`boards/${BOARD_ID}/templates`).get()
+      .then(snap => {
+        _templates = snap.docs
+          .map(d => ({ id: d.id, ...d.data() }))
+          .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
+        templateRow.style.display = _templates.length ? 'block' : 'none';
+        renderTemplateList();
+      })
+      .catch(err => { console.error('loadTemplates error:', err); templateRow.style.display = 'none'; });
+  }
+
+  function renderTemplateList() {
+    if (!_templates.length) {
+      templateComboList.innerHTML = '<p class="template-combo__empty">No saved templates yet.</p>';
+      return;
+    }
+    templateComboList.innerHTML = '';
+    _templates.forEach(tpl => {
+      const item = document.createElement('div');
+      item.className = 'board-combo__item template-combo__item';
+      item.dataset.id = tpl.id;
+
+      const nameSpan = document.createElement('span');
+      nameSpan.className = 'template-combo__item-name';
+      nameSpan.textContent = tpl.name || tpl.title || 'Untitled';
+      item.appendChild(nameSpan);
+
+      const delBtn = document.createElement('button');
+      delBtn.type = 'button';
+      delBtn.className = 'template-combo__del';
+      delBtn.title = 'Delete template';
+      delBtn.innerHTML = '<i class="fas fa-times"></i>';
+      delBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        if (!BOARD_ID) return;
+        db.collection(`boards/${BOARD_ID}/templates`).doc(tpl.id).delete()
+          .then(() => {
+            _templates = _templates.filter(t => t.id !== tpl.id);
+            renderTemplateList();
+            if (!_templates.length) {
+              templateRow.style.display = 'none';
+              templateComboMenu.classList.remove('open');
+              templateComboTrigger.classList.remove('open');
+              templateComboLabel.textContent = 'Select a template…';
+              templateComboLabel.classList.add('assignee-placeholder');
+            }
+          })
+          .catch(err => console.error('Delete template failed:', err));
+      });
+      item.appendChild(delBtn);
+
+      item.addEventListener('click', e => {
+        if (e.target.closest('.template-combo__del')) return;
+        applyTemplate(tpl);
+        templateComboLabel.textContent = tpl.name || tpl.title || 'Untitled';
+        templateComboLabel.classList.remove('assignee-placeholder');
+        templateComboMenu.classList.remove('open');
+        templateComboTrigger.classList.remove('open');
+      });
+      templateComboList.appendChild(item);
+    });
+  }
+
+  function applyTemplate(tpl) {
+    if (tpl.title)    { titleEl.value = tpl.title; refreshAddBtn(); }
+    if (tpl.text)     { textEl.value  = tpl.text;  refreshAddBtn(); }
+    if (tpl.link)     linkInput.value = tpl.link;
+    if (tpl.priority) setPriority(tpl.priority);
+    if (tpl.tag && window._createInlineTagPicker) {
+      const tagWrap2 = document.getElementById('cardTag');
+      window._createInlineTagPicker(tpl.tag, tagWrap2);
+    }
+    if (Array.isArray(tpl.todos) && tpl.todos.length) {
+      pendingTodos = tpl.todos.map(t => ({ text: t.text, done: false, startDate: '', endDate: '' }));
+      renderTodoList();
+      // Auto-open More Options so todos are visible
+      document.getElementById('modalMoreFields')?.classList.add('open');
+      document.getElementById('modalMoreToggle')?.classList.add('open');
+    }
+  }
+
+  templateComboTrigger.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = templateComboMenu.classList.toggle('open');
+    templateComboTrigger.classList.toggle('open', open);
+    colMenu.classList.remove('open');
+    colTrigger.classList.remove('open');
+    assigneeComboMenu.classList.remove('open');
+    assigneeComboTrigger.classList.remove('open');
+  });
+  templateComboMenu.addEventListener('click', e => e.stopPropagation());
+
   let selectedColIdx = 0;
   let _editingCard = null;
 
@@ -200,6 +302,8 @@
     colTrigger.classList.toggle('open', open);
     assigneeComboMenu.classList.remove('open');
     assigneeComboTrigger.classList.remove('open');
+    templateComboMenu.classList.remove('open');
+    templateComboTrigger.classList.remove('open');
   });
   colMenu.addEventListener('click', e => e.stopPropagation());
   document.addEventListener('click', () => {
@@ -207,6 +311,8 @@
     colTrigger.classList.remove('open');
     assigneeComboMenu.classList.remove('open');
     assigneeComboTrigger.classList.remove('open');
+    templateComboMenu.classList.remove('open');
+    templateComboTrigger.classList.remove('open');
   });
 
   function updateAssigneeLabel() {
@@ -304,6 +410,8 @@
     assigneeComboTrigger.classList.toggle('open', open);
     colMenu.classList.remove('open');
     colTrigger.classList.remove('open');
+    templateComboMenu.classList.remove('open');
+    templateComboTrigger.classList.remove('open');
     if (open) refreshAssigneeCombo();
   });
   assigneeComboMenu.addEventListener('click', e => e.stopPropagation());
@@ -768,6 +876,7 @@
     initStartDatePicker();
     refreshColCombo(0);
     refreshAssigneeCombo();
+    loadTemplates();
     const tags = window._getActiveTags ? window._getActiveTags() : [];
     if (window._createInlineTagPicker) window._createInlineTagPicker(tags[0]?.id || 'task', tagWrap);
     if (deleteBtn) deleteBtn.style.display = 'none';
@@ -797,6 +906,11 @@
     if (todoCalBtn) todoCalBtn.style.display = 'none';
     setPriority('');
     document.getElementById('calModalOverlay')?.classList.remove('open');
+    // Reset template combo
+    templateComboLabel.textContent = 'Select a template…';
+    templateComboLabel.classList.add('assignee-placeholder');
+    templateComboMenu.classList.remove('open');
+    templateComboTrigger.classList.remove('open');
   }
 
   function openEditModal(cardEl) {
@@ -830,6 +944,7 @@
     addBtn.innerHTML = '<i class="fas fa-check"></i> Save Changes';
     document.getElementById('modalTitle').textContent = 'Edit Card';
     if (deleteBtn) deleteBtn.style.display = '';
+    templateRow.style.display = 'none';
     overlay.classList.add('open');
     titleEl.focus();
   }
@@ -863,6 +978,9 @@
   overlay.addEventListener('mousedown', e => { _overlayMousedownOnSelf = e.target === overlay; });
   overlay.addEventListener('click', e => { if (e.target === overlay && _overlayMousedownOnSelf) closeModal(); });
   document.addEventListener('keydown', e => { if (e.key === 'Escape') closeModal(); });
+
+  // Expose so templates-popup.js can refresh the modal combo after a deletion
+  window._refreshTemplateCombo = loadTemplates;
 
   addBtn.addEventListener('click', () => {
     const text  = textEl.value.trim();

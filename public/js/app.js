@@ -30,6 +30,7 @@ window.closeAllPopups = function(skip = []) {
     { id: 'boardDropdown',        cls: 'open', extra: null },
     { id: 'boardComboMenu',       cls: 'open', extra: 'boardComboTrigger' },
     { id: 'tagsPopup',            cls: 'open', extra: 'tagsBtn' },
+    { id: 'tplPopup',             cls: 'open', extra: 'tplBtn' },
     { id: 'teamPanel',            cls: 'open', extra: null },
     { id: 'topbarUser',           cls: 'open', extra: null },
   ];
@@ -1637,9 +1638,13 @@ document.addEventListener('DOMContentLoaded', () => {
     { label: 'Rose',     value: 'linear-gradient(135deg,#fbc2eb 0%,#a6c1ee 100%)',                    dark: false },
     { label: 'Dusk',     value: 'linear-gradient(135deg,#1a1a2e 0%,#16213e 50%,#0f3460 100%)',        dark: true  },
     { label: 'Sand',     value: 'linear-gradient(135deg,#f5f7fa 0%,#c3cfe2 100%)',                    dark: false },
-    { label: 'Lime',     value: 'linear-gradient(135deg,#d4fc79 0%,#96e6a1 100%)',                    dark: false },
+    { label: 'Calm',     value: 'linear-gradient(135deg,#dce0d9 0%,#ead7c3 100%)',                    dark: false },
     { label: 'Ember',    value: 'linear-gradient(135deg,#f7971e 0%,#ffd200 100%)',                    dark: false },
     { label: 'Steel',    value: 'linear-gradient(135deg,#606c88 0%,#3f4c6b 100%)',                    dark: true  },
+    { label: 'Lime',    value: 'linear-gradient(135deg,#aac0aa 0%,#cbe896 100%)',                    dark: false  },
+     { label: 'Nectar',    value: 'linear-gradient(135deg,#daddd8 0%,#ecebe4 100%)',                    dark: false  },
+    { label: 'Dawn',    value: 'linear-gradient(135deg,#e0e1dd 0%,#778da9 100%)',                    dark: false  },
+    { label: 'Dusk',    value: 'linear-gradient(135deg,#495057 0%,#6c757d 100%)',                    dark: true  },
   ];
 
   const bgPanel      = document.getElementById('boardBgPanel');
@@ -2089,6 +2094,29 @@ document.addEventListener('DOMContentLoaded', () => {
       refreshAllColCounts();
       saveTask(copyCard, true);
       logActivity('create', `<b>${_authorName()}</b> duplicated "${srcData.title || 'Card'}"`);
+      return;
+    }
+
+    // Save as Template
+    if (e.target.closest('.task__opt-save-template')) {
+      const task = e.target.closest('.task');
+      task.querySelector('.task__dropdown').classList.remove('open');
+      openDropdown = null;
+      if (!currentUser) { showToast('Sign in to save templates.', true); return; }
+      const srcData = serializeTask(task);
+      const templateData = {
+        title:     srcData.title     || '',
+        text:      srcData.text      || '',
+        tag:       srcData.tag       || 'task',
+        priority:  srcData.priority  || '',
+        todos:     (srcData.todos    || []).map(t => ({ text: t.text, done: false, startDate: '', endDate: '' })),
+        link:      srcData.link      || '',
+        createdAt: Date.now(),
+        name:      srcData.title     || srcData.text.slice(0, 40) || 'Template'
+      };
+      db.collection(`boards/${BOARD_ID}/templates`).add(templateData)
+        .then(() => showToast('Saved as template ✓'))
+        .catch(err => { console.error('Template save failed:', err); showToast('Failed to save template', true); });
       return;
     }
 

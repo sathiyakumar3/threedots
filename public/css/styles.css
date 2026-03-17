@@ -206,6 +206,12 @@ body.dark .task-icon--todo        { background-color:#052e16; color:#4ade80; }
 body.dark .task-icon--participant { background-color:#2e1065; color:#a78bfa; }
 body.dark .tags-btn { color:#94a3b8; }
 body.dark .tags-btn:hover, body.dark .tags-btn.open { background:#2a2d45; color:var(--purple); }
+body.dark #tplPopup { background:var(--surface); border-color:var(--border); }
+body.dark #tplPopup .tags-popup__title { color:#64748b; }
+body.dark #tplPopup .tags-row:hover { background:#1e2340; }
+body.dark #tplPopup .tags-label { color:#e2e8f0; }
+body.dark #tplPopup .tags-del-btn { color:#64748b; }
+body.dark #tplPopup .tags-del-btn:hover { color:#f87171; }
 body.dark .login-card {
   background:var(--surface);
   border-color:var(--border);
@@ -3624,6 +3630,7 @@ body.dark .task__tl-edit-delete:hover { background:#2d1515; color:#f87171; borde
 .task__dropdown .task__opt-restore { display:none; }
 .project-column--trash .task__opt-restore { display:flex; }
 .project-column--trash .task__opt-edit    { display:none; }
+.project-column--trash .task__opt-save-template { display:none; }
 
 /* Trash badge on topbar button */
 #trashBtn { position:relative; }
@@ -6413,6 +6420,56 @@ body.dark .board-dropdown__section-hdr { color: #64748b; }
   min-width: 0;
 }
 .board-bg-panel__url-row input:focus { border-color: var(--purple); }
+
+/* ── Template combo (modal) ─────────────────────────────────────────────── */
+#modalTemplateRow { margin-bottom:2px; display:none; }
+
+.template-combo { position:relative; }
+.template-combo__menu {
+  max-height:220px;
+  overflow-y:auto;
+  min-width:220px;
+}
+.template-combo__item {
+  display:flex;
+  align-items:center;
+  gap:6px;
+  padding:.45rem .85rem;
+  font-size:13px;
+  cursor:pointer;
+  user-select:none;
+}
+.template-combo__item:hover { background:#f1f5f9; }
+.template-combo__item-name {
+  flex:1;
+  overflow:hidden;
+  text-overflow:ellipsis;
+  white-space:nowrap;
+}
+.template-combo__del {
+  background:transparent;
+  border:none;
+  cursor:pointer;
+  color:#9ca3af;
+  padding:2px 4px;
+  border-radius:4px;
+  line-height:1;
+  font-size:11px;
+  flex-shrink:0;
+  transition:color .12s, background .12s;
+}
+.template-combo__del:hover { color:#ef4444; background:#fee2e2; }
+.template-combo__empty {
+  font-size:12px;
+  color:#9ca3af;
+  padding:.5rem .85rem;
+  margin:0;
+}
+
+/* Dark mode */
+body.dark .template-combo__item:hover { background:#2a2d3a; }
+body.dark .template-combo__del:hover  { background:#3b1212; color:#f87171; }
+body.dark .template-combo__empty      { color:#6b7280; }
 .board-bg-panel__url-row button {
   display: flex;
   align-items: center;
