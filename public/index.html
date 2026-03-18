@@ -632,7 +632,9 @@
         return;
       }
       if (trigger) {
-        picker.classList.toggle('open');
+        const willOpen = !picker.classList.contains('open');
+        window.closeAllPopups && window.closeAllPopups(['densityPicker']);
+        picker.classList.toggle('open', willOpen);
         return;
       }
       if (!e.target.closest('.density-picker')) {

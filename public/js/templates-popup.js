@@ -13,7 +13,30 @@
     }
     templates.forEach(tpl => {
       const row = document.createElement('div');
-      row.className = 'tags-row';
+      row.className  = 'tags-row';
+      row.draggable  = true;
+      row.title      = 'Drag to a column to add as a card';
+
+      const dragHandle = document.createElement('span');
+      dragHandle.className = 'tpl-drag-handle';
+      dragHandle.innerHTML = '<i class="fas fa-grip-vertical"></i>';
+
+      row.addEventListener('dragstart', e => {
+        window._dragTemplate = tpl;
+        e.dataTransfer.effectAllowed = 'copy';
+        e.dataTransfer.setData('text/plain', tpl.name || tpl.title || 'Template');
+        // Defer closing the popup: removing 'open' synchronously sets
+        // display:none on the parent which cancels the drag before the
+        // browser can create the ghost image.
+        setTimeout(() => {
+          popup.classList.remove('open');
+          tplBtn.classList.remove('open');
+        }, 0);
+      });
+
+      row.addEventListener('dragend', () => {
+        window._dragTemplate = null;
+      });
 
       const nameEl = document.createElement('span');
       nameEl.className   = 'tags-label';
@@ -52,6 +75,7 @@
         });
       });
 
+      row.appendChild(dragHandle);
       row.appendChild(nameEl);
       row.appendChild(delBtn);
       listEl.appendChild(row);

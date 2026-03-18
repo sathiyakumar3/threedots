@@ -12,6 +12,13 @@
       "**/.*",
       "**/node_modules/**"
     ],
+    "redirects": [
+      {
+        "source": "/**",
+        "destination": "https://www.taskbz.com/:splat",
+        "type": 301
+      }
+    ],
     "rewrites": [
       {
         "source": "**",

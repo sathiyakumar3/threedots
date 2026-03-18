@@ -31,6 +31,7 @@ window.closeAllPopups = function(skip = []) {
     { id: 'boardComboMenu',       cls: 'open', extra: 'boardComboTrigger' },
     { id: 'tagsPopup',            cls: 'open', extra: 'tagsBtn' },
     { id: 'tplPopup',             cls: 'open', extra: 'tplBtn' },
+    { id: 'densityPicker',        cls: 'open', extra: null },
     { id: 'teamPanel',            cls: 'open', extra: null },
     { id: 'topbarUser',           cls: 'open', extra: null },
   ];
@@ -45,6 +46,7 @@ function sendInvitationEmail({ email, boardName, invitedByName, inviteLink }) {
   const cfg = window.EMAILJS_CONFIG;
   if (!cfg?.serviceId || cfg.serviceId === 'YOUR_SERVICE_ID') {
     console.warn('EmailJS not configured — invitation stored in Firestore but email not sent.');
+    showToast('Invite saved — email delivery requires EmailJS setup', true);
     return;
   }
   if (typeof emailjs === 'undefined') {
@@ -729,14 +731,22 @@ document.addEventListener('DOMContentLoaded', () => {
     const count = colEl.querySelectorAll(':scope > .task').length;
     const badge = colEl.querySelector('.col-count');
     if (!badge) return;
-    if (isTrashCol) { badge.textContent = count; return; }
+    if (isTrashCol) { badge.textContent = count; badge.removeAttribute('title'); return; }
     const limit = colEl.dataset.wipLimit ? +colEl.dataset.wipLimit : 0;
+    const isSpecial = colEl.classList.contains('project-column--archive') || colEl.classList.contains('project-column--trash');
+    if (!isSpecial) colEl.classList.toggle('project-column--empty', count === 0);
     if (limit > 0) {
       badge.textContent = `${count}/${limit}`;
+      badge.title = count > limit
+        ? `⚠ Over WIP limit! ${count} of ${limit} allowed`
+        : count === limit
+          ? `At WIP limit (${limit})`
+          : `WIP limit: ${limit}`;
       badge.classList.toggle('wip-over', count > limit);
       badge.classList.toggle('wip-near', count === limit);
     } else {
       badge.textContent = count;
+      badge.removeAttribute('title');
       badge.classList.remove('wip-over', 'wip-near');
     }
   }
@@ -1834,28 +1844,39 @@ document.addEventListener('DOMContentLoaded', () => {
     document.querySelectorAll('.column-drag-over').forEach(c => c.classList.remove('column-drag-over'));
   }
 
+  let dragSrcEls = []; // all cards being moved in a multi-card drag
+
   board.addEventListener('dragstart', e => {
     const task = e.target.closest('.task');
     if (!task) return;
     if (openColDropdown) { openColDropdown.classList.remove('open'); openColDropdown = null; }
     if (openDropdown)    { openDropdown.classList.remove('open');    openDropdown    = null; }
     dragSrcEl = task;
-    setTimeout(() => { task.style.opacity = '0.4'; }, 0);
+    // If the dragged card is part of a bulk selection, carry all selected cards
+    const isMulti = task.classList.contains('task--selected');
+    dragSrcEls = isMulti ? [...board.querySelectorAll('.task--selected')] : [];
+    setTimeout(() => {
+      task.style.opacity = '0.4';
+      if (isMulti) dragSrcEls.forEach(c => { if (c !== task) c.style.opacity = '0.4'; });
+    }, 0);
     e.dataTransfer.effectAllowed = 'move';
   });
 
   board.addEventListener('dragend', () => {
     if (dragSrcEl) dragSrcEl.style.opacity = '1';
+    dragSrcEls.forEach(c => { c.style.opacity = '1'; });
+    dragSrcEls = [];
     clearHighlights();
     dragSrcEl = null;
   });
 
   board.addEventListener('dragover', e => {
     e.preventDefault();
-    e.dataTransfer.dropEffect = 'move';
+    e.dataTransfer.dropEffect = window._dragTemplate ? 'copy' : 'move';
     clearHighlights();
     const task = e.target.closest('.task');
-    if (task && task !== dragSrcEl) {
+    // In multi-card drag, always highlight the column — not individual cards
+    if (task && task !== dragSrcEl && !dragSrcEls.length) {
       task.classList.add('task-hover');
     } else {
       const col = e.target.closest('.project-column');
@@ -1869,10 +1890,74 @@ document.addEventListener('DOMContentLoaded', () => {
 
   board.addEventListener('drop', e => {
     e.preventDefault();
+
+    // ── Template drag-in from the popup ──────────────────────────────────
+    if (window._dragTemplate) {
+      const tpl = window._dragTemplate;
+      window._dragTemplate = null;
+      clearHighlights();
+      const col = e.target.closest('.project-column');
+      if (!col || col.classList.contains('project-column--trash')) return;
+      const newId    = db.collection(`boards/${BOARD_ID}/tasks`).doc().id;
+      const now      = new Date().toISOString();
+      const cardData = {
+        id:       newId,
+        title:    tpl.title    || '',
+        text:     tpl.text     || '',
+        tag:      tpl.tag      || 'task',
+        priority: tpl.priority || '',
+        todos:    (tpl.todos   || []).map(t => ({ text: t.text, done: false, startDate: '', endDate: '' })),
+        link:     tpl.link     || '',
+        created:  now,
+        author:   currentUser?.uid || '',
+        timeline: [],
+        order:    9999
+      };
+      const newCard = renderCard(cardData);
+      col.appendChild(newCard);
+      _addCardTlEntry(newCard, 'create', 'Card Created from Template');
+      refreshAllColCounts();
+      scheduleOverflowCheck();
+      const colName = col.querySelector('.project-column-heading__title')?.textContent || '';
+      logActivity('create', `<b>Card</b> "${cardData.title || cardData.text.slice(0, 40) || 'New card'}" added to <b>${colName}</b> from template`);
+      saveTask(newCard, true);
+      return;
+    }
+
     if (!dragSrcEl) return;
     const task    = e.target.closest('.task');
     const col     = e.target.closest('.project-column');
     const colName = col ? col.querySelector('.project-column-heading__title')?.textContent : '';
+
+    // ── Multi-card drag ─────────────────────────────────────────────────────
+    if (dragSrcEls.length > 1) {
+      if (!col) { dragSrcEl = null; dragSrcEls = []; return; }
+      const newColId = +col.dataset.columnId;
+      const cards = dragSrcEls.slice();
+      cards.forEach(c => { c.style.opacity = '1'; col.appendChild(c); });
+      // Assign orders by DOM position after appending
+      const allSiblings = [...col.querySelectorAll(':scope > .task')];
+      cards.forEach(c => { c.dataset.order = allSiblings.indexOf(c); });
+      clearHighlights();
+      refreshAllColCounts();
+      scheduleOverflowCheck();
+      logActivity('move', `<b>${cards.length} card${cards.length !== 1 ? 's' : ''}</b> moved to <b>${colName}</b>`);
+      window._localWriteIds = window._localWriteIds || new Set();
+      cards.forEach(c => {
+        const id = c.dataset.id;
+        const order = +c.dataset.order;
+        window._localWriteIds.add(id);
+        db.collection(`boards/${BOARD_ID}/tasks`).doc(id)
+          .update({ columnId: newColId, order })
+          .then(() => setTimeout(() => window._localWriteIds?.delete(id), 500))
+          .catch(err => console.error('Multi-drag save failed:', err));
+      });
+      if (typeof window._bulkDeselectAll === 'function') window._bulkDeselectAll();
+      dragSrcEl = null;
+      dragSrcEls = [];
+      return;
+    }
+
     const cardText = dragSrcEl.querySelector('p')?.textContent.slice(0, 40) || 'Card';
     const fromTrash = dragSrcEl.closest('.project-column--trash') !== null;
 
@@ -2033,6 +2118,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.task__tl-edit-input'))    return;
     if (e.target.closest('.task__tl-entry--editing')) return;
     if (e.target.closest('.task__select-wrap'))       return;
+    if (e.target.closest('.task__todo-cb'))           return;
     if (task.classList.contains('task--expanded') && e.target.closest('.task__tl-text')) return;
     // Close any open timeline edit inputs across the whole board before toggling
     board.querySelectorAll('.task__tl-entry--editing').forEach(entry => {

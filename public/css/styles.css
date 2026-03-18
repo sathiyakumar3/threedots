@@ -541,6 +541,19 @@ h1 {
 .tags-row:hover .tags-rename-btn { opacity:1; }
 .tags-del-btn:hover { background:#fee2e2; color:#ef4444; }
 .tags-rename-btn:hover { background:#eef1fd; color:var(--purple); }
+/* ── Template drag handle ──────────────────────────────────────────────── */
+.tpl-drag-handle {
+  display:flex;
+  align-items:center;
+  flex-shrink:0;
+  color:#c4c9d4;
+  font-size:11px;
+  cursor:grab;
+  opacity:0;
+  transition:opacity .12s;
+}
+.tpl-drag-handle:active { cursor:grabbing; }
+.tags-row:hover .tpl-drag-handle { opacity:1; }
 /* -- Color Themes panel � floats to the right of the popup -- */
 .tags-themes {
   display:none;
@@ -1726,6 +1739,8 @@ body.view-tight .task:not(.task--expanded) .task__timeline { border-top:none !im
 body.view-cozy .task p                          { display:-webkit-box; -webkit-line-clamp:3; line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
 body.view-cozy .task .task__desc                { display:-webkit-box; -webkit-line-clamp:3; line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; }
 body.view-cozy .task--expanded p                { display:block; -webkit-line-clamp:unset; line-clamp:unset; overflow:visible; }
+body.view-cozy .task:not(.task--expanded) .task__tl-entry:last-of-type .task__tl-text { display:-webkit-box; -webkit-line-clamp:3; line-clamp:3; -webkit-box-orient:vertical; overflow:hidden; white-space:normal; }
+body.view-cozy .task--expanded .task__tl-text   { display:block; -webkit-line-clamp:unset; line-clamp:unset; overflow:visible; white-space:pre-wrap; }
 body.view-cozy .task:has(.task__title) .task__todos { display:flex; }
 body.view-cozy .task:has(.task__title) .task__link  { display:flex; }
 
@@ -6738,3 +6753,17 @@ body.dark .topbar-search.open .topbar-search__filter { border-left-color: var(--
 }
 
 
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   Column empty-state hint
+   ═══════════════════════════════════════════════════════════════════════════ */
+.project-column--empty::after {
+  content: "No cards yet";
+  display: block;
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--light-grey);
+  padding: 1.2rem .5rem .5rem;
+  pointer-events: none;
+  letter-spacing: .01em;
+}
