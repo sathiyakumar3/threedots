@@ -1692,6 +1692,7 @@ document.addEventListener('DOMContentLoaded', () => {
       }).catch(() => showToast('Could not save background', true));
     }
     bgPanel.classList.remove('open');
+    setTimeout(() => window._updateIconContrast?.(), 80);
   }
 
   window._applyBoardBackground = function(bg) {

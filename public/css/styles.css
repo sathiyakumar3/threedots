@@ -69,7 +69,7 @@ body.dark .project-info {
 }
 body.dark .topbar-logo svg text { fill:#F1F5F9; }
 body.dark .topbar-logo svg .logo-box { fill:#1E293B; }
-body.dark .project-tasks { background:var(--bg); }
+body.dark .project-tasks { background:#00000000 }
 body.dark .project-column {
   background:var(--surface);
   border-color:var(--border);
@@ -6601,6 +6601,24 @@ body.dark .app-content.has-bg .bulk-bar      { background: rgba(15,17,30,.85); }
 .app-content.has-bg.bg-is-dark .col-count.wip-near {
   background: rgba(245,158,11,.35);
   color: #fde68a;
+}
+
+/* ── Dark mode + light background — revert title/count to dark-on-light ── */
+body.dark .app-content.has-bg:not(.bg-is-dark) .project-column-heading__title {
+  color: #111827;
+  text-shadow: none;
+}
+body.dark .app-content.has-bg:not(.bg-is-dark) .col-count {
+  background: rgba(0,0,0,0.10);
+  color: #374151;
+}
+body.dark .app-content.has-bg:not(.bg-is-dark) .col-count.wip-over {
+  background: #fee2e2;
+  color: #ef4444;
+}
+body.dark .app-content.has-bg:not(.bg-is-dark) .col-count.wip-near {
+  background: #fef9c3;
+  color: #a16207;
 }
 
 /* Tags button */
