@@ -17,8 +17,6 @@ const analytics      = firebase.analytics();
 const googleProvider    = new firebase.auth.GoogleAuthProvider();
 const microsoftProvider = new firebase.auth.OAuthProvider('microsoft.com');
 
-console.log('Firebase initialized', firebase.app().name);
-
 // ── Mutable globals shared across all modules ──
 let currentUser = null;    // set by onAuthStateChanged in auth.js
 let BOARD_ID    = 'main';  // active board; switched in app.js

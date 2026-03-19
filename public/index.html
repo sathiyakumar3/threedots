@@ -3,7 +3,44 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Taskbz</title>
+  <title>Taskbz — Collaborative Kanban Boards</title>
+  <meta name="description" content="Taskbz is a fast, collaborative Kanban board app. Organise tasks, track progress, and work with your team in real time.">
+  <meta name="robots" content="index, follow">
+  <link rel="canonical" href="https://www.taskbz.com/">
+
+  <!-- Open Graph -->
+  <meta property="og:title" content="Taskbz — Collaborative Kanban Boards">
+  <meta property="og:description" content="Organise tasks, track progress, and collaborate with your team in real time.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://www.taskbz.com/">
+  <meta property="og:image" content="https://www.taskbz.com/images/og-image.png">
+  <meta property="og:image:width" content="1200">
+  <meta property="og:image:height" content="630">
+  <meta property="og:site_name" content="Taskbz">
+
+  <!-- Twitter Card -->
+  <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:title" content="Taskbz — Collaborative Kanban Boards">
+  <meta name="twitter:description" content="Organise tasks, track progress, and collaborate with your team in real time.">
+  <meta name="twitter:image" content="https://www.taskbz.com/images/og-image.png">
+
+  <!-- JSON-LD Structured Data -->
+  <script type="application/ld+json">
+  {
+    "@context": "https://schema.org",
+    "@type": "SoftwareApplication",
+    "name": "Taskbz",
+    "url": "https://www.taskbz.com/",
+    "description": "A fast, collaborative Kanban board app. Organise tasks, track progress, and work with your team in real time.",
+    "applicationCategory": "ProductivityApplication",
+    "operatingSystem": "Web",
+    "offers": {
+      "@type": "Offer",
+      "price": "0",
+      "priceCurrency": "USD"
+    }
+  }
+  </script>
   <link rel="icon" type="image/svg+xml" href="images/favicon.svg">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
@@ -13,7 +50,6 @@
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css">
   <link rel="stylesheet" href="css/styles.css?v=10">
   <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
-  <script defer src="https://cdn.jsdelivr.net/npm/@emailjs/browser@4/dist/email.min.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
@@ -465,6 +501,44 @@
   </div>
 
   <div class="login-overlay" id="loginOverlay">
+
+    <!-- Landing hero — visible on desktop (≥900px) only -->
+    <div class="login-hero">
+      <div class="login-hero__inner">
+        <div class="login-hero__logo">
+          <img class="logo-mode-light" src="images/logo-light.svg" width="140" height="38" alt="Taskbz">
+          <img class="logo-mode-dark"  src="images/logo-dark.svg"  width="140" height="38" alt="Taskbz">
+        </div>
+        <h1 class="login-hero__headline">Your team's work,<br>organised.</h1>
+        <p class="login-hero__sub">Visual Kanban boards — real-time, collaborative, free.</p>
+        <ul class="login-hero__features">
+          <li><i class="fas fa-bolt"></i><span>Real-time collaboration</span></li>
+          <li><i class="fas fa-columns"></i><span>Boards, cards &amp; deadlines</span></li>
+          <li><i class="fas fa-infinity"></i><span>Free forever, no credit card</span></li>
+        </ul>
+        <div class="login-hero__preview" aria-hidden="true">
+          <div class="lp-board">
+            <div class="lp-col">
+              <div class="lp-col__hdr"><span class="lp-dot" style="--c:#6366f1"></span>To Do</div>
+              <div class="lp-card"><span class="lp-tag" style="background:#dbeafe;color:#1d4ed8">Civil</span>Site inspection report</div>
+              <div class="lp-card"><span class="lp-tag" style="background:#fce7f3;color:#be185d">Admin</span>Reply to tender emails</div>
+              <div class="lp-card"><span class="lp-tag" style="background:#ede9fe;color:#6d28d9">Dev</span>Portal login page</div>
+            </div>
+            <div class="lp-col">
+              <div class="lp-col__hdr"><span class="lp-dot" style="--c:#f59e0b"></span>In Progress</div>
+              <div class="lp-card lp-card--active"><span class="lp-tag" style="background:#fef3c7;color:#b45309">Mech</span>Pump spec review</div>
+              <div class="lp-card"><span class="lp-tag" style="background:#dcfce7;color:#15803d">Elec</span>Panel load calc</div>
+            </div>
+            <div class="lp-col">
+              <div class="lp-col__hdr"><span class="lp-dot" style="--c:#22c55e"></span>Done</div>
+              <div class="lp-card lp-card--done">Kickoff meeting</div>
+              <div class="lp-card lp-card--done">Risk register</div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
     <div class="login-card">
       <div class="login-card__logo">
         <img class="logo-mode-light" src="images/logo-light.svg" width="148" height="40" alt="Taskbz logo">
@@ -551,6 +625,11 @@
       </div>
 
       <div class="login-error" id="loginError"></div>
+      <div class="login-legal">
+        <a href="privacy.html" target="_blank" rel="noopener">Privacy Policy</a>
+        <span>&middot;</span>
+        <a href="terms.html" target="_blank" rel="noopener">Terms of Service</a>
+      </div>
     </div>
   </div>
 

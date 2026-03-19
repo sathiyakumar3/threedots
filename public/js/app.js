@@ -1,12 +1,3 @@
-// ── EmailJS configuration ─────────────────────────────────────────────────
-// Sign up at https://www.emailjs.com, create a service + template, then fill in:
-window.EMAILJS_CONFIG = {
-  serviceId:  'YOUR_SERVICE_ID',   // e.g. 'service_abc123'
-  templateId: 'YOUR_TEMPLATE_ID',  // e.g. 'template_xyz789'
-  publicKey:  'YOUR_PUBLIC_KEY'    // EmailJS dashboard → Account → API Keys
-};
-// Template variables expected: {{to_email}}, {{board_name}}, {{invited_by}}, {{invite_link}}
-
 // ── _uidMap sessionStorage helpers ──────────────────────────────────────────
 let _uidCacheKey = '';
 function _uidMapInit(uid) {
@@ -185,8 +176,15 @@ document.addEventListener('DOMContentLoaded', () => {
     const avatarEl = document.getElementById('navAvatar');
     const avatarDropEl = document.getElementById('navAvatarDrop');
     if (user.photoURL) {
-      avatarEl.innerHTML = `<img src='${user.photoURL}' alt='avatar'>`;
-      if (avatarDropEl) avatarDropEl.innerHTML = `<img src='${user.photoURL}' alt='avatar'>`;
+      const safePhoto = safeUrl(user.photoURL);
+      if (safePhoto) {
+        avatarEl.innerHTML = `<img src='${safePhoto}' alt='avatar'>`;
+        if (avatarDropEl) avatarDropEl.innerHTML = `<img src='${safePhoto}' alt='avatar'>`;
+      } else {
+        const initial = (user.displayName || user.email || '?')[0].toUpperCase();
+        avatarEl.textContent = initial;
+        if (avatarDropEl) avatarDropEl.textContent = initial;
+      }
     } else {
       const initial = (user.displayName || user.email || '?')[0].toUpperCase();
       avatarEl.textContent = initial;
@@ -765,7 +763,7 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', scheduleOverflowCheck);
 
   // ── Author identity helpers ──────────────────────────────────────────────
-  function _authorName()  { return currentUser?.displayName || currentUser?.email || 'You'; }
+  function _authorName()  { const n = currentUser?.displayName || currentUser?.email || 'You'; return n.split(' ')[0]; }
 
   // ── Inject a single timeline entry into an existing card ────────────────
   function _addCardTlEntry(card, type, text) {
@@ -1362,9 +1360,6 @@ document.addEventListener('DOMContentLoaded', () => {
               return;
             }
             const boardName     = bd.name || 'a shared board';
-            const invitedByName = currentUser?.displayName || currentUser?.email || 'A team member';
-            const appUrl        = window.location.origin + window.location.pathname;
-            const inviteLink    = `${appUrl}?invite=${encodeURIComponent(email)}&board=${encodeURIComponent(BOARD_ID)}&bname=${encodeURIComponent(boardName)}`;
             const newNonMembers = [...nonMembers, email];
             const batch = db.batch();
             batch.update(db.doc(`boards/${BOARD_ID}`), { 'users.nonMembers': newNonMembers });
@@ -1374,15 +1369,13 @@ document.addEventListener('DOMContentLoaded', () => {
               boardId:       BOARD_ID,
               boardName,
               invitedBy:     currentUser.uid,
-              invitedByName,
               invitedAt:     firebase.firestore.FieldValue.serverTimestamp(),
               status:        'pending'
             });
             batch.commit().then(() => {
-              sendInvitationEmail({ email, boardName, invitedByName, inviteLink });
               window._pendingEmails = newNonMembers;
               participantMsg.className = 'team-panel__msg ok';
-              participantMsg.textContent = `Invitation sent to ${email}`;
+              participantMsg.textContent = `Invite sent — ${email} will see it when they sign in`;
               participantEmail.value = '';
               renderTeamPanel(admins, members, newNonMembers, document.getElementById('teamSearch').value.trim());
               document.getElementById('teamPanelCount').textContent = admins.length + members.length + newNonMembers.length;

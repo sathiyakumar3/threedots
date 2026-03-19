@@ -81,6 +81,12 @@ function fmtDate(ts) {
   return new Date(ts).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
 }
 
+// ── Extract first name from a full name string ──
+function firstNameOnly(name) {
+  if (!name) return name;
+  return name.split(' ')[0];
+}
+
 // ── Build comment tl-meta HTML snippet ──
 function tlMetaHTML(comment, time, author) {
   return `${comment}<div class='task__tl-meta'><time>${time}</time><b>${author}</b></div>`;
@@ -95,7 +101,7 @@ function buildTimeline(entries, opts) {
       const isComment   = e.type === 'comment';
       // Resolve UID → display name/photo; fall back gracefully for legacy display-name entries
       const _resolved   = (window._uidMap && e.author) ? window._uidMap[e.author] : null;
-      const authorName  = _resolved ? _resolved.name  : (e.author || 'User');
+      const authorName  = firstNameOnly(_resolved ? _resolved.name  : (e.author || 'User'));
       const authorPhoto = _resolved ? _resolved.photo : (window._userPhotoMap && e.author ? (window._userPhotoMap[e.author] || '') : '');
       const initial     = authorName[0].toUpperCase();
       const _safeAuthor = String(authorName).replace(/\\/g, '\\\\').replace(/'/g, "\\'");

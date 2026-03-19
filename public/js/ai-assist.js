@@ -1,58 +1,8 @@
-// To enable Gemini: set window.GEMINI_API_KEY before this script runs.
-// e.g. in firebase-init.js: window.GEMINI_API_KEY = 'YOUR_KEY_HERE';
-// Get a free key at https://aistudio.google.com/app/apikey
 (function () {
   let titleEl, textEl, titleBtn, descBtn;
   let aiAvailable = false;
 
-  // ── Gemini API ────────────────────────────────────────────────────────────
-  // Model preference order: try 2.0-flash first, fall back to 1.5-flash
-  const GEMINI_MODELS = [
-    'gemini-2.0-flash',
-    'gemini-1.5-flash'
-  ];
-  const GEMINI_BASE =
-    'https://generativelanguage.googleapis.com/v1beta/models/';
-
-  async function callGemini(prompt) {
-    const key = window.GEMINI_API_KEY;
-    if (!key || key === 'YOUR_GEMINI_API_KEY') throw new Error('Gemini API key not set.');
-
-    let lastErr;
-    for (const model of GEMINI_MODELS) {
-      const res = await fetch(`${GEMINI_BASE}${model}:generateContent?key=${encodeURIComponent(key)}`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          contents: [{ parts: [{ text: prompt }] }],
-          generationConfig: { temperature: 0.4, maxOutputTokens: 256 }
-        })
-      });
-
-      if (res.ok) {
-        const data = await res.json();
-        return data?.candidates?.[0]?.content?.parts?.[0]?.text?.trim() || '';
-      }
-
-      const errBody = await res.json().catch(() => ({}));
-      const msg = errBody?.error?.message || `HTTP ${res.status}`;
-
-      // 429 = quota / rate-limit → try next model
-      if (res.status === 429) {
-        console.warn(`[AI] ${model} quota exceeded, trying next model…`);
-        lastErr = new Error(`Quota exceeded (${model}). ${msg}`);
-        continue;
-      }
-
-      // Any other error is terminal
-      throw new Error(msg);
-    }
-
-    // All models exhausted
-    throw new Error('AI quota exceeded for all available models. Please try again later or upgrade your Gemini plan.');
-  }
-
-  // ── Chrome Summarizer fallback ────────────────────────────────────────────
+  // ── Chrome built-in Summarizer (browser AI) ───────────────────────────────
   async function checkSummarizerAvailable() {
     if (!('Summarizer' in self)) return false;
     const lang = (navigator.language || 'en').split('-')[0];
@@ -63,11 +13,6 @@
     return Summarizer.create({
       outputLanguage: (navigator.language || 'en').split('-')[0],
       ...options,
-      monitor(m) {
-        m.addEventListener('downloadprogress', e =>
-          console.log(`[AI] Downloading model: ${Math.round(e.loaded * 100)}%`)
-        );
-      },
     });
   }
 
@@ -104,25 +49,17 @@
       .trim();
   }
 
-  // ── Unified runner: tries Gemini first, falls back to Chrome Summarizer ───
-  async function runAI(btn, geminiPrompt, getChromeInput, getChromeOptions, onResult) {
+  // ── Unified runner: uses Chrome built-in Summarizer ─────────────────────
+  async function runAI(btn, _geminiPrompt, getChromeInput, getChromeOptions, onResult) {
     setLoading(btn, true);
     try {
-      let result = '';
-      const hasGemini = window.GEMINI_API_KEY && window.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY';
-      if (hasGemini) {
-        result = clean(await callGemini(geminiPrompt));
-      } else {
-        // Chrome Summarizer fallback
-        const summarizer = await createSummarizer(getChromeOptions());
-        result = clean((await summarizer.summarize(getChromeInput())).trim());
-        summarizer.destroy();
-      }
+      const summarizer = await createSummarizer(getChromeOptions());
+      const result = clean((await summarizer.summarize(getChromeInput())).trim());
+      summarizer.destroy();
       if (result) onResult(result);
     } catch (err) {
       console.error('[AI]', err);
-      const isQuota = err.message?.toLowerCase().includes('quota');
-      showToast(isQuota ? 'AI quota exceeded — try again later.' : 'AI generation failed.', true);
+      showToast('AI generation failed.', true);
     } finally {
       setLoading(btn, false);
       updateVisibility();
@@ -184,21 +121,11 @@
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    const hasGemini = window.GEMINI_API_KEY && window.GEMINI_API_KEY !== 'YOUR_GEMINI_API_KEY';
-    if (hasGemini) {
-      aiAvailable = true;
-      console.log('[AI] Using Gemini API');
+    checkSummarizerAvailable().then(available => {
+      aiAvailable = available;
       init();
       setupModalObserver();
-    } else {
-      // Fall back to Chrome Summarizer
-      checkSummarizerAvailable().then(available => {
-        aiAvailable = available;
-        console.log('[AI] Chrome Summarizer available:', aiAvailable);
-        init();
-        setupModalObserver();
-      });
-    }
+    });
   });
 
   function setupModalObserver() {
