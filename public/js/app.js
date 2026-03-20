@@ -448,6 +448,91 @@ document.addEventListener('DOMContentLoaded', () => {
     auth.signOut();
   });
 
+  // ── Delete account ───────────────────────────────────────────────────────
+  document.getElementById('deleteAccountBtn').addEventListener('click', () => {
+    document.getElementById('topbarUser')?.classList.remove('open');
+    Swal.fire({
+      title: 'Delete your account?',
+      html: 'This will permanently delete your account and all boards you own. This <strong>cannot be undone</strong>.',
+      icon: 'warning',
+      showCancelButton: true,
+      confirmButtonText: 'Yes, delete my account',
+      confirmButtonColor: '#e05252',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true
+    }).then(async result => {
+      if (!result.isConfirmed) return;
+
+      const user = auth.currentUser;
+      if (!user) return;
+      const uid = user.uid;
+
+      // Best-effort client-side cleanup before deleting the auth account:
+      // boards where the user is the sole admin are deleted; otherwise the
+      // user is just removed from the member/admin maps.  The Cloud Function
+      // (functions/index.js) handles any cleanup that survives a disconnection.
+      try {
+        const boardsSnap = await db.collection('boards').get();
+        const batch = db.batch();
+        let batchCount = 0;
+        const boardsToDelete = [];
+
+        for (const boardDoc of boardsSnap.docs) {
+          const data = boardDoc.data();
+          const admins  = data?.users?.admins  || {};
+          const members = data?.users?.members || {};
+          const isAdmin  = Object.prototype.hasOwnProperty.call(admins,  uid);
+          const isMember = Object.prototype.hasOwnProperty.call(members, uid);
+          if (!isAdmin && !isMember) continue;
+
+          const otherAdmins = Object.keys(admins).filter(id => id !== uid);
+          if (isAdmin && otherAdmins.length === 0) {
+            // Sole admin — queue for full deletion (subcollections cleaned by Cloud Function)
+            boardsToDelete.push(boardDoc.ref);
+          } else {
+            // Remove the user from admin/member maps
+            const update = {};
+            if (isAdmin)  update[`users.admins.${uid}`]  = firebase.firestore.FieldValue.delete();
+            if (isMember) update[`users.members.${uid}`] = firebase.firestore.FieldValue.delete();
+            batch.update(boardDoc.ref, update);
+            batchCount++;
+            if (batchCount >= 400) { await batch.commit(); batchCount = 0; }
+          }
+        }
+
+        for (const ref of boardsToDelete) {
+          batch.delete(ref);
+          batchCount++;
+          if (batchCount >= 400) { await batch.commit(); batchCount = 0; }
+        }
+
+        if (batchCount > 0) await batch.commit();
+
+        // Delete user profile document
+        await db.doc(`users/${uid}`).delete().catch(() => {});
+
+      } catch (err) {
+        console.warn('Pre-delete cleanup error (non-fatal):', err);
+      }
+
+      // Delete the Firebase Auth account
+      user.delete()
+        .then(() => { /* Cloud Function handles remaining cleanup */ })
+        .catch(err => {
+          if (err.code === 'auth/requires-recent-login') {
+            Swal.fire({
+              title: 'Re-authentication required',
+              text: 'For security, please sign out and sign back in, then try again.',
+              icon: 'info',
+              confirmButtonText: 'OK'
+            });
+          } else {
+            Swal.fire({ title: 'Error', text: err.message, icon: 'error' });
+          }
+        });
+    });
+  });
+
   // ── Search ───────────────────────────────────────────────────────────────
   const boardSearch   = document.getElementById('boardSearch');
   const searchClear   = document.getElementById('searchClear');
@@ -1849,6 +1934,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // If the dragged card is part of a bulk selection, carry all selected cards
     const isMulti = task.classList.contains('task--selected');
     dragSrcEls = isMulti ? [...board.querySelectorAll('.task--selected')] : [];
+    // Rotated ghost drag image
+    const _ghost = task.cloneNode(true);
+    _ghost.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${task.offsetWidth}px;transform:rotate(2deg) scale(1.03);opacity:0.9;pointer-events:none;border-radius:12px;box-shadow:0 16px 40px rgba(99,102,241,0.25),0 4px 12px rgba(0,0,0,0.15);`;
+    document.body.appendChild(_ghost);
+    e.dataTransfer.setDragImage(_ghost, task.offsetWidth / 2, 40);
+    requestAnimationFrame(() => { if (_ghost.parentNode) _ghost.parentNode.removeChild(_ghost); });
     setTimeout(() => {
       task.style.opacity = '0.4';
       if (isMulti) dragSrcEls.forEach(c => { if (c !== task) c.style.opacity = '0.4'; });
@@ -1909,6 +2000,8 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       const newCard = renderCard(cardData);
       col.appendChild(newCard);
+      newCard.classList.add('task--new');
+      setTimeout(() => newCard.classList.remove('task--new'), 400);
       _addCardTlEntry(newCard, 'create', 'Card Created from Template');
       refreshAllColCounts();
       scheduleOverflowCheck();
@@ -2096,6 +2189,21 @@ document.addEventListener('DOMContentLoaded', () => {
     }
     task.addEventListener('transitionend', finish);
   }
+
+  // ── Quick-add: click empty area of a column to open Add Card modal ───────
+  board.addEventListener('click', e => {
+    if (e.target.closest('.task')) return;
+    if (e.target.closest('.project-column-heading')) return;
+    if (e.target.closest('.col-dropdown')) return;
+    if (e.target.closest('.drop-zone')) return;
+    const colEl = e.target.closest('.project-column');
+    if (!colEl) return;
+    if (colEl.classList.contains('project-column--archive')) return;
+    if (colEl.classList.contains('project-column--trash')) return;
+    const cols   = [...document.querySelectorAll('.project-column')];
+    const colIdx = cols.indexOf(colEl);
+    if (colIdx >= 0 && typeof window._openModal === 'function') window._openModal(colIdx);
+  });
 
   // ── Card expand / collapse ───────────────────────────────────────────────
   board.addEventListener('click', e => {

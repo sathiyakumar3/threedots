@@ -871,10 +871,11 @@
       : '<i class="fas fa-plus"></i> Add Card';
   }
 
-  function openModal() {
+  function openModal(colIdx) {
     initDeadlinePicker();
     initStartDatePicker();
-    refreshColCombo(0);
+    const _colIdx = (typeof colIdx === 'number' && colIdx >= 0) ? colIdx : 0;
+    refreshColCombo(_colIdx);
     refreshAssigneeCombo();
     loadTemplates();
     const tags = window._getActiveTags ? window._getActiveTags() : [];
@@ -1174,6 +1175,8 @@
 
     const zone = colEl.querySelector('.drop-zone');
     zone ? colEl.insertBefore(card, zone) : colEl.appendChild(card);
+    card.classList.add('task--new');
+    setTimeout(() => card.classList.remove('task--new'), 400);
 
     logActivity('create', `<b>${authorName}</b> created the card - "${text.slice(0, 40)}"`);
     saveTask(card, true);

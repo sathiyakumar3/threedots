@@ -1,6 +1,4 @@
 User-agent: *
 Allow: /
-Disallow: /js/
-Disallow: /css/
 
 Sitemap: https://www.taskbz.com/sitemap.xml

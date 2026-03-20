@@ -1651,6 +1651,27 @@ body.dark .col-count.wip-near { background:rgba(245,158,11,.20); color:#fbbf24; 
   transform:translateY(-1px);
 }
 
+/* ── New card slide-in animation ── */
+@keyframes cardSlideIn {
+  from { opacity:0; transform:translateY(-14px) scale(0.97); }
+  to   { opacity:1; transform:translateY(0)     scale(1);    }
+}
+.task--new {
+  animation: cardSlideIn 0.28s cubic-bezier(.22,.68,0,1.2) both;
+}
+
+/* ── Empty column quick-add cursor hint ── */
+.project-column:not(.project-column--archive):not(.project-column--trash) {
+  cursor:pointer;
+}
+.project-column:not(.project-column--archive):not(.project-column--trash) .task,
+.project-column:not(.project-column--archive):not(.project-column--trash) .project-column-heading {
+  cursor:default;
+}
+.project-column:not(.project-column--archive):not(.project-column--trash) .task {
+  cursor:move;
+}
+
 .task__title {
   font-size:13.5px;
   font-weight:600;
@@ -1822,20 +1843,38 @@ body.dark .priority-btn.active.priority-btn--medium   { background:rgba(245,158,
 body.dark .priority-btn.active.priority-btn--high     { background:rgba(239,68,68,.18);   color:#f87171; border-color:#ef4444; }
 body.dark .priority-btn.active.priority-btn--critical { background:rgba(220,38,38,.22);   color:#fca5a5; border-color:#b91c1c; }
 
-/* Assignee avatars in the tags row */
+/* Assignee avatars in the tags row — stacked overlap */
 .task__assignees {
   display:inline-flex;
   align-items:center;
-  gap:2px;
+  gap:0;
   flex-shrink:0;
   margin-left:auto;
 }
 .task__assignees .tl-avatar,
 .task__assignees .tl-avatar--initial {
   margin-right:0;
-  width:20px;
-  height:20px;
+  margin-left:-5px;
+  width:22px;
+  height:22px;
   flex-shrink:0;
+  border:2px solid #fff;
+  box-sizing:border-box;
+  border-radius:50%;
+  transition:transform .15s;
+}
+.task__assignees .tl-avatar:first-child,
+.task__assignees .tl-avatar--initial:first-child {
+  margin-left:0;
+}
+.task__assignees .tl-avatar:hover,
+.task__assignees .tl-avatar--initial:hover {
+  transform:translateY(-2px) scale(1.1);
+  z-index:2;
+}
+body.dark .task__assignees .tl-avatar,
+body.dark .task__assignees .tl-avatar--initial {
+  border-color:var(--surface);
 }
 
 .task__age {
