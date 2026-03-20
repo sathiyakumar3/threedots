@@ -37,6 +37,23 @@ function showToast(msg, isError) {
 
 // ── Activity feed ──
 const MAX_ACTIVITY = 200;
+
+// Sanitize activity text: allow only safe inline tags with no event-handler attributes.
+function _sanitizeActivityText(html) {
+  const allowed = new Set(['b', 'em', 'i', 's', 'br', 'span']);
+  const div = document.createElement('div');
+  div.innerHTML = html;
+  div.querySelectorAll('*').forEach(el => {
+    if (!allowed.has(el.tagName.toLowerCase())) {
+      el.replaceWith(document.createTextNode(el.textContent));
+    } else {
+      // Keep only the 'class' attribute; strip everything else (incl. onerror, onclick)
+      [...el.attributes].forEach(a => { if (a.name !== 'class') el.removeAttribute(a.name); });
+    }
+  });
+  return div.innerHTML;
+}
+
 function logActivity(type, text, timeLabel, ts, skipPersist) {
   const feed = document.getElementById('activityFeed');
   if (!feed) return;
@@ -55,7 +72,7 @@ function logActivity(type, text, timeLabel, ts, skipPersist) {
   const now = timeLabel || new Date(finalTs).toLocaleString('en-US', { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' });
   const li  = document.createElement('li');
   li.dataset.ts = finalTs;
-  li.innerHTML = `<span class='task-icon ${cls}'><i class='${icon}'></i></span>${text}<time>${now}</time>`;
+  li.innerHTML = `<span class='task-icon ${cls}'><i class='${icon}'></i></span>${_sanitizeActivityText(text)}<time>${escapeHTML(now)}</time>`;
   feed.prepend(li);
   while (feed.children.length > MAX_ACTIVITY) feed.lastElementChild.remove();
   if (window._filterActivityFeed) window._filterActivityFeed();
@@ -104,7 +121,7 @@ function buildTimeline(entries, opts) {
       const authorName  = firstNameOnly(_resolved ? _resolved.name  : (e.author || 'User'));
       const authorPhoto = _resolved ? _resolved.photo : (window._userPhotoMap && e.author ? (window._userPhotoMap[e.author] || '') : '');
       const initial     = authorName[0].toUpperCase();
-      const _safeAuthor = String(authorName).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+      const _safeAuthor = String(authorName).replace(/\\/g, '\\\\').replace(/[\r\n]/g, ' ').replace(/'/g, "\\'").replace(/"/g, '&quot;');
       const avatarFallback = `this.replaceWith(Object.assign(document.createElement('span'),{className:'tl-avatar tl-avatar--initial',title:'${_safeAuthor}',textContent:'${initial}'}))`;
       const avatarHTML  = authorPhoto
         ? `<img class='tl-avatar' src='${authorPhoto}' alt='${escapeHTML(authorName)}' title='${escapeHTML(authorName)}' onerror="${avatarFallback}">`
@@ -128,7 +145,7 @@ window._uidMap = window._uidMap || {};
 // ── Resolve an assignee name → avatar HTML (img or initial circle) with tooltip ──
 function resolveAssigneeAvatar(name) {
   const initial = name && name[0] ? name[0].toUpperCase() : '?';
-  const _safeJsName = String(name).replace(/\\/g, '\\\\').replace(/'/g, "\\'");
+  const _safeJsName = String(name).replace(/\\/g, '\\\\').replace(/[\r\n]/g, ' ').replace(/'/g, "\\'").replace(/"/g, '&quot;');
   const fallback = `this.replaceWith(Object.assign(document.createElement('span'),{className:'tl-avatar tl-avatar--initial tl-avatar--assignee',title:'${_safeJsName}',textContent:'${initial}'}))`;
   const imgTag = (src) => `<img class='tl-avatar tl-avatar--assignee' src='${src}' alt='${escapeHTML(name)}' title='${escapeHTML(name)}' onerror="${fallback}">`;
   // 1. Fast path: pre-built photo map

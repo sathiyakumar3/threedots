@@ -70,7 +70,11 @@ service cloud.firestore {
 
       // ── Activity subcollection ──────────────────────────────────────────
       match /activity/{activityId} {
-        allow read, write: if isBoardMember(boardId);
+        allow read:   if isBoardMember(boardId);
+        allow create: if isBoardMember(boardId);
+        // No updates — preserve audit-trail integrity.
+        // Only admins may delete (e.g. clear-logs feature).
+        allow delete: if isBoardAdmin(boardId);
       }
 
       // ── Templates subcollection ─────────────────────────────────────────

@@ -18,8 +18,11 @@
   <meta property="og:image:height" content="630">
   <meta property="og:site_name" content="Taskbz">
 
+  <meta property="og:locale" content="en_AU">
+
   <!-- Twitter Card -->
   <meta name="twitter:card" content="summary_large_image">
+  <meta name="twitter:site" content="@taskbz">
   <meta name="twitter:title" content="Taskbz — Collaborative Kanban Boards">
   <meta name="twitter:description" content="Organise tasks, track progress, and collaborate with your team in real time.">
   <meta name="twitter:image" content="https://www.taskbz.com/images/og-image.png">
@@ -41,13 +44,23 @@
     }
   }
   </script>
+  <meta name="theme-color" content="#6366f1">
   <link rel="icon" type="image/svg+xml" href="images/favicon.svg">
+  <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+
+  <!-- DNS prefetch / preconnect for external resources -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="preconnect" href="https://cdnjs.cloudflare.com">
+  <link rel="preconnect" href="https://cdn.jsdelivr.net">
+  <link rel="preconnect" href="https://unpkg.com">
+
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/sweetalert2@11/dist/sweetalert2.min.css">
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/layout.css">
   <link rel="stylesheet" href="https://unpkg.com/vanilla-calendar-pro@3.1.0/styles/themes/light.css">
-  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@mdbassit/coloris@0.24.0/dist/coloris.min.css">
   <link rel="stylesheet" href="css/styles.css?v=10">
   <script defer src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
   <script defer src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
@@ -660,7 +673,7 @@
     </div>
   </div>
 
-  <script defer src="https://cdn.jsdelivr.net/gh/mdbassit/Coloris@latest/dist/coloris.min.js"></script>
+  <script defer src="https://cdn.jsdelivr.net/npm/@mdbassit/coloris@0.24.0/dist/coloris.min.js"></script>
   <script defer src="https://cdn.jsdelivr.net/npm/marked@9/marked.min.js"></script>
   <script defer src="js/utils.js"></script>
   <script defer src="js/cards.js"></script>
@@ -677,84 +690,7 @@
   <script defer src="js/templates-popup.js"></script>
   <script defer src="js/confetti.js"></script>
   <script defer src="js/calendar.js"></script>
-  <script>
-  (function () {
-    const STORAGE_KEY = 'qnotes_view';
-
-    function syncDensityPicker(view) {
-      document.querySelectorAll('.density-picker__opt').forEach(btn => {
-        btn.classList.toggle('active', btn.dataset.view === view);
-      });
-    }
-
-    window.applyView = function(view, persist) {
-      if (persist === undefined) persist = true;
-      document.body.classList.remove('view-tight', 'view-cozy', 'view-roomy');
-      if (['tight', 'cozy', 'roomy'].includes(view)) document.body.classList.add('view-' + view);
-      syncDensityPicker(view);
-      localStorage.setItem(STORAGE_KEY, view);
-      if (persist && window.saveViewPreference) window.saveViewPreference(view);
-    };
-
-    // Restore saved preference (no Firestore write on initial load)
-    window.applyView(localStorage.getItem(STORAGE_KEY) || 'cozy', false);
-
-    // Density picker: trigger toggles open (touch/click), opts apply view + close
-    document.addEventListener('click', e => {
-      const picker  = document.getElementById('densityPicker');
-      if (!picker) return;
-      const opt     = e.target.closest('.density-picker__opt');
-      const trigger = e.target.closest('.density-picker__trigger');
-      if (opt) {
-        window.applyView(opt.dataset.view);
-        picker.classList.remove('open');
-        document.getElementById('boardDropdown')?.classList.remove('open');
-        return;
-      }
-      if (trigger) {
-        const willOpen = !picker.classList.contains('open');
-        window.closeAllPopups && window.closeAllPopups(['densityPicker']);
-        picker.classList.toggle('open', willOpen);
-        return;
-      }
-      if (!e.target.closest('.density-picker')) {
-        picker.classList.remove('open');
-      }
-    });
-
-    // Handle invite URL params — pre-fill register form with invited email
-    (function() {
-      const params = new URLSearchParams(window.location.search);
-      const inviteEmail = params.get('invite');
-      const inviteBoard = params.get('board');
-      const inviteName  = params.get('bname');
-      if (!inviteEmail) return;
-      const regEmail     = document.getElementById('regEmail');
-      const loginForm    = document.getElementById('loginForm');
-      const registerForm = document.getElementById('registerForm');
-      const emailSection = document.getElementById('loginEmailSection');
-      const banner       = document.getElementById('inviteBanner');
-      if (regEmail)     regEmail.value = decodeURIComponent(inviteEmail);
-      if (emailSection) emailSection.classList.add('open');
-      if (loginForm)    loginForm.style.display = 'none';
-      if (registerForm) registerForm.style.display = '';
-      if (banner) {
-        banner.style.display = '';
-        const _bIcon = document.createElement('i');
-        _bIcon.className = 'fas fa-envelope-open-text';
-        banner.innerHTML = '';
-        if (inviteName) {
-          const _bBold = document.createElement('b');
-          _bBold.textContent = inviteName;
-          banner.append(_bIcon, document.createTextNode(" You've been invited to join "), _bBold);
-        } else {
-          banner.append(_bIcon, document.createTextNode(' You have a board invitation waiting'));
-        }
-      }
-      if (inviteBoard) sessionStorage.setItem('pendingInviteBoard', decodeURIComponent(inviteBoard));
-    })();
-  })();
-  </script>
+  <script defer src="js/init.js"></script>
 
 </body>
 </html>
