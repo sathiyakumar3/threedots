@@ -253,42 +253,6 @@ h1 {
   flex-direction:column;
 }
 
-/* ── Row wrapper: sidebar + board ── */
-.project-body {
-  display: flex;
-  flex-direction: row;
-  flex: 1;
-  min-height: 0;
-  align-items: stretch;
-  overflow-x: auto;
-  overflow-y: visible;
-}
-
-/* ── Collapsed columns sidebar ── */
-.collapsed-sidebar {
-  display: flex;
-  flex-direction: column;
-  gap: 8px;
-  flex-shrink: 0;
-  width: 0;
-  padding: 0;
-  overflow: hidden;
-  transition: width 0.28s cubic-bezier(0.4,0,.2,1),
-              padding 0.28s cubic-bezier(0.4,0,.2,1);
-}
-.collapsed-sidebar:not(:empty) {
-  width: 60px;
-  padding: 0.5rem 4px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  margin-right: 0px;
-}
-/* columns inside sidebar fill the available width */
-.collapsed-sidebar .project-column--collapsed {
-  width: 100%;
-  flex-shrink: 0;
-}
-
 /* --------------------------------------------------
    TOPBAR  (Metronic demo3 inspired)
 -------------------------------------------------- */
@@ -2038,59 +2002,6 @@ body.dark .task__assignees .tl-avatar--initial {
   padding:.5rem .5rem 1.25rem;
 }
 
-/* ── Collapsed column – narrow vertical pill ── */
-.project-column--collapsed {
-  min-height: 80px;
-  padding: 0.5rem 0.3rem;
-  cursor: pointer;
-  overflow: hidden;
-}
-.project-column--collapsed > .task,
-.project-column--collapsed > .trash-col-notice {
-  display: none !important;
-}
-/* card count + options hidden by default; count shown in sidebar */
-.project-column--collapsed .col-count,
-.project-column--collapsed .project-column-heading__options {
-  display: none;
-}
-.collapsed-sidebar .project-column--collapsed .col-count {
-  display: inline-flex;
-  margin: 4px auto 0;
-}
-.project-column--collapsed .project-column-heading {
-  flex-direction: column;
-  align-items: center;
-  justify-content: flex-start;
-  gap: 4px;
-  margin: 0;
-  padding: 0.5rem 0 0.75rem;
-  border-bottom: none;
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(99,102,241,0.10) 0%, transparent 100%);
-  position: sticky;
-  top: 0;
-}
-/* small expand hint at top of pill */
-
-.project-column--collapsed .project-column-heading__title {
-  writing-mode: vertical-rl;
-  text-orientation: mixed;
-  transform: rotate(180deg);
-  font-size: 12px;
-  font-weight: 600;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  max-height: calc(100vh - 160px);
-  margin: 0;
-  padding: 0;
-  flex-shrink: 0;
-}
-body.dark .project-column--collapsed .project-column-heading {
-  background: linear-gradient(180deg, rgba(99,102,241,0.18) 0%, transparent 100%);
-}
-
 .column-drag-over {
   background:rgba(26,86,232,.08);
   border-radius:8px;
@@ -3683,7 +3594,6 @@ body.dark .task__tl-edit-delete:hover { background:#2d1515; color:#f87171; borde
 .col-dropdown button.danger { color:#DC2626; }
 .col-dropdown button.danger:hover { background:#FEE2E2; }
 .col-dropdown button i { width:13px; text-align:center; }
-.col-dropdown hr.col-dropdown-sep { border:none; border-top:1px solid #e8eaf0; margin:4px 0; }
 .nav-rename-input {
   border:1px solid var(--purple);
   border-radius:4px;

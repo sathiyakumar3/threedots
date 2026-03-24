@@ -111,41 +111,41 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Show / hide app ──
   function showApp(user) {
-    currentUser = user;
+    window.currentUser = user;
     // Restore _uidMap from sessionStorage for this user (avoids repeat reads)
     _uidMapInit(user.uid);
     // Read user doc first to get favourite, then merge-update lastLogin
-    db.collection('users').doc(user.uid).get()
+    window.db.collection('users').doc(user.uid).get()
       .then(userSnap => {
         userFavouriteBoard = userSnap.exists ? (userSnap.data().favourite || null) : null;
         const savedView = userSnap.exists ? (userSnap.data().viewPreference || null) : null;
         if (savedView && window.applyView) window.applyView(savedView, false);
-        db.collection('users').doc(user.uid).set({
+        window.db.collection('users').doc(user.uid).set({
           uid:         user.uid,
           displayName: user.displayName || '',
           email:       user.email       || '',
           photoURL:    user.photoURL    || '',
-          lastLogin:   firebase.firestore.FieldValue.serverTimestamp()
+          lastLogin:   window.firebase.firestore.FieldValue.serverTimestamp()
         }, { merge: true }).catch(err => console.error('Error saving user:', err));
 
         // Convert any pending invitations for this user's email to full membership
         const conversionPromise = user.email
-          ? db.collection('invitations')
+          ? window.db.collection('invitations')
               .where('email', '==', user.email.toLowerCase())
               .where('status', '==', 'pending')
               .get()
               .then(invSnap => {
                 if (invSnap.empty) return;
-                const batch = db.batch();
+                const batch = window.db.batch();
                 invSnap.docs.forEach(invDoc => {
                   const inv = invDoc.data();
-                  batch.update(db.doc(`boards/${inv.boardId}`), {
-                    'users.members':    firebase.firestore.FieldValue.arrayUnion(user.uid),
-                    'users.nonMembers': firebase.firestore.FieldValue.arrayRemove(inv.email)
+                  batch.update(window.db.doc(`boards/${inv.boardId}`), {
+                    'users.members':    window.firebase.firestore.FieldValue.arrayUnion(user.uid),
+                    'users.nonMembers': window.firebase.firestore.FieldValue.arrayRemove(inv.email)
                   });
                   batch.update(invDoc.ref, {
                     status: 'accepted',
-                    acceptedAt:    firebase.firestore.FieldValue.serverTimestamp(),
+                    acceptedAt:    window.firebase.firestore.FieldValue.serverTimestamp(),
                     acceptedByUid: user.uid
                   });
                 });
@@ -200,8 +200,8 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('boardComboLabel').textContent = 'Select board';
     // Query boards where user is an admin OR a member (two queries merged)
     Promise.all([
-      db.collection('boards').where('users.admins',  'array-contains', uid).get(),
-      db.collection('boards').where('users.members', 'array-contains', uid).get()
+      window.db.collection('boards').where('users.admins',  'array-contains', uid).get(),
+      window.db.collection('boards').where('users.members', 'array-contains', uid).get()
     ]).then(([adminSnap, memberSnap]) => {
       const seen = new Set();
       const allDocs = [];
@@ -252,10 +252,10 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   function hideApp() {
-    currentUser = null;
+    window.currentUser = null;
     if (_tasksUnsub) { _tasksUnsub(); _tasksUnsub = null; }
     window._localWriteIds = new Set();
-    BOARD_ID = 'main';
+    window.BOARD_ID = 'main';
     board.innerHTML = '';
     document.getElementById('boardComboList').innerHTML = '';
     document.getElementById('boardComboLabel').textContent = 'Select board';
@@ -265,20 +265,20 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window.saveViewPreference = function(view) {
-    if (!currentUser) return;
-    db.collection('users').doc(currentUser.uid)
+    if (!window.currentUser) return;
+    window.db.collection('users').doc(window.currentUser.uid)
       .set({ viewPreference: view }, { merge: true })
       .catch(err => console.error('Error saving view preference:', err));
   };
 
   appShell.style.display = 'none';
-  auth.onAuthStateChanged(user => {
+  window.auth.onAuthStateChanged(user => {
     if (user) {
       const isEmailPassword = user.providerData.some(p => p.providerId === 'password');
       if (isEmailPassword && !user.emailVerified) {
         // Email/password account that hasn't verified yet — keep on login screen
         verifyBanner.style.display = '';
-        auth.signOut();
+        window.auth.signOut();
         return;
       }
       verifyBanner.style.display = 'none';
@@ -292,7 +292,7 @@ document.addEventListener('DOMContentLoaded', () => {
   btnGoogle.addEventListener('click', () => {
     clearLoginError();
     btnGoogle.classList.add('btn-social--loading');
-    auth.signInWithPopup(googleProvider)
+    window.auth.signInWithPopup(googleProvider)
       .catch(err => {
         console.error('Google sign-in error:', err.code, err.message);
         const msg = friendlyAuthError(err.code);
@@ -307,7 +307,7 @@ document.addEventListener('DOMContentLoaded', () => {
     clearLoginError();
     const btn = document.getElementById('btnMicrosoftSignIn');
     btn.classList.add('btn-social--loading');
-    auth.signInWithPopup(microsoftProvider)
+    window.auth.signInWithPopup(microsoftProvider)
       .catch(err => {
         console.error('Microsoft sign-in error:', err.code, err.message);
         const msg = friendlyAuthError(err.code);
@@ -325,12 +325,12 @@ document.addEventListener('DOMContentLoaded', () => {
     const password = document.getElementById('loginPassword').value;
     if (!email || !password) { setLoginError('Please enter your email and password.'); return; }
     setAuthLoading(btn, true);
-    auth.signInWithEmailAndPassword(email, password)
+    window.auth.signInWithEmailAndPassword(email, password)
       .then(cred => {
         if (!cred.user.emailVerified) {
           setLoginError('Please verify your email first — check your inbox for the verification link.');
           verifyBanner.style.display = '';
-          return auth.signOut();
+          return window.auth.signOut();
         }
       })
       .catch(err => {
@@ -355,7 +355,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (password.length < 6) { setLoginError('Password must be at least 6 characters.'); return; }
     if (password !== confirm) { setLoginError('Passwords do not match.'); return; }
     setAuthLoading(btn, true);
-    auth.createUserWithEmailAndPassword(email, password)
+    window.auth.createUserWithEmailAndPassword(email, password)
       .then(cred => {
         const tasks = [];
         if (name) tasks.push(cred.user.updateProfile({ displayName: name }));
@@ -380,7 +380,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Resend verification email ──
   document.getElementById('resendVerification').addEventListener('click', () => {
-    const user = auth.currentUser;
+    const user = window.auth.window.currentUser;
     if (!user) return;
     user.sendEmailVerification()
       .then(() => setLoginSuccess('Verification email resent — check your inbox.'))
@@ -407,7 +407,7 @@ document.addEventListener('DOMContentLoaded', () => {
     clearLoginError();
     btn.disabled = true;
     btn.textContent = 'Sending…';
-    auth.sendPasswordResetEmail(email)
+    window.auth.sendPasswordResetEmail(email)
       .then(() => setLoginSuccess('Reset email sent — check your inbox.'))
       .catch(err => {
         const msg = friendlyAuthError(err.code);
@@ -445,7 +445,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('logoutBtn').addEventListener('click', () => {
     document.getElementById('topbarUser')?.classList.remove('open');
-    auth.signOut();
+    window.auth.signOut();
   });
 
   // ── Delete account ───────────────────────────────────────────────────────
@@ -463,7 +463,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }).then(async result => {
       if (!result.isConfirmed) return;
 
-      const user = auth.currentUser;
+      const user = window.auth.window.currentUser;
       if (!user) return;
       const uid = user.uid;
 
@@ -472,8 +472,8 @@ document.addEventListener('DOMContentLoaded', () => {
       // user is just removed from the member/admin maps.  The Cloud Function
       // (functions/index.js) handles any cleanup that survives a disconnection.
       try {
-        const boardsSnap = await db.collection('boards').get();
-        const batch = db.batch();
+        const boardsSnap = await window.db.collection('boards').get();
+        const batch = window.db.batch();
         let batchCount = 0;
         const boardsToDelete = [];
 
@@ -492,8 +492,8 @@ document.addEventListener('DOMContentLoaded', () => {
           } else {
             // Remove the user from admin/member maps
             const update = {};
-            if (isAdmin)  update[`users.admins.${uid}`]  = firebase.firestore.FieldValue.delete();
-            if (isMember) update[`users.members.${uid}`] = firebase.firestore.FieldValue.delete();
+            if (isAdmin)  update[`users.admins.${uid}`]  = window.firebase.firestore.FieldValue.delete();
+            if (isMember) update[`users.members.${uid}`] = window.firebase.firestore.FieldValue.delete();
             batch.update(boardDoc.ref, update);
             batchCount++;
             if (batchCount >= 400) { await batch.commit(); batchCount = 0; }
@@ -509,7 +509,7 @@ document.addEventListener('DOMContentLoaded', () => {
         if (batchCount > 0) await batch.commit();
 
         // Delete user profile document
-        await db.doc(`users/${uid}`).delete().catch(() => {});
+        await window.db.doc(`users/${uid}`).delete().catch(() => {});
 
       } catch (err) {
         console.warn('Pre-delete cleanup error (non-fatal):', err);
@@ -606,7 +606,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Clear activity logs ──────────────────────────────────────────────────
   document.getElementById('activityClearBtn').addEventListener('click', () => {
-    if (!BOARD_ID) return;
+    if (!window.BOARD_ID) return;
     Swal.fire({
       title: 'Clear all activity logs?',
       text: 'This will permanently delete all activity entries for this board.',
@@ -621,10 +621,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const btn = document.getElementById('activityClearBtn');
       btn.innerHTML = '<i class="fas fa-spinner"></i> Clearing…';
       btn.disabled = true;
-      db.collection(`boards/${BOARD_ID}/activity`)
+      window.db.collection(`boards/${window.BOARD_ID}/activity`)
         .get()
         .then(snap => {
-          const batch = db.batch();
+          const batch = window.db.batch();
           snap.forEach(doc => batch.delete(doc.ref));
           return batch.commit();
         })
@@ -848,11 +848,11 @@ document.addEventListener('DOMContentLoaded', () => {
   window.addEventListener('resize', scheduleOverflowCheck);
 
   // ── Author identity helpers ──────────────────────────────────────────────
-  function _authorName()  { const n = currentUser?.displayName || currentUser?.email || 'You'; return n.split(' ')[0]; }
+  function _authorName()  { const n = window.currentUser?.displayName || window.currentUser?.email || 'You'; return n.split(' ')[0]; }
 
   // ── Inject a single timeline entry into an existing card ────────────────
   function _addCardTlEntry(card, type, text) {
-    const uid    = currentUser?.uid || '';
+    const uid    = window.currentUser?.uid || '';
     const name   = _authorName();
     const photo  = _authorPhoto();
     const now    = Date.now();
@@ -870,7 +870,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (footer) footer.insertAdjacentHTML('beforebegin', `<div class="task__timeline">${entryHTML}</div>`);
     }
   }
-  function _authorPhoto() { return currentUser?.photoURL    || ''; }
+  function _authorPhoto() { return window.currentUser?.photoURL    || ''; }
   function _authorAvatar() {
     const name  = _authorName();
     const photo = _authorPhoto();
@@ -900,12 +900,12 @@ document.addEventListener('DOMContentLoaded', () => {
     // Tear down any previous tasks listener before switching boards
     if (_tasksUnsub) { _tasksUnsub(); _tasksUnsub = null; }
     window._localWriteIds = new Set();
-    BOARD_ID = id;
+    window.BOARD_ID = id;
     board.innerHTML = '';
     document.getElementById('activityFeed').innerHTML = '';
     // ── Set up Firestore activity persistence hook ──
     window._persistActivity = (type, text, date, ts) => {
-      db.collection(`boards/${BOARD_ID}/activity`)
+      window.db.collection(`boards/${window.BOARD_ID}/activity`)
         .add({ type, text, date, ts })
         .catch(err => console.error('Activity persist error:', err));
     };
@@ -930,7 +930,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (actPanel)  actPanel.classList.add('collapsed');
     if (actToggle) { actToggle.classList.remove('active'); actToggle.title = 'Show activity'; }
 
-    db.doc(`boards/${id}`).get()
+    window.db.doc(`boards/${id}`).get()
       .then(snap => {
         if (snap.exists) {
           const data = snap.data();
@@ -946,16 +946,16 @@ document.addEventListener('DOMContentLoaded', () => {
           const _memberUids = data.users?.members || [];
           const _boardUsers = [...new Set([..._adminUids, ..._memberUids])];
           // Set current user's role for this board
-          window._boardRole    = _adminUids.includes(currentUser?.uid) ? 'admin' : 'member';
+          window._boardRole    = _adminUids.includes(window.currentUser?.uid) ? 'admin' : 'member';
           window._primaryAdmin = _adminUids[0] || null;
           window._pendingEmails = data.users?.nonMembers || [];
           const _appShell = document.getElementById('appShell');
           _appShell.dataset.role      = window._boardRole;
-          _appShell.dataset.isPrimary = (currentUser?.uid === window._primaryAdmin) ? 'true' : 'false';
+          _appShell.dataset.isPrimary = (window.currentUser?.uid === window._primaryAdmin) ? 'true' : 'false';
           // Prefetch all board member profiles into _uidMap before rendering cards
           const _uidsNeeded = _boardUsers.filter(uid => !(window._uidMap && window._uidMap[uid]));
           Promise.all(_uidsNeeded.map(uid =>
-            db.collection('users').doc(uid).get().then(s => ({ uid, s })).catch(() => null)
+            window.db.collection('users').doc(uid).get().then(s => ({ uid, s })).catch(() => null)
           )).then(results => {
             window._uidMap = window._uidMap || {};
             results.forEach(r => {
@@ -982,7 +982,7 @@ document.addEventListener('DOMContentLoaded', () => {
               }
               // ── Real-time tasks listener ──────────────────────────────
               let _tasksInitialised = false;
-              _tasksUnsub = db.collection(`boards/${id}/tasks`)
+              _tasksUnsub = window.db.collection(`boards/${id}/tasks`)
                 .onSnapshot(snap => {
                   if (!_tasksInitialised) {
                     // ── Initial load: same sorted batch render as before ──
@@ -1003,7 +1003,7 @@ document.addEventListener('DOMContentLoaded', () => {
                           if (deletedAt && (now - deletedAt) >= THIRTY_DAYS) {
                             const tid = card.dataset.id;
                             card.remove();
-                            if (tid) db.collection(`boards/${BOARD_ID}/tasks`).doc(tid).delete().catch(() => {});
+                            if (tid) window.db.collection(`boards/${window.BOARD_ID}/tasks`).doc(tid).delete().catch(() => {});
                             purged++;
                           }
                         });
@@ -1014,7 +1014,7 @@ document.addEventListener('DOMContentLoaded', () => {
                       }
                     } else if (Array.isArray(data.tasks) && data.tasks.length > 0) {
                       // Migration: tasks stored in top-level collection
-                      Promise.all(data.tasks.map(tid => db.collection('tasks').doc(tid).get()))
+                      Promise.all(data.tasks.map(tid => window.db.collection('tasks').doc(tid).get()))
                         .then(snaps => {
                           const tasks = snaps
                             .filter(s => s.exists)
@@ -1083,7 +1083,7 @@ document.addEventListener('DOMContentLoaded', () => {
             // Refresh filter assignee list after board loads
             setTimeout(() => { if (window._refreshFilterAssignees) window._refreshFilterAssignees(); }, 500);
             // ── Load persisted activity feed from subcollection ──
-            db.collection(`boards/${id}/activity`)
+            window.db.collection(`boards/${id}/activity`)
               .orderBy('ts', 'desc')
               .limit(200)
               .get()
@@ -1147,7 +1147,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Fetch any profiles not yet in _uidMap
     const unknown = allUids.filter(uid => !(window._uidMap && window._uidMap[uid]));
     Promise.all(unknown.map(uid =>
-      db.collection('users').doc(uid).get().catch(() => null)
+      window.db.collection('users').doc(uid).get().catch(() => null)
     )).then(snaps => {
       window._uidMap = window._uidMap || {};
       snaps.forEach(s => {
@@ -1194,7 +1194,7 @@ document.addEventListener('DOMContentLoaded', () => {
     participantMsg.className = 'team-panel__msg';
     teamPanel.classList.add('open');
     // Load and render team from Firestore
-    db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+    window.db.doc(`boards/${window.BOARD_ID}`).get().then(snap => {
       if (!snap.exists) return;
       const bd         = snap.data();
       const admins     = bd.users?.admins     || (bd.admins ? bd.admins : (bd.owner ? [bd.owner] : []));
@@ -1203,7 +1203,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const allUids = [...new Set([...admins, ...members])];
       const unknown = allUids.filter(uid => !(window._uidMap && window._uidMap[uid]));
       Promise.all(unknown.map(uid =>
-        db.collection('users').doc(uid).get().catch(() => null)
+        window.db.collection('users').doc(uid).get().catch(() => null)
       )).then(snaps => {
         window._uidMap = window._uidMap || {};
         snaps.forEach(s => {
@@ -1236,7 +1236,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const avatarHTML = photo
         ? `<img src='${photo}' alt='${name}'>`
         : name[0].toUpperCase();
-      const isCurrentUser   = uid === currentUser?.uid;
+      const isCurrentUser   = uid === window.currentUser?.uid;
       const viewerIsAdmin   = window._boardRole === 'admin';
       const isPrimaryAdmin  = uid === admins[0];
       const ownerBadge = isPrimaryAdmin
@@ -1319,21 +1319,21 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (revokeBtn) {
       const invEmail = revokeBtn.dataset.email;
-      db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+      window.db.doc(`boards/${window.BOARD_ID}`).get().then(snap => {
         if (!snap.exists) return;
         const bd         = snap.data();
         const admins     = bd.users?.admins     || [];
         const members    = bd.users?.members    || [];
         const nonMembers = (bd.users?.nonMembers || []).filter(e => e !== invEmail);
         // Mark any matching invitations as revoked, then update board
-        db.collection('invitations')
-          .where('boardId', '==', BOARD_ID)
+        window.db.collection('invitations')
+          .where('boardId', '==', window.BOARD_ID)
           .where('email',   '==', invEmail)
           .where('status',  '==', 'pending')
           .get()
           .then(invSnap => {
-            const batch = db.batch();
-            batch.update(db.doc(`boards/${BOARD_ID}`), { 'users.nonMembers': nonMembers });
+            const batch = window.db.batch();
+            batch.update(window.db.doc(`boards/${window.BOARD_ID}`), { 'users.nonMembers': nonMembers });
             invSnap.docs.forEach(d => batch.update(d.ref, { status: 'revoked' }));
             return batch.commit();
           })
@@ -1349,13 +1349,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (promoteBtn) {
       const uid = promoteBtn.dataset.uid;
-      db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+      window.db.doc(`boards/${window.BOARD_ID}`).get().then(snap => {
         if (!snap.exists) return;
         const bd      = snap.data();
         const admins  = bd.users?.admins  || [];
         const members = (bd.users?.members || []).filter(u => u !== uid);
         const newAdmins = [...admins, uid];
-        db.doc(`boards/${BOARD_ID}`).update({ 'users.admins': newAdmins, 'users.members': members })
+        window.db.doc(`boards/${window.BOARD_ID}`).update({ 'users.admins': newAdmins, 'users.members': members })
           .then(() => {
             renderParticipants(newAdmins, [...newAdmins, ...members]);
             renderTeamPanel(newAdmins, members, bd.users?.nonMembers || [], document.getElementById('teamSearch').value.trim());
@@ -1369,13 +1369,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (demoteBtn) {
       const uid = demoteBtn.dataset.uid;
-      db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+      window.db.doc(`boards/${window.BOARD_ID}`).get().then(snap => {
         if (!snap.exists) return;
         const bd      = snap.data();
         if ((bd.users?.admins || [])[0] === uid) return; // cannot demote primary admin
         const admins  = (bd.users?.admins  || []).filter(u => u !== uid);
         const members = [...(bd.users?.members || []), uid];
-        db.doc(`boards/${BOARD_ID}`).update({ 'users.admins': admins, 'users.members': members })
+        window.db.doc(`boards/${window.BOARD_ID}`).update({ 'users.admins': admins, 'users.members': members })
           .then(() => {
             renderParticipants(admins, [...admins, ...members]);
             renderTeamPanel(admins, members, bd.users?.nonMembers || [], document.getElementById('teamSearch').value.trim());
@@ -1401,12 +1401,12 @@ document.addEventListener('DOMContentLoaded', () => {
         reverseButtons: true
       }).then(result => {
         if (!result.isConfirmed) return;
-        db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+        window.db.doc(`boards/${window.BOARD_ID}`).get().then(snap => {
           if (!snap.exists) return;
           const bd      = snap.data();
           const admins  = bd.users?.admins  || [];
           const members = (bd.users?.members || []).filter(u => u !== uid);
-          db.doc(`boards/${BOARD_ID}`).update({ 'users.members': members }).then(() => {
+          window.db.doc(`boards/${window.BOARD_ID}`).update({ 'users.members': members }).then(() => {
             renderParticipants(admins, [...admins, ...members]);
             renderTeamPanel(admins, members, bd.users?.nonMembers || [], document.getElementById('teamSearch').value.trim());
             document.getElementById('teamPanelCount').textContent = admins.length + members.length + (bd.users?.nonMembers?.length || 0);
@@ -1430,11 +1430,11 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!email) { participantMsg.textContent = 'Please enter an email address.'; return; }
     participantMsg.className = 'team-panel__msg';
     participantMsg.textContent = 'Searching\u2026';
-    db.collection('users').where('email', '==', email).get()
+    window.db.collection('users').where('email', '==', email).get()
       .then(snap => {
         if (snap.empty) {
           // User not registered — send an invitation
-          db.doc(`boards/${BOARD_ID}`).get().then(boardSnap => {
+          window.db.doc(`boards/${window.BOARD_ID}`).get().then(boardSnap => {
             if (!boardSnap.exists) { participantMsg.textContent = 'Board not found.'; return; }
             const bd         = boardSnap.data();
             const admins     = bd.users?.admins     || [];
@@ -1446,15 +1446,15 @@ document.addEventListener('DOMContentLoaded', () => {
             }
             const boardName     = bd.name || 'a shared board';
             const newNonMembers = [...nonMembers, email];
-            const batch = db.batch();
-            batch.update(db.doc(`boards/${BOARD_ID}`), { 'users.nonMembers': newNonMembers });
-            const invRef = db.collection('invitations').doc();
+            const batch = window.db.batch();
+            batch.update(window.db.doc(`boards/${window.BOARD_ID}`), { 'users.nonMembers': newNonMembers });
+            const invRef = window.db.collection('invitations').doc();
             batch.set(invRef, {
               email,
-              boardId:       BOARD_ID,
+              boardId:       window.BOARD_ID,
               boardName,
-              invitedBy:     currentUser.uid,
-              invitedAt:     firebase.firestore.FieldValue.serverTimestamp(),
+              invitedBy:     window.currentUser.uid,
+              invitedAt:     window.firebase.firestore.FieldValue.serverTimestamp(),
               status:        'pending'
             });
             batch.commit().then(() => {
@@ -1476,7 +1476,7 @@ document.addEventListener('DOMContentLoaded', () => {
           return;
         }
         const foundUid = snap.docs[0].id;
-        return db.doc(`boards/${BOARD_ID}`).get().then(boardSnap => {
+        return window.db.doc(`boards/${window.BOARD_ID}`).get().then(boardSnap => {
           if (!boardSnap.exists) return;
           const boardData  = boardSnap.data();
           const admins  = boardData.users?.admins  || (boardData.admins ? boardData.admins : (boardData.owner ? [boardData.owner] : []));
@@ -1487,7 +1487,7 @@ document.addEventListener('DOMContentLoaded', () => {
             return;
           }
           const newMembers = [...members, foundUid];
-          return db.doc(`boards/${BOARD_ID}`).update({ 'users.members': newMembers }).then(() => {
+          return window.db.doc(`boards/${window.BOARD_ID}`).update({ 'users.members': newMembers }).then(() => {
             participantMsg.className = 'team-panel__msg ok';
             participantMsg.textContent = 'Member added!';
             participantEmail.value = '';
@@ -1532,14 +1532,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   document.getElementById('boardOptFavourite').addEventListener('click', () => {
     boardDropdown.classList.remove('open');
-    if (!currentUser) return;
-    const isFav = userFavouriteBoard === BOARD_ID;
+    if (!window.currentUser) return;
+    const isFav = userFavouriteBoard === window.BOARD_ID;
     const updateObj = isFav
-      ? { favourite: firebase.firestore.FieldValue.delete() }
-      : { favourite: BOARD_ID };
-    db.collection('users').doc(currentUser.uid).update(updateObj)
+      ? { favourite: window.firebase.firestore.FieldValue.delete() }
+      : { favourite: window.BOARD_ID };
+    window.db.collection('users').doc(window.currentUser.uid).update(updateObj)
       .then(() => {
-        userFavouriteBoard = isFav ? null : BOARD_ID;
+        userFavouriteBoard = isFav ? null : window.BOARD_ID;
         const favStar = document.getElementById('boardFavStar');
         if (favStar) favStar.classList.toggle('visible', !isFav);
         const favLbl = document.getElementById('boardOptFavouriteLabel');
@@ -1566,9 +1566,9 @@ document.addEventListener('DOMContentLoaded', () => {
     }).then(result => {
       if (!result.isConfirmed) return;
       const val = result.value.trim();
-      db.doc(`boards/${BOARD_ID}`).update({ name: val })
+      window.db.doc(`boards/${window.BOARD_ID}`).update({ name: val })
         .then(() => {
-          const item = document.getElementById('boardComboMenu').querySelector(`[data-board-id="${BOARD_ID}"]`);
+          const item = document.getElementById('boardComboMenu').querySelector(`[data-board-id="${window.BOARD_ID}"]`);
           if (item) item.textContent = val;
           document.getElementById('boardComboLabel').textContent = val;
           showToast('Board renamed ✅');
@@ -1591,11 +1591,11 @@ document.addEventListener('DOMContentLoaded', () => {
       reverseButtons: true
     }).then(result => {
       if (!result.isConfirmed) return;
-      db.doc(`boards/${BOARD_ID}`).delete()
+      window.db.doc(`boards/${window.BOARD_ID}`).delete()
         .then(() => {
           showToast('Board deleted');
           const menu = document.getElementById('boardComboMenu');
-          const item = menu.querySelector(`[data-board-id="${BOARD_ID}"]`);
+          const item = menu.querySelector(`[data-board-id="${window.BOARD_ID}"]`);
           if (item) item.remove();
           const next = menu.querySelector('.board-combo__item');
           if (next) {
@@ -1623,18 +1623,18 @@ document.addEventListener('DOMContentLoaded', () => {
       reverseButtons: true
     }).then(result => {
       if (!result.isConfirmed) return;
-      const uid = currentUser?.uid;
+      const uid = window.currentUser?.uid;
       if (!uid) return;
-      db.doc(`boards/${BOARD_ID}`).get().then(snap => {
+      window.db.doc(`boards/${window.BOARD_ID}`).get().then(snap => {
         if (!snap.exists) return;
         const bd      = snap.data();
         const admins  = (bd.users?.admins  || []).filter(u => u !== uid);
         const members = (bd.users?.members || []).filter(u => u !== uid);
-        db.doc(`boards/${BOARD_ID}`).update({ 'users.admins': admins, 'users.members': members })
+        window.db.doc(`boards/${window.BOARD_ID}`).update({ 'users.admins': admins, 'users.members': members })
           .then(() => {
             showToast('You have left the board');
             const menu = document.getElementById('boardComboMenu');
-            const item = menu?.querySelector(`[data-board-id="${BOARD_ID}"]`);
+            const item = menu?.querySelector(`[data-board-id="${window.BOARD_ID}"]`);
             if (item) item.remove();
             const next = menu?.querySelector('.board-combo__item');
             if (next) {
@@ -1652,7 +1652,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // -- Export board -------------------------------------------------------
   document.getElementById('boardOptExport').addEventListener('click', () => {
     boardDropdown.classList.remove('open');
-    if (!BOARD_ID) return;
+    if (!window.BOARD_ID) return;
     const boardName = document.getElementById('boardComboLabel').textContent || 'board';
     // Build export data from live DOM
     const cols = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
@@ -1764,9 +1764,9 @@ document.addEventListener('DOMContentLoaded', () => {
     bgPresetsEl.querySelectorAll('.board-bg-preset').forEach(b => {
       b.classList.toggle('active', b.dataset.bgValue === value);
     });
-    if (BOARD_ID) {
-      db.doc(`boards/${BOARD_ID}`).update({
-        background: value ? { type, value, dark: isDark } : firebase.firestore.FieldValue.delete()
+    if (window.BOARD_ID) {
+      window.db.doc(`boards/${window.BOARD_ID}`).update({
+        background: value ? { type, value, dark: isDark } : window.firebase.firestore.FieldValue.delete()
       }).catch(() => showToast('Could not save background', true));
     }
     bgPanel.classList.remove('open');
@@ -1846,7 +1846,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // -- Create a new board ------------------------------------------------------
   function createBoard(name) {
-    const uid = currentUser ? currentUser.uid : null;
+    const uid = window.currentUser ? window.currentUser.uid : null;
     const tags = window._getDefaultTags ? window._getDefaultTags() : [];
     const data = {
       name,
@@ -1870,11 +1870,11 @@ document.addEventListener('DOMContentLoaded', () => {
       date: now,
       ts
     }];
-    return db.collection('boards').add(data)
+    return window.db.collection('boards').add(data)
       .then(docRef => {
         addBoardSelectOption(docRef.id, name);
         // ── Add default "Get started" card to the first column (To Do = id 1) ──
-        const taskId = db.collection(`boards/${docRef.id}/tasks`).doc().id;
+        const taskId = window.db.collection(`boards/${docRef.id}/tasks`).doc().id;
         const taskTs = Date.now();
         const welcomeTask = {
           id:          taskId,
@@ -1910,7 +1910,7 @@ document.addEventListener('DOMContentLoaded', () => {
             ts:     taskTs
           }]
         };
-        db.collection(`boards/${docRef.id}/tasks`).doc(taskId).set(welcomeTask).catch(() => {});
+        window.db.collection(`boards/${docRef.id}/tasks`).doc(taskId).set(welcomeTask).catch(() => {});
         loadBoard(docRef.id);
         return docRef;
       })
@@ -1983,7 +1983,7 @@ document.addEventListener('DOMContentLoaded', () => {
       clearHighlights();
       const col = e.target.closest('.project-column');
       if (!col || col.classList.contains('project-column--trash')) return;
-      const newId    = db.collection(`boards/${BOARD_ID}/tasks`).doc().id;
+      const newId    = window.db.collection(`boards/${window.BOARD_ID}/tasks`).doc().id;
       const now      = new Date().toISOString();
       const cardData = {
         id:       newId,
@@ -1994,7 +1994,7 @@ document.addEventListener('DOMContentLoaded', () => {
         todos:    (tpl.todos   || []).map(t => ({ text: t.text, done: false, startDate: '', endDate: '' })),
         link:     tpl.link     || '',
         created:  now,
-        author:   currentUser?.uid || '',
+        author:   window.currentUser?.uid || '',
         timeline: [],
         order:    9999
       };
@@ -2034,7 +2034,7 @@ document.addEventListener('DOMContentLoaded', () => {
         const id = c.dataset.id;
         const order = +c.dataset.order;
         window._localWriteIds.add(id);
-        db.collection(`boards/${BOARD_ID}/tasks`).doc(id)
+        window.db.collection(`boards/${window.BOARD_ID}/tasks`).doc(id)
           .update({ columnId: newColId, order })
           .then(() => setTimeout(() => window._localWriteIds?.delete(id), 500))
           .catch(err => console.error('Multi-drag save failed:', err));
@@ -2098,7 +2098,7 @@ document.addEventListener('DOMContentLoaded', () => {
           .then(() => setTimeout(() => window._localWriteIds?.delete(taskId), 500))
           .catch(err => console.error('Drag save failed:', err));
       } else {
-        db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId)
+        window.db.collection(`boards/${window.BOARD_ID}/tasks`).doc(taskId)
           .update({ columnId: newColId, order: newOrder })
           .then(() => setTimeout(() => window._localWriteIds?.delete(taskId), 500))
           .catch(err => console.error('Drag save failed:', err));
@@ -2122,18 +2122,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return new Date(`${base} ${year - 1}`).getTime() || Date.now();
   }
   let   nextColId    = 100;
-  let   nextColOrder  = 0;
 
   function buildColumnsFromData(colData) {
     let maxId = 0;
-    colData.columns.forEach((col, i) => {
+    colData.columns.forEach(col => {
       const div       = document.createElement('div');
       let cls = 'project-column';
       if (col.archive) cls += ' project-column--archive';
       if (col.trash)   cls += ' project-column--trash';
       div.className   = cls;
       div.dataset.columnId = col.id;
-      div.dataset.colOrder = i;
       if (col.wipLimit) div.dataset.wipLimit = col.wipLimit;
       div.innerHTML   = `<div class='project-column-heading'>
         <h2 class='project-column-heading__title'>${col.title}</h2>
@@ -2144,8 +2142,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setupColDropdown(div);
       if (!col.archive && !col.trash && col.id < 97 && col.id > maxId) maxId = col.id;
     });
-    nextColId    = maxId + 1;
-    nextColOrder = colData.columns.length;
+    nextColId = maxId + 1;
     syncGrid();
   }
 
@@ -2193,71 +2190,7 @@ document.addEventListener('DOMContentLoaded', () => {
     task.addEventListener('transitionend', finish);
   }
 
-  // ── Collapse / expand a column – moves element to/from the collapsed sidebar ──
-  function toggleColCollapse(colEl) {
-    const sidebar     = document.getElementById('collapsedSidebar');
-    const isCollapsed = colEl.classList.contains('project-column--collapsed');
-    const tasks       = [...colEl.querySelectorAll(':scope > .task')];
-
-    if (isCollapsed) {
-      // ── Expand: move from sidebar back into board at correct sorted position ──
-      colEl.classList.remove('project-column--collapsed');
-      const myOrder   = +colEl.dataset.colOrder || 0;
-      const boardCols = [...board.querySelectorAll('.project-column')];
-      const anchor    = boardCols.find(c => (+c.dataset.colOrder || 0) > myOrder);
-      if (anchor) board.insertBefore(colEl, anchor);
-      else        board.appendChild(colEl);
-      syncGrid();
-      // Stagger-fade cards back in
-      tasks.forEach((t, i) => {
-        t.style.opacity    = '0';
-        t.style.transform  = 'translateY(-10px)';
-        t.style.transition = 'none';
-        void t.offsetHeight;
-        t.style.transition = `opacity 0.22s ${i * 28}ms ease, transform 0.22s ${i * 28}ms ease`;
-        requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = ''; });
-      });
-      const expandWait = 220 + (tasks.length > 0 ? (tasks.length - 1) * 28 : 0) + 60;
-      setTimeout(() => {
-        tasks.forEach(t => { t.style.opacity = t.style.transform = t.style.transition = ''; });
-        scheduleOverflowCheck();
-      }, expandWait);
-    } else {
-      // ── Collapse: assign colOrder if missing, fade cards, move to sidebar ──
-      if (!colEl.dataset.colOrder) {
-        const allCols = [...document.querySelectorAll('.project-column')];
-        colEl.dataset.colOrder = allCols.indexOf(colEl);
-      }
-      const doCollapse = () => {
-        colEl.classList.add('project-column--collapsed');
-        tasks.forEach(t => { t.style.opacity = t.style.transform = t.style.transition = ''; });
-        // Insert into sidebar in colOrder sort order
-        const myOrder      = +colEl.dataset.colOrder;
-        const sidebarPills = [...sidebar.querySelectorAll('.project-column--collapsed')];
-        const anchor       = sidebarPills.find(c => (+c.dataset.colOrder || 0) > myOrder);
-        if (anchor) sidebar.insertBefore(colEl, anchor);
-        else        sidebar.appendChild(colEl);
-        syncGrid();
-        scheduleOverflowCheck();
-        refreshColCount(colEl);
-      };
-      if (!tasks.length) { doCollapse(); return; }
-      tasks.forEach((t, i) => {
-        t.style.transition = `opacity 0.16s ${i * 22}ms ease, transform 0.16s ${i * 22}ms ease`;
-        t.style.opacity    = '0';
-        t.style.transform  = 'translateY(-8px)';
-      });
-      setTimeout(doCollapse, 160 + (tasks.length - 1) * 22 + 30);
-    }
-  }
-
   // ── Quick-add: click empty area of a column to open Add Card modal ───────
-  // Click anywhere on a collapsed-sidebar pill to expand it
-  document.getElementById('collapsedSidebar')?.addEventListener('click', e => {
-    const colEl = e.target.closest('.project-column--collapsed');
-    if (colEl) toggleColCollapse(colEl);
-  });
-
   board.addEventListener('click', e => {
     if (e.target.closest('.task')) return;
     if (e.target.closest('.project-column-heading')) return;
@@ -2331,14 +2264,14 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
       const srcData  = serializeTask(task);
-      const newId    = db.collection(`boards/${BOARD_ID}/tasks`).doc().id;
+      const newId    = window.db.collection(`boards/${window.BOARD_ID}/tasks`).doc().id;
       const now      = new Date().toISOString();
       const copyData = {
         ...srcData,
         id:       newId,
         title:    (srcData.title || '') + ' (copy)',
         created:  now,
-        author:   currentUser?.uid || '',
+        author:   window.currentUser?.uid || '',
         timeline: [],
         order:    (task.nextElementSibling
           ? parseInt(task.nextElementSibling.dataset.order, 10) : 9999)
@@ -2357,7 +2290,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const task = e.target.closest('.task');
       task.querySelector('.task__dropdown').classList.remove('open');
       openDropdown = null;
-      if (!currentUser) { showToast('Sign in to save templates.', true); return; }
+      if (!window.currentUser) { showToast('Sign in to save templates.', true); return; }
       const srcData = serializeTask(task);
       const templateData = {
         title:     srcData.title     || '',
@@ -2369,7 +2302,7 @@ document.addEventListener('DOMContentLoaded', () => {
         createdAt: Date.now(),
         name:      srcData.title     || srcData.text.slice(0, 40) || 'Template'
       };
-      db.collection(`boards/${BOARD_ID}/templates`).add(templateData)
+      window.db.collection(`boards/${window.BOARD_ID}/templates`).add(templateData)
         .then(() => showToast('Saved as template ✓'))
         .catch(err => { console.error('Template save failed:', err); showToast('Failed to save template', true); });
       return;
@@ -2384,7 +2317,7 @@ document.addEventListener('DOMContentLoaded', () => {
         showToast('Restore the card before editing.', true);
         return;
       }
-      if (window._boardRole === 'member' && task.dataset.createdByUid && task.dataset.createdByUid !== currentUser?.uid) {
+      if (window._boardRole === 'member' && task.dataset.createdByUid && task.dataset.createdByUid !== window.currentUser?.uid) {
         showToast('You can only edit your own tasks.', true);
         return;
       }
@@ -2402,8 +2335,6 @@ document.addEventListener('DOMContentLoaded', () => {
       delete task.dataset.deletedAt;
       delete task.dataset.deletedLabel;
       _addCardTlEntry(task, 'create', 'Card Recovered');
-      // Auto-expand collapsed destination column
-      if (firstNonSpecial.classList.contains('project-column--collapsed')) toggleColCollapse(firstNonSpecial);
       firstNonSpecial.appendChild(task);
       refreshAllColCounts();
       saveTask(task, true);
@@ -2414,7 +2345,7 @@ document.addEventListener('DOMContentLoaded', () => {
     // Delete
     if (e.target.closest('.task__opt-delete')) {
       const task     = e.target.closest('.task');
-      if (window._boardRole === 'member' && task.dataset.createdByUid && task.dataset.createdByUid !== currentUser?.uid) {
+      if (window._boardRole === 'member' && task.dataset.createdByUid && task.dataset.createdByUid !== window.currentUser?.uid) {
         showToast('You can only delete your own tasks.', true);
         task.querySelector('.task__dropdown')?.classList.remove('open');
         openDropdown = null;
@@ -2440,7 +2371,7 @@ document.addEventListener('DOMContentLoaded', () => {
           task.style.transition = 'opacity .2s';
           task.style.opacity    = '0';
           const deleteDoc = taskId
-            ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(err => console.warn('Could not delete task doc:', err))
+            ? window.db.collection(`boards/${window.BOARD_ID}/tasks`).doc(taskId).delete().catch(err => console.warn('Could not delete task doc:', err))
             : Promise.resolve();
           setTimeout(() => { task.remove(); deleteDoc.then(() => { refreshAllColCounts(); saveChanges(true); }); }, 200);
           logActivity('delete', `<b>${_authorName()}</b> permanently deleted "${cardTitle}"`);
@@ -2478,7 +2409,7 @@ document.addEventListener('DOMContentLoaded', () => {
           task.style.transition = 'opacity .2s';
           task.style.opacity    = '0';
           const deleteDoc = taskId
-            ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(err => console.warn('Could not delete task doc:', err))
+            ? window.db.collection(`boards/${window.BOARD_ID}/tasks`).doc(taskId).delete().catch(err => console.warn('Could not delete task doc:', err))
             : Promise.resolve();
           setTimeout(() => { task.remove(); deleteDoc.then(() => saveChanges(true)); }, 200);
         }
@@ -2498,7 +2429,7 @@ document.addEventListener('DOMContentLoaded', () => {
       if (!textDiv.dataset.comment && textDiv.dataset.comment !== '') return; // not a comment entry
       // Members can only edit their own comments
       const entryAuthor = entry.dataset.authorUid;
-      if (window._boardRole === 'member' && entryAuthor && entryAuthor !== currentUser?.uid) return;
+      if (window._boardRole === 'member' && entryAuthor && entryAuthor !== window.currentUser?.uid) return;
       const current = textDiv.dataset.comment || '';
       const metaTime = textDiv.querySelector('.task__tl-meta time')?.textContent || '';
       // Close any other open edits across the whole board
@@ -2538,7 +2469,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.task__tl-edit-delete')) {
       const entry = e.target.closest('.task__tl-entry');
       const entryAuthor = entry.dataset.authorUid;
-      if (window._boardRole === 'member' && entryAuthor && entryAuthor !== currentUser?.uid) {
+      if (window._boardRole === 'member' && entryAuthor && entryAuthor !== window.currentUser?.uid) {
         showToast('You can only delete your own comments.', true);
         return;
       }
@@ -2608,7 +2539,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const entry = document.createElement('div');
       entry.className = 'task__tl-entry';
       entry.dataset.ts = _now;
-      entry.dataset.authorUid = currentUser?.uid || '';
+      entry.dataset.authorUid = window.currentUser?.uid || '';
       entry.innerHTML = `<span class='task__tl-dot task__tl-dot--comment'>${_authorAvatar()}</span>
         <div class='task__tl-text' data-comment="${comment.replace(/"/g, '&quot;')}">${comment}<div class='task__tl-meta'><time>${today}</time><b>${_authorName()}</b></div></div>`;
 
@@ -2678,23 +2609,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (openColDropdown && openColDropdown !== dd) openColDropdown.classList.remove('open');
       dd.classList.toggle('open', !isOpen);
       openColDropdown = !isOpen ? dd : null;
-      // Update collapse/expand button label
-      if (!isOpen) {
-        const collapseBtn = dd.querySelector('.col-opt-collapse');
-        if (collapseBtn) {
-          const collapsed = colEl.classList.contains('project-column--collapsed');
-          collapseBtn.innerHTML = collapsed
-            ? `<i class='fas fa-expand-alt'></i> Expand column`
-            : `<i class='fas fa-compress-alt'></i> Collapse column`;
-        }
-      }
-      return;
-    }
-    // Collapse / expand column
-    if (e.target.closest('.col-opt-collapse')) {
-      const colEl = e.target.closest('.project-column');
-      colEl.querySelector('.col-dropdown').classList.remove('open'); openColDropdown = null;
-      toggleColCollapse(colEl);
       return;
     }
     // Rename column
@@ -2717,7 +2631,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const newCol = document.createElement('div');
       newCol.className = 'project-column';
       newCol.dataset.columnId = nextColId++;
-      newCol.dataset.colOrder = nextColOrder++;
       newCol.innerHTML = `<div class='project-column-heading'><h2 class='project-column-heading__title'>New Column</h2><button class='project-column-heading__options'><i class="fas fa-ellipsis-h"></i></button></div>`;
       colEl.parentNode.insertBefore(newCol, colEl);
       setupColDropdown(newCol);
@@ -2738,7 +2651,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const newCol = document.createElement('div');
       newCol.className = 'project-column';
       newCol.dataset.columnId = nextColId++;
-      newCol.dataset.colOrder = nextColOrder++;
       newCol.innerHTML = `<div class='project-column-heading'><h2 class='project-column-heading__title'>New Column</h2><button class='project-column-heading__options'><i class="fas fa-ellipsis-h"></i></button></div>`;
       colEl.parentNode.insertBefore(newCol, colEl.nextSibling);
       setupColDropdown(newCol);
@@ -2793,10 +2705,10 @@ document.addEventListener('DOMContentLoaded', () => {
         reverseButtons: true
       }).then(result => {
         if (!result.isConfirmed) return;
-        const batch = db.batch();
+        const batch = window.db.batch();
         [...colEl.querySelectorAll(':scope > .task')].forEach(card => {
           const tid = card.dataset.id;
-          if (tid) batch.delete(db.collection(`boards/${BOARD_ID}/tasks`).doc(tid));
+          if (tid) batch.delete(window.db.collection(`boards/${window.BOARD_ID}/tasks`).doc(tid));
           card.remove();
         });
         batch.commit().catch(err => console.error('Empty trash failed:', err));

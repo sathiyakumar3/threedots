@@ -2122,18 +2122,16 @@ document.addEventListener('DOMContentLoaded', () => {
     return new Date(`${base} ${year - 1}`).getTime() || Date.now();
   }
   let   nextColId    = 100;
-  let   nextColOrder  = 0;
 
   function buildColumnsFromData(colData) {
     let maxId = 0;
-    colData.columns.forEach((col, i) => {
+    colData.columns.forEach(col => {
       const div       = document.createElement('div');
       let cls = 'project-column';
       if (col.archive) cls += ' project-column--archive';
       if (col.trash)   cls += ' project-column--trash';
       div.className   = cls;
       div.dataset.columnId = col.id;
-      div.dataset.colOrder = i;
       if (col.wipLimit) div.dataset.wipLimit = col.wipLimit;
       div.innerHTML   = `<div class='project-column-heading'>
         <h2 class='project-column-heading__title'>${col.title}</h2>
@@ -2144,8 +2142,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setupColDropdown(div);
       if (!col.archive && !col.trash && col.id < 97 && col.id > maxId) maxId = col.id;
     });
-    nextColId    = maxId + 1;
-    nextColOrder = colData.columns.length;
+    nextColId = maxId + 1;
     syncGrid();
   }
 
@@ -2193,71 +2190,7 @@ document.addEventListener('DOMContentLoaded', () => {
     task.addEventListener('transitionend', finish);
   }
 
-  // ── Collapse / expand a column – moves element to/from the collapsed sidebar ──
-  function toggleColCollapse(colEl) {
-    const sidebar     = document.getElementById('collapsedSidebar');
-    const isCollapsed = colEl.classList.contains('project-column--collapsed');
-    const tasks       = [...colEl.querySelectorAll(':scope > .task')];
-
-    if (isCollapsed) {
-      // ── Expand: move from sidebar back into board at correct sorted position ──
-      colEl.classList.remove('project-column--collapsed');
-      const myOrder   = +colEl.dataset.colOrder || 0;
-      const boardCols = [...board.querySelectorAll('.project-column')];
-      const anchor    = boardCols.find(c => (+c.dataset.colOrder || 0) > myOrder);
-      if (anchor) board.insertBefore(colEl, anchor);
-      else        board.appendChild(colEl);
-      syncGrid();
-      // Stagger-fade cards back in
-      tasks.forEach((t, i) => {
-        t.style.opacity    = '0';
-        t.style.transform  = 'translateY(-10px)';
-        t.style.transition = 'none';
-        void t.offsetHeight;
-        t.style.transition = `opacity 0.22s ${i * 28}ms ease, transform 0.22s ${i * 28}ms ease`;
-        requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = ''; });
-      });
-      const expandWait = 220 + (tasks.length > 0 ? (tasks.length - 1) * 28 : 0) + 60;
-      setTimeout(() => {
-        tasks.forEach(t => { t.style.opacity = t.style.transform = t.style.transition = ''; });
-        scheduleOverflowCheck();
-      }, expandWait);
-    } else {
-      // ── Collapse: assign colOrder if missing, fade cards, move to sidebar ──
-      if (!colEl.dataset.colOrder) {
-        const allCols = [...document.querySelectorAll('.project-column')];
-        colEl.dataset.colOrder = allCols.indexOf(colEl);
-      }
-      const doCollapse = () => {
-        colEl.classList.add('project-column--collapsed');
-        tasks.forEach(t => { t.style.opacity = t.style.transform = t.style.transition = ''; });
-        // Insert into sidebar in colOrder sort order
-        const myOrder      = +colEl.dataset.colOrder;
-        const sidebarPills = [...sidebar.querySelectorAll('.project-column--collapsed')];
-        const anchor       = sidebarPills.find(c => (+c.dataset.colOrder || 0) > myOrder);
-        if (anchor) sidebar.insertBefore(colEl, anchor);
-        else        sidebar.appendChild(colEl);
-        syncGrid();
-        scheduleOverflowCheck();
-        refreshColCount(colEl);
-      };
-      if (!tasks.length) { doCollapse(); return; }
-      tasks.forEach((t, i) => {
-        t.style.transition = `opacity 0.16s ${i * 22}ms ease, transform 0.16s ${i * 22}ms ease`;
-        t.style.opacity    = '0';
-        t.style.transform  = 'translateY(-8px)';
-      });
-      setTimeout(doCollapse, 160 + (tasks.length - 1) * 22 + 30);
-    }
-  }
-
   // ── Quick-add: click empty area of a column to open Add Card modal ───────
-  // Click anywhere on a collapsed-sidebar pill to expand it
-  document.getElementById('collapsedSidebar')?.addEventListener('click', e => {
-    const colEl = e.target.closest('.project-column--collapsed');
-    if (colEl) toggleColCollapse(colEl);
-  });
-
   board.addEventListener('click', e => {
     if (e.target.closest('.task')) return;
     if (e.target.closest('.project-column-heading')) return;
@@ -2402,8 +2335,6 @@ document.addEventListener('DOMContentLoaded', () => {
       delete task.dataset.deletedAt;
       delete task.dataset.deletedLabel;
       _addCardTlEntry(task, 'create', 'Card Recovered');
-      // Auto-expand collapsed destination column
-      if (firstNonSpecial.classList.contains('project-column--collapsed')) toggleColCollapse(firstNonSpecial);
       firstNonSpecial.appendChild(task);
       refreshAllColCounts();
       saveTask(task, true);
@@ -2678,23 +2609,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (openColDropdown && openColDropdown !== dd) openColDropdown.classList.remove('open');
       dd.classList.toggle('open', !isOpen);
       openColDropdown = !isOpen ? dd : null;
-      // Update collapse/expand button label
-      if (!isOpen) {
-        const collapseBtn = dd.querySelector('.col-opt-collapse');
-        if (collapseBtn) {
-          const collapsed = colEl.classList.contains('project-column--collapsed');
-          collapseBtn.innerHTML = collapsed
-            ? `<i class='fas fa-expand-alt'></i> Expand column`
-            : `<i class='fas fa-compress-alt'></i> Collapse column`;
-        }
-      }
-      return;
-    }
-    // Collapse / expand column
-    if (e.target.closest('.col-opt-collapse')) {
-      const colEl = e.target.closest('.project-column');
-      colEl.querySelector('.col-dropdown').classList.remove('open'); openColDropdown = null;
-      toggleColCollapse(colEl);
       return;
     }
     // Rename column
@@ -2717,7 +2631,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const newCol = document.createElement('div');
       newCol.className = 'project-column';
       newCol.dataset.columnId = nextColId++;
-      newCol.dataset.colOrder = nextColOrder++;
       newCol.innerHTML = `<div class='project-column-heading'><h2 class='project-column-heading__title'>New Column</h2><button class='project-column-heading__options'><i class="fas fa-ellipsis-h"></i></button></div>`;
       colEl.parentNode.insertBefore(newCol, colEl);
       setupColDropdown(newCol);
@@ -2738,7 +2651,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const newCol = document.createElement('div');
       newCol.className = 'project-column';
       newCol.dataset.columnId = nextColId++;
-      newCol.dataset.colOrder = nextColOrder++;
       newCol.innerHTML = `<div class='project-column-heading'><h2 class='project-column-heading__title'>New Column</h2><button class='project-column-heading__options'><i class="fas fa-ellipsis-h"></i></button></div>`;
       colEl.parentNode.insertBefore(newCol, colEl.nextSibling);
       setupColDropdown(newCol);

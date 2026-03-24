@@ -1,0 +1,12 @@
+﻿<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 120 120" role="img" aria-label="Taskbz mark">
+  <style>
+    .logo-box { fill: #0F172A; }
+    @media (prefers-color-scheme: dark) {
+      .logo-box { fill: #1E293B; }
+    }
+  </style>
+  <rect x="0" y="0" width="120" height="120" rx="28" class="logo-box"/>
+  <rect x="22" y="24" width="22" height="64" rx="11" fill="#F8FAFC" opacity="0.92"/>
+  <rect x="49" y="24" width="22" height="48" rx="11" fill="#F8FAFC" opacity="0.72"/>
+  <rect x="76" y="24" width="22" height="56" rx="11" fill="#F8FAFC" opacity="0.52"/>
+</svg>

@@ -1,9 +1,6 @@
 // ── Serialize board-level data (name + columns only, no task bodies) ──
 function serializeBoard() {
-  const sidebar     = document.getElementById('collapsedSidebar');
-  const sidebarCols = sidebar ? [...sidebar.querySelectorAll('.project-column')] : [];
-  const boardCols   = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
-  const cols = [...sidebarCols, ...boardCols].sort((a, b) => (+a.dataset.colOrder || 0) - (+b.dataset.colOrder || 0));
+  const cols = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
   const name = document.querySelector('#boardComboMenu .board-combo__item.active')?.textContent
             || document.getElementById('boardComboLabel')?.textContent
             || 'My Board';
@@ -24,10 +21,7 @@ function serializeBoard() {
 // ── Persist board to Firestore ──
 // Tasks are stored as a subcollection: boards/{id}/tasks/{taskId}
 function saveChanges(silent) {
-  const sidebar     = document.getElementById('collapsedSidebar');
-  const sidebarCols = sidebar ? [...sidebar.querySelectorAll('.project-column')] : [];
-  const boardCols   = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
-  const cols = [...sidebarCols, ...boardCols].sort((a, b) => (+a.dataset.colOrder || 0) - (+b.dataset.colOrder || 0));
+  const cols  = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
   const batch = db.batch();
 
   cols.forEach((col, i) => {
@@ -83,8 +77,6 @@ function setupColDropdown(colEl) {
        ${isSpecial ? '' : `<button class='col-opt-add-before'><i class='fas fa-arrow-left'></i> Add column before</button>`}
        ${isSpecial || isDone ? '' : `<button class='col-opt-add-after'><i class='fas fa-arrow-right'></i> Add column after</button>`}
        ${isSpecial || isDone ? '' : `<button class='col-opt-wip'><i class='fas fa-tachometer-alt'></i> WIP Limit</button>`}
-       <hr class='col-dropdown-sep'>
-       <button class='col-opt-collapse'><i class='fas fa-compress-alt'></i> Collapse column</button>
        ${isTrash ? `<button class='col-opt-empty-trash danger'><i class='fas fa-fire-alt'></i> Empty Trash</button>` : ''}
        ${isSpecial || isDone ? '' : `<button class='col-opt-delete danger'><i class='fas fa-trash-alt'></i> Delete column</button>`}
      </div>`);
@@ -116,7 +108,7 @@ function syncGrid() {
     if (trsh) trsh.style.gridColumn = '';
     totalCells += 1;
   }
-  board.style.gridTemplateColumns = totalCells ? `repeat(${totalCells}, 1fr)` : '';
+  board.style.gridTemplateColumns = `repeat(${totalCells}, 1fr)`;
 }
 
 // ── Distribute overflow cards into CSS sub-columns when content exceeds viewport ──
@@ -126,7 +118,6 @@ const _SUBCOL_MIN_W = 300;
 function checkColumnOverflow() {
   const board = document.querySelector('.project-tasks');
   if (!board) return;
-  // Collapsed columns live in the sidebar — only process active board columns
   const colEls = [...board.querySelectorAll('.project-column:not(.project-column--archive):not(.project-column--trash)')];
   if (!colEls.length) return;
 

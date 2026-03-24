@@ -1,0 +1,272 @@
+// ── Short display label for a URL ──
+function shortLinkLabel(url) {
+  try {
+    let host = new URL(url).hostname;
+    host = host.replace(/^www\./, '');
+    host = host.replace(/\.[^.]+$/, '');
+    return host || url;
+  } catch (e) { return url; }
+}
+
+// ── Render markdown safely (bold, italic, code, links, lists) ──
+// Only called after marked.js is loaded; falls back to escaped plain text.
+function _renderMarkdown(text) {
+  if (!text) return '';
+  if (typeof marked === 'undefined') return escapeHTML(text);
+  const renderer = new marked.Renderer();
+  // Restrict links to safe protocols only
+  renderer.link = function(href, title, txt) {
+    const safe = safeUrl(href);
+    if (!safe) return escapeHTML(txt || href);
+    const t = title ? ` title="${escapeHTML(title)}"` : '';
+    return `<a href="${safe}"${t} target="_blank" rel="noopener">${txt}</a>`;
+  };
+  try {
+    return marked.parse(text, { renderer, breaks: true, html: false, gfm: true });
+  } catch (e) {
+    return escapeHTML(text);
+  }
+}
+
+// ── Validate a URL: only allow http(s) to prevent javascript: injection ──
+function safeUrl(url) {
+  if (!url) return '';
+  try {
+    const u = new URL(url);
+    return (u.protocol === 'https:' || u.protocol === 'http:') ? url : '';
+  } catch (e) { return ''; }
+}
+
+// ── Deadline helpers ──
+function fmtDeadline(iso) {
+  if (!iso) return '';
+  const [datePart, timePart] = iso.split(' ');
+  const [, m, d] = datePart.split('-');
+  const months = ['Jan','Feb','Mar','Apr','May','Jun','Jul','Aug','Sep','Oct','Nov','Dec'];
+  const dateStr = months[parseInt(m, 10) - 1] + ' ' + parseInt(d, 10);
+  return (timePart && timePart !== '00:00') ? dateStr + ' ' + timePart : dateStr;
+}
+function isOverdue(iso) {
+  if (!iso) return false;
+  const hasTime = iso.includes(' ');
+  const d = hasTime ? new Date(iso.replace(' ', 'T')) : new Date(iso);
+  const now = hasTime ? new Date() : new Date(new Date().toDateString());
+  return d < now;
+}
+
+// ── Build todos HTML for a card ──
+function buildTodosHTML(todos) {
+  if (!todos || !todos.length) return '';
+  const done  = todos.filter(t => t.done).length;
+  const total = todos.length;
+  const pct   = total ? Math.round(done / total * 100) : 0;
+  const items = todos.map((t, i) => {
+    const displayDate = t.endDate || t.dueDate || '';
+    const startDate   = t.startDate || '';
+    let dateBadge = '';
+    if (startDate && displayDate) {
+      dateBadge = `<span class='task__todo-date${isOverdue(displayDate) ? " task__todo-date--overdue" : ""}'><i class='fas fa-play-circle'></i>${fmtDeadline(startDate)}<i class='fas fa-arrow-right' style='font-size:7px;margin:0 2px'></i>${fmtDeadline(displayDate)}</span>`;
+    } else if (displayDate) {
+      dateBadge = `<span class='task__todo-date${isOverdue(displayDate) ? " task__todo-date--overdue" : ""}'><i class='fas fa-calendar-alt'></i>${fmtDeadline(displayDate)}</span>`;
+    } else if (startDate) {
+      dateBadge = `<span class='task__todo-date'><i class='fas fa-play-circle'></i>${fmtDeadline(startDate)}</span>`;
+    }
+    return `<label class='task__todo-item'${displayDate ? ` data-due-date='${displayDate}'` : ''}${startDate ? ` data-start-date='${startDate}'` : ''}>
+       <input type='checkbox' class='task__todo-cb' data-idx='${i}' ${t.done ? 'checked' : ''}>
+       <span class='task__todo-text${t.done ? ' task__todo-text--done' : ''}'>${escapeHTML(t.text)}</span>
+       ${dateBadge}
+     </label>`;
+  }).join('');
+  return `<div class='task__todos'>
+    ${items}
+    <div class='task__todos-progress'>
+      <span>${done}/${total}</span>
+      <div class='task__todos-bar'><div class='task__todos-bar-fill' style='width:${pct}%'></div></div>
+    </div>
+  </div>`;
+}
+
+// ── Serialize a single card DOM element to plain JSON ──
+function serializeTask(cardEl) {
+  const tagClass = [...cardEl.querySelector('.task__tag').classList].find(c => c.startsWith('task__tag--'));
+  const tag      = tagClass ? tagClass.replace('task__tag--', '') : 'copyright';
+  const text     = cardEl.querySelector('.task__desc')?.dataset.raw
+               ?? cardEl.querySelector('p')?.textContent ?? '';
+  const timeEl   = cardEl.querySelector('.task__stats time');
+  const flagDate = timeEl
+    ? [...timeEl.childNodes].filter(n => n.nodeType === 3).map(n => n.textContent.trim()).join('')
+    : '';
+  const statsSpans  = cardEl.querySelectorAll('.task__stats span');
+  const comments    = parseInt(statsSpans[1]?.textContent) || 0;
+  const attachments = parseInt(statsSpans[2]?.textContent) || 0;
+  const todos = [...cardEl.querySelectorAll('.task__todo-item')].map(el => ({
+    text:      el.querySelector('.task__todo-text')?.textContent || '',
+    done:      el.querySelector('.task__todo-cb')?.checked || false,
+    startDate: el.dataset.startDate || '',
+    endDate:   el.dataset.dueDate   || ''
+  }));
+  const link = cardEl.querySelector('.task__link a')?.getAttribute('href') || '';
+  const timeline    = [];
+  cardEl.querySelectorAll('.task__tl-entry').forEach(entry => {
+    const dotEl  = entry.querySelector('.task__tl-dot');
+    const dotCls = [...dotEl.classList].find(c => c.startsWith('task__tl-dot--'));
+    const type   = dotCls ? dotCls.replace('task__tl-dot--', '') : 'create';
+    const textDiv = entry.querySelector('.task__tl-text');
+    const author  = textDiv.querySelector('b')?.textContent || '';
+    let entryText, date;
+    if (type === 'comment') {
+      entryText = textDiv.dataset.comment || '';
+      date      = textDiv.querySelector('.task__tl-meta time')?.textContent || '';
+    } else {
+      date      = textDiv.querySelector('time')?.textContent || '';
+      entryText = [...textDiv.childNodes]
+        .filter(n => n.nodeType === 3)
+        .map(n => n.textContent.trim())
+        .filter(Boolean).join(' ');
+    }
+    // author is stored as UID (new) or display name (legacy); either way keep as-is for look-up
+    const authorUid = entry.dataset.authorUid || author;
+    const ts = entry.dataset.ts ? +entry.dataset.ts : undefined;
+    timeline.push({ type, author: authorUid, text: entryText, date, ...(ts ? { ts } : {}) });
+  });
+  const titleText = cardEl.querySelector('.task__title')?.textContent || cardEl.dataset.title || '';
+  return {
+    id:          cardEl.dataset.id || db.collection(`boards/${BOARD_ID}/tasks`).doc().id,
+    title: titleText,
+    tag, text, flagDate, comments, attachments, todos, link,
+    startDate: cardEl.dataset.startDate || '',
+    deadline:  cardEl.dataset.deadline  || '',
+    assignee:  cardEl.dataset.assignee  || '',
+    priority:  cardEl.dataset.priority  || '',
+    created:     cardEl.dataset.created || '',
+    author:      cardEl.dataset.createdByUid || '',
+    ...(cardEl.dataset.deletedAt ? { deletedAt: +cardEl.dataset.deletedAt } : {}),
+    timeline
+  };
+}
+
+// ── Render a single card from JSON data ──
+function renderCard(taskData) {
+  const card       = document.createElement('div');
+  card.className   = 'task';
+  card.draggable   = true;
+  card.dataset.id  = taskData.id;
+  if (taskData.order !== undefined) card.dataset.order = taskData.order;
+  if (taskData.created)    card.dataset.created    = taskData.created;
+  if (taskData.startDate)  card.dataset.startDate  = taskData.startDate;
+  if (taskData.deadline)   card.dataset.deadline   = taskData.deadline;
+  if (taskData.assignee)   card.dataset.assignee   = taskData.assignee;
+  if (taskData.priority)   card.dataset.priority   = taskData.priority;
+  if (taskData.deletedAt)  card.dataset.deletedAt  = taskData.deletedAt;
+  // Support new `author` field (UID string) and legacy `createdBy: { uid }` object
+  const authorUid  = taskData.author || taskData.createdBy?.uid || '';
+  const _cbResolved = (window._uidMap && authorUid) ? window._uidMap[authorUid] : null;
+  const ownerName  = _cbResolved ? _cbResolved.name  : '';
+  const ownerPhoto = _cbResolved ? _cbResolved.photo : '';
+  card.dataset.createdByUid   = authorUid;
+  card.dataset.createdByName  = ownerName;
+  card.dataset.createdByPhoto = ownerPhoto;
+  const ownerHTML  = ownerName
+    ? (ownerPhoto
+        ? `<img class='tl-avatar' src='${ownerPhoto}' alt='${ownerName}' title='${ownerName}'>`
+        : `<span class='tl-avatar tl-avatar--initial' title='${ownerName}'>${ownerName[0].toUpperCase()}</span>`)
+    : '';
+  const todosHTML = buildTodosHTML(taskData.todos);
+  const _safeLink = safeUrl(taskData.link);
+  const linkHTML  = _safeLink
+    ? `<div class='task__link'><a href='${_safeLink}' target='_blank' rel='noopener'><i class='fas fa-link'></i>${escapeHTML(shortLinkLabel(_safeLink))}</a></div>`
+    : '';
+  const hasDeadline  = !!taskData.deadline;
+  const hasStartDate = !!taskData.startDate;
+  const hasAssignee  = !!taskData.assignee;
+  const sdSpanHTML   = hasStartDate
+    ? `<span class='task__startdate'><i class='fas fa-play-circle'></i>${fmtDeadline(taskData.startDate)}</span>`
+    : '';
+  const flagSpanHTML = hasDeadline
+    ? `<span class='task__deadline${isOverdue(taskData.deadline) ? ' task__deadline--overdue' : ''}'><i class='fas fa-flag'></i>${fmtDeadline(taskData.deadline)}</span>`
+    : (hasAssignee ? `<span class='task__no-value'><i class='fas fa-flag'></i>No Deadline</span>` : '');
+  const assigneeTagsHTML = hasAssignee
+    ? `<span class='task__assignees'>${taskData.assignee.split(', ').map(n => resolveAssigneeAvatar(n.trim())).join('')}</span>`
+    : (hasDeadline ? `<span class='task__no-value task__no-assignee'><i class='fas fa-user'></i>No Assignee</span>` : '');
+  const statsHTML = (sdSpanHTML || flagSpanHTML || assigneeTagsHTML)
+    ? `<div class='task__stats'>${sdSpanHTML}${flagSpanHTML}${assigneeTagsHTML}</div>`
+    : '';
+  if (taskData.title) card.dataset.title = taskData.title;
+  card.innerHTML   = `
+    <div class='task__tags'>
+      <span class='task__tag task__tag--${taskData.tag}'>${escapeHTML(tagLabels[taskData.tag] || '')}</span>
+      ${taskData.priority ? `<span class='task__priority task__priority--${taskData.priority}'>${escapeHTML(taskData.priority[0].toUpperCase() + taskData.priority.slice(1))}</span>` : ''}
+      <button class='task__options'><i class='fas fa-ellipsis-h'></i></button>
+    </div>
+    ${taskData.title ? `<h4 class='task__title'>${escapeHTML(taskData.title)}</h4>` : ''}
+    <div class='task__desc' data-raw='${escapeHTML(taskData.text)}'>${_renderMarkdown(taskData.text)}</div>
+    ${todosHTML}
+    ${linkHTML}
+    ${statsHTML}`;
+  // Cache searchable text to avoid per-keystroke child DOM queries
+  card.dataset.search = `${taskData.title || ''} ${taskData.text} ${tagLabels[taskData.tag] || ''} ${taskData.priority || ''}`.toLowerCase();
+  {
+    const creates = (taskData.timeline || []).filter(e => e.type === 'create');
+    const others  = (taskData.timeline || []).filter(e => e.type !== 'create');
+    // Synthesise a create entry from createdBy metadata when none is stored
+    const createEntries = creates.length ? creates : (() => {
+      if (!authorUid) return [];
+      const ts   = taskData.created ? new Date(taskData.created).getTime() : Date.now();
+      const date = taskData.created
+        ? new Date(taskData.created).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' })
+        : '';
+      return [{ type: 'create', author: authorUid, text: 'Card Created', date, ts }];
+    })();
+    // create entries go FIRST → never :last-of-type → hidden when collapsed
+    const ordered = [...createEntries, ...others];
+    if (ordered.length) card.insertAdjacentHTML('beforeend', buildTimeline(ordered, { createOnly: !others.length }));
+  }
+  addUpdateWidget(card);
+  refreshExpandBtn(card);
+  return card;
+}
+
+// ── Append the update widget (age badge, dropdown, footer, comment box) ──
+function addUpdateWidget(card) {
+  const ageTxt = daysAgo(card.dataset.created);
+  if (ageTxt) {
+    card.querySelector('.task__options').insertAdjacentHTML('beforebegin',
+      `<span class='task__age'>${ageTxt}</span>`);
+  }
+  card.querySelector('.task__tags').insertAdjacentHTML('beforeend',
+    `<div class='task__dropdown'>
+       <button class='task__opt-edit'><i class='fas fa-pen'></i> Edit</button>
+       <button class='task__opt-duplicate'><i class='fas fa-copy'></i> Duplicate</button>
+       <button class='task__opt-save-template'><i class='fas fa-layer-group'></i> Save as Template</button>
+       <button class='task__opt-restore'><i class='fas fa-trash-restore'></i> Restore</button>
+       <button class='task__opt-delete danger'><i class='fas fa-trash-alt'></i> Delete</button>
+     </div>`);
+  // Selection checkbox (injected as first child of tags row)
+  card.querySelector('.task__tags').insertAdjacentHTML('afterbegin',
+    `<label class='task__select-wrap' title='Select card'><input type='checkbox' class='task__select-cb'></label>`);
+  card.insertAdjacentHTML('beforeend',
+    `<div class='task__footer'>
+       <button class='task__expand-btn'><i class='fas fa-chevron-down'></i><span></span></button>
+     </div>
+     <div class='task__comment-box'>
+       <textarea class='task__comment-input' placeholder='Add a comment...' rows='2'></textarea>
+       <div class='task__comment-actions'>
+         <button class='task__cc-cancel'>Cancel</button>
+         <button class='task__cc-submit'>Post</button>
+       </div>
+     </div>`);
+  card.querySelector('.task__comment-input').addEventListener('mousedown', e => e.stopPropagation());
+}
+
+// ── Refresh the expand/collapse button state ──
+function refreshExpandBtn(card) {
+  const btn     = card.querySelector('.task__expand-btn');
+  if (!btn) return;
+  const entries = card.querySelectorAll('.task__tl-entry');
+  const count   = entries.length;
+  if (count <= 1) { btn.classList.remove('has-history'); return; }
+  btn.classList.add('has-history');
+  const expanded = card.classList.contains('task--expanded');
+  btn.querySelector('span').textContent = expanded ? ' collapse' : ` ${count - 1} earlier`;
+  btn.querySelector('.fas').className   = expanded ? 'fas fa-chevron-up' : 'fas fa-chevron-down';
+}
