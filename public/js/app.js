@@ -845,7 +845,17 @@ document.addEventListener('DOMContentLoaded', () => {
   }).observe(board, { childList: true, subtree: true });
 
   // Re-check overflow when the window is resized
-  window.addEventListener('resize', scheduleOverflowCheck);
+  window.addEventListener('resize', () => {
+    // Clamp any fixed colWidths that now exceed the available board width
+    const boardEl = document.querySelector('.project-tasks');
+    if (boardEl) {
+      const maxW = boardEl.clientWidth;
+      boardEl.querySelectorAll('.project-column[data-col-width]').forEach(col => {
+        if (+col.dataset.colWidth > maxW) delete col.dataset.colWidth;
+      });
+    }
+    scheduleOverflowCheck();
+  });
 
   // ── Author identity helpers ──────────────────────────────────────────────
   function _authorName()  { const n = currentUser?.displayName || currentUser?.email || 'You'; return n.split(' ')[0]; }
@@ -896,12 +906,19 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ── Load a board by Firestore doc ID ────────────────────────────────────
+  let _currentLoadId = 0; // incremented on every loadBoard call to discard stale responses
   function loadBoard(id) {
     // Tear down any previous tasks listener before switching boards
     if (_tasksUnsub) { _tasksUnsub(); _tasksUnsub = null; }
+    const _loadId = ++_currentLoadId; // capture for stale-response guard
     window._localWriteIds = new Set();
     BOARD_ID = id;
     board.innerHTML = '';
+    // Clear any collapsed columns carried over from the previous board
+    const _csl = document.getElementById('collapsedSidebar');
+    const _csr = document.getElementById('collapsedSidebarRight');
+    if (_csl) _csl.innerHTML = '';
+    if (_csr) _csr.innerHTML = '';
     document.getElementById('activityFeed').innerHTML = '';
     // ── Set up Firestore activity persistence hook ──
     window._persistActivity = (type, text, date, ts) => {
@@ -917,11 +934,11 @@ document.addEventListener('DOMContentLoaded', () => {
     document.getElementById('boardComboMenu').querySelectorAll('.board-combo__item')
       .forEach(b => b.classList.toggle('active', b.dataset.boardId === id));
     // Reset archive button + show-archive state
-    board.classList.remove('show-archive');
-    document.getElementById('archiveBtn').classList.remove('active');
+    board.classList.add('show-archive');
+    document.getElementById('archiveBtn').classList.add('active');
     // Reset trash button + show-trash state
-    board.classList.remove('show-trash');
-    document.getElementById('trashBtn').classList.remove('active');
+    board.classList.add('show-trash');
+    document.getElementById('trashBtn').classList.add('active');
     // Close board options dropdown if open
     document.getElementById('boardDropdown').classList.remove('open');
     // Reset activity panel to collapsed
@@ -932,6 +949,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     db.doc(`boards/${id}`).get()
       .then(snap => {
+        if (_loadId !== _currentLoadId) return; // stale response – a newer loadBoard fired
         if (snap.exists) {
           const data = snap.data();
           const name = data.name || 'Board';
@@ -965,11 +983,17 @@ document.addEventListener('DOMContentLoaded', () => {
             });
             if (data.columns) {
               buildColumnsFromData(data.columns);
+              // Show archive and trash by default
+              board.classList.add('show-archive', 'show-trash');
+              document.getElementById('archiveBtn').classList.add('active');
+              document.getElementById('trashBtn').classList.add('active');
+              syncGrid();
               // ── Migration: add Trash column to boards that pre-date the feature ──
               if (!board.querySelector('.project-column--trash')) {
                 const trashDiv = document.createElement('div');
                 trashDiv.className = 'project-column project-column--trash';
                 trashDiv.dataset.columnId = '100';
+                trashDiv.dataset.colOrder  = '998';
                 trashDiv.innerHTML = `<div class='project-column-heading'>
                   <h2 class='project-column-heading__title'>Trash</h2>
                   <span class='col-count'>0</span>
@@ -980,7 +1004,39 @@ document.addEventListener('DOMContentLoaded', () => {
                 syncGrid();
                 saveChanges(true);
               }
+              // ── Migration: add Archive column to boards that pre-date the feature ──
+              if (!board.querySelector('.project-column--archive')) {
+                const archiveDiv = document.createElement('div');
+                archiveDiv.className = 'project-column project-column--archive';
+                archiveDiv.dataset.columnId = '99';
+                archiveDiv.dataset.colOrder  = '997';
+                archiveDiv.innerHTML = `<div class='project-column-heading'>
+                  <h2 class='project-column-heading__title'>Archive</h2>
+                  <span class='col-count'>0</span>
+                  <button class='project-column-heading__options'><i class="fas fa-ellipsis-h"></i></button>
+                </div>`;
+                board.appendChild(archiveDiv);
+                setupColDropdown(archiveDiv);
+                syncGrid();
+                saveChanges(true);
+              }
               // ── Real-time tasks listener ──────────────────────────────
+              // Restore saved collapsed state; default-collapse archive/trash if not already saved
+              requestAnimationFrame(() => {
+                // 1. Restore columns explicitly saved as collapsed
+                const _alreadyCollapsing = new Set();
+                board.querySelectorAll('.project-column[data-restore-collapsed]').forEach(col => {
+                  _alreadyCollapsing.add(col.dataset.columnId);
+                  delete col.dataset.restoreCollapsed;
+                  toggleColCollapse(col);
+                });
+                // 2. Archive/Trash: collapse by default only if not already handled above
+                const _arcEl  = board.querySelector('.project-column--archive');
+                const _trshEl = board.querySelector('.project-column--trash');
+                if (_arcEl  && !_alreadyCollapsing.has(_arcEl.dataset.columnId))  toggleColCollapse(_arcEl);
+                if (_trshEl && !_alreadyCollapsing.has(_trshEl.dataset.columnId)) toggleColCollapse(_trshEl);
+              });
+
               let _tasksInitialised = false;
               _tasksUnsub = db.collection(`boards/${id}/tasks`)
                 .onSnapshot(snap => {
@@ -1035,7 +1091,7 @@ document.addEventListener('DOMContentLoaded', () => {
                     const taskId   = change.doc.id || taskData.id;
 
                     if (change.type === 'removed') {
-                      const cardEl = board.querySelector(`.task[data-id="${CSS.escape(taskId)}"]`);
+                      const cardEl = document.querySelector(`.task[data-id="${CSS.escape(taskId)}"]`);
                       if (cardEl) { cardEl.remove(); refreshAllColCounts(); scheduleOverflowCheck(); }
                       return;
                     }
@@ -1044,9 +1100,9 @@ document.addEventListener('DOMContentLoaded', () => {
                     if (window._localWriteIds?.has(taskId)) return;
 
                     if (change.type === 'added') {
-                      // Only add if not already in DOM (guard against duplicate fires)
-                      if (board.querySelector(`.task[data-id="${CSS.escape(taskId)}"]`)) return;
-                      const colEl = board.querySelector(`.project-column[data-column-id="${taskData.columnId}"]`)
+                      // Only add if not already in DOM (search board + sidebars for collapsed cols)
+                      if (document.querySelector(`.task[data-id="${CSS.escape(taskId)}"]`)) return;
+                      const colEl = document.querySelector(`.project-column[data-column-id="${taskData.columnId}"]`)
                                  || board.querySelector('.project-column');
                       if (colEl) {
                         colEl.appendChild(renderCard({ id: taskId, ...taskData }));
@@ -1057,12 +1113,12 @@ document.addEventListener('DOMContentLoaded', () => {
                     }
 
                     if (change.type === 'modified') {
-                      const existing = board.querySelector(`.task[data-id="${CSS.escape(taskId)}"]`);
+                      const existing = document.querySelector(`.task[data-id="${CSS.escape(taskId)}"]`);
                       const newCard  = renderCard({ id: taskId, ...taskData });
                       // Preserve expanded state
                       if (existing?.classList.contains('task--expanded')) newCard.classList.add('task--expanded');
-                      // Check if the card moved to a different column
-                      const targetCol = board.querySelector(`.project-column[data-column-id="${taskData.columnId}"]`);
+                      // Check if the card moved to a different column (search board + sidebars)
+                      const targetCol = document.querySelector(`.project-column[data-column-id="${taskData.columnId}"]`);
                       if (existing) {
                         if (targetCol && existing.closest('.project-column') !== targetCol) {
                           targetCol.appendChild(newCard);
@@ -2107,6 +2163,59 @@ document.addEventListener('DOMContentLoaded', () => {
     dragSrcEl = null;
   });
 
+  // ── Drag onto collapsed sidebar pills ────────────────────────────────────
+  ['collapsedSidebar', 'collapsedSidebarRight'].forEach(sid => {
+    const sidebar = document.getElementById(sid);
+    if (!sidebar) return;
+
+    sidebar.addEventListener('dragover', e => {
+      e.preventDefault();
+      e.dataTransfer.dropEffect = 'move';
+      clearHighlights();
+      const col = e.target.closest('.project-column--collapsed');
+      if (col) col.classList.add('column-drag-over');
+    });
+
+    sidebar.addEventListener('dragleave', e => {
+      if (!sidebar.contains(e.relatedTarget)) clearHighlights();
+    });
+
+    sidebar.addEventListener('drop', e => {
+      e.preventDefault();
+      clearHighlights();
+      if (!dragSrcEl && !dragSrcEls.length) return;
+      const colEl = e.target.closest('.project-column--collapsed');
+      if (!colEl) return;
+      const newColId  = +colEl.dataset.columnId;
+      const colName   = colEl.querySelector('.project-column-heading__title')?.textContent || '';
+      const cards     = dragSrcEls.length > 1 ? dragSrcEls.slice() : [dragSrcEl];
+
+      cards.forEach(c => { c.style.opacity = '1'; colEl.appendChild(c); });
+      const allSiblings = [...colEl.querySelectorAll(':scope > .task')];
+      cards.forEach(c => { c.dataset.order = allSiblings.indexOf(c); });
+
+      clearHighlights();
+      refreshAllColCounts();
+      scheduleOverflowCheck();
+      logActivity('move', `<b>${cards.length > 1 ? cards.length + ' cards' : 'Card'}</b> moved to <b>${colName}</b>`);
+
+      window._localWriteIds = window._localWriteIds || new Set();
+      cards.forEach(c => {
+        const id    = c.dataset.id;
+        const order = +c.dataset.order;
+        window._localWriteIds.add(id);
+        db.collection(`boards/${BOARD_ID}/tasks`).doc(id)
+          .update({ columnId: newColId, order })
+          .then(() => setTimeout(() => window._localWriteIds?.delete(id), 500))
+          .catch(err => console.error('Sidebar drop save failed:', err));
+      });
+
+      if (typeof window._bulkDeselectAll === 'function') window._bulkDeselectAll();
+      dragSrcEl  = null;
+      dragSrcEls = [];
+    });
+  });
+
   // ── Build board from Firestore data ─────────────────────────────────────
   const months       = { Jan:0, Feb:1, Mar:2, Apr:3, May:4, Jun:5, Jul:6, Aug:7, Sep:8, Oct:9, Nov:10, Dec:11 };
   function legacyDateToTs(dateStr) {
@@ -2133,7 +2242,10 @@ document.addEventListener('DOMContentLoaded', () => {
       if (col.trash)   cls += ' project-column--trash';
       div.className   = cls;
       div.dataset.columnId = col.id;
-      div.dataset.colOrder = i;
+      // Reserve 997/998 for archive/trash so sidebar always sorts Archive → Trash
+      if (col.archive) div.dataset.colOrder = 997;
+      else if (col.trash) div.dataset.colOrder = 998;
+      else div.dataset.colOrder = i;
       if (col.wipLimit) div.dataset.wipLimit = col.wipLimit;
       div.innerHTML   = `<div class='project-column-heading'>
         <h2 class='project-column-heading__title'>${col.title}</h2>
@@ -2142,11 +2254,14 @@ document.addEventListener('DOMContentLoaded', () => {
       </div>`;
       board.appendChild(div);
       setupColDropdown(div);
+      if (col.collapsed) div.dataset.restoreCollapsed = '1';
+      if (col.width)     div.dataset.colWidth = col.width;
       if (!col.archive && !col.trash && col.id < 97 && col.id > maxId) maxId = col.id;
     });
     nextColId    = maxId + 1;
     nextColOrder = colData.columns.length;
     syncGrid();
+    // collapsed columns are restored by the caller after all migrations
   }
 
   function buildTasksFromData(data) {
@@ -2195,7 +2310,10 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Collapse / expand a column – moves element to/from the collapsed sidebar ──
   function toggleColCollapse(colEl) {
-    const sidebar     = document.getElementById('collapsedSidebar');
+    const isSpecial   = colEl.classList.contains('project-column--archive')
+                     || colEl.classList.contains('project-column--trash')
+                     || +colEl.dataset.columnId === 98;
+    const sidebar     = document.getElementById(isSpecial ? 'collapsedSidebarRight' : 'collapsedSidebar');
     const isCollapsed = colEl.classList.contains('project-column--collapsed');
     const tasks       = [...colEl.querySelectorAll(':scope > .task')];
 
@@ -2221,6 +2339,7 @@ document.addEventListener('DOMContentLoaded', () => {
       setTimeout(() => {
         tasks.forEach(t => { t.style.opacity = t.style.transform = t.style.transition = ''; });
         scheduleOverflowCheck();
+        saveChanges(true);
       }, expandWait);
     } else {
       // ── Collapse: assign colOrder if missing, fade cards, move to sidebar ──
@@ -2240,6 +2359,7 @@ document.addEventListener('DOMContentLoaded', () => {
         syncGrid();
         scheduleOverflowCheck();
         refreshColCount(colEl);
+        saveChanges(true);
       };
       if (!tasks.length) { doCollapse(); return; }
       tasks.forEach((t, i) => {
@@ -2251,9 +2371,62 @@ document.addEventListener('DOMContentLoaded', () => {
     }
   }
 
+  // ── Column resize by dragging the right edge handle ──────────────────────
+  (() => {
+    let _resizeCol = null, _resizeStartX = 0, _resizeStartW = 0;
+    let _liveOverflowTimer = null;
+
+    board.addEventListener('mousedown', e => {
+      const handle = e.target.closest('.col-resize-handle');
+      if (!handle) return;
+      e.preventDefault();
+      _resizeCol    = handle.closest('.project-column');
+      _resizeStartX = e.clientX;
+      _resizeStartW = _resizeCol.getBoundingClientRect().width;
+      document.body.classList.add('col-resizing');
+      handle.classList.add('dragging');
+    });
+
+    document.addEventListener('mousemove', e => {
+      if (!_resizeCol) return;
+      const w = Math.max(_SUBCOL_MIN_W, _resizeStartW + (e.clientX - _resizeStartX));
+      _resizeCol.dataset.colWidth = Math.round(w);
+      syncGrid();
+      // Throttled live sub-col recalc (every 120ms during drag)
+      clearTimeout(_liveOverflowTimer);
+      _liveOverflowTimer = setTimeout(checkColumnOverflow, 120);
+    });
+
+    document.addEventListener('mouseup', () => {
+      if (!_resizeCol) return;
+      clearTimeout(_liveOverflowTimer);
+      _resizeCol.querySelector('.col-resize-handle')?.classList.remove('dragging');
+      document.body.classList.remove('col-resizing');
+      scheduleOverflowCheck();
+      saveChanges(true);
+      _resizeCol = null;
+    });
+
+    // Double-click handle → reset column to auto width
+    board.addEventListener('dblclick', e => {
+      const handle = e.target.closest('.col-resize-handle');
+      if (!handle) return;
+      e.stopPropagation();
+      const col = handle.closest('.project-column');
+      if (!col) return;
+      delete col.dataset.colWidth;
+      scheduleOverflowCheck();
+      saveChanges(true);
+    });
+  })();
+
   // ── Quick-add: click empty area of a column to open Add Card modal ───────
   // Click anywhere on a collapsed-sidebar pill to expand it
   document.getElementById('collapsedSidebar')?.addEventListener('click', e => {
+    const colEl = e.target.closest('.project-column--collapsed');
+    if (colEl) toggleColCollapse(colEl);
+  });
+  document.getElementById('collapsedSidebarRight')?.addEventListener('click', e => {
     const colEl = e.target.closest('.project-column--collapsed');
     if (colEl) toggleColCollapse(colEl);
   });
@@ -2263,6 +2436,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.project-column-heading')) return;
     if (e.target.closest('.col-dropdown')) return;
     if (e.target.closest('.drop-zone')) return;
+    if (e.target.closest('.col-resize-handle')) return;
     const colEl = e.target.closest('.project-column');
     if (!colEl) return;
     if (colEl.classList.contains('project-column--archive')) return;
@@ -2668,6 +2842,16 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   board.addEventListener('click', e => {
+    // Click on heading background (not title or options button) → collapse/expand
+    if (e.target.closest('.project-column-heading') &&
+        !e.target.closest('.project-column-heading__title') &&
+        !e.target.closest('.project-column-heading__options') &&
+        !e.target.closest('.col-dropdown') &&
+        !e.target.closest('.col-resize-handle')) {
+      e.stopPropagation();
+      const colEl = e.target.closest('.project-column');
+      if (colEl) { toggleColCollapse(colEl); return; }
+    }
     // Toggle dropdown
     if (e.target.closest('.project-column-heading__options')) {
       e.stopPropagation();
@@ -2678,16 +2862,6 @@ document.addEventListener('DOMContentLoaded', () => {
       if (openColDropdown && openColDropdown !== dd) openColDropdown.classList.remove('open');
       dd.classList.toggle('open', !isOpen);
       openColDropdown = !isOpen ? dd : null;
-      // Update collapse/expand button label
-      if (!isOpen) {
-        const collapseBtn = dd.querySelector('.col-opt-collapse');
-        if (collapseBtn) {
-          const collapsed = colEl.classList.contains('project-column--collapsed');
-          collapseBtn.innerHTML = collapsed
-            ? `<i class='fas fa-expand-alt'></i> Expand column`
-            : `<i class='fas fa-compress-alt'></i> Collapse column`;
-        }
-      }
       return;
     }
     // Collapse / expand column

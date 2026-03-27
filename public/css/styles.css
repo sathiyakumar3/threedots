@@ -283,10 +283,22 @@ h1 {
   overflow-x: hidden;
   margin-right: 0px;
 }
+/* right sidebar: same style, margin flipped */
+.collapsed-sidebar--right:not(:empty) {
+  margin-right: 0;
+  margin-left: 0px;
+}
 /* columns inside sidebar fill the available width */
 .collapsed-sidebar .project-column--collapsed {
   width: 100%;
   flex-shrink: 0;
+}
+/* archive/trash are display:none by default; override so they're visible in either sidebar */
+#collapsedSidebar .project-column--archive,
+#collapsedSidebar .project-column--trash,
+#collapsedSidebarRight .project-column--archive,
+#collapsedSidebarRight .project-column--trash {
+  display: flex !important;
 }
 
 /* --------------------------------------------------
@@ -1702,7 +1714,11 @@ body.dark .col-count.wip-near { background:rgba(245,158,11,.20); color:#fbbf24; 
 }
 .project-column:not(.project-column--archive):not(.project-column--trash) .task,
 .project-column:not(.project-column--archive):not(.project-column--trash) .project-column-heading {
-  cursor:default;
+  cursor: pointer;
+}
+.project-column:not(.project-column--archive):not(.project-column--trash) .project-column-heading__title,
+.project-column:not(.project-column--archive):not(.project-column--trash) .project-column-heading__options {
+  cursor: default;
 }
 .project-column:not(.project-column--archive):not(.project-column--trash) .task {
   cursor:move;
@@ -2036,7 +2052,27 @@ body.dark .task__assignees .tl-avatar--initial {
   background:#f4f4f5;
   border-radius:12px;
   padding:.5rem .5rem 1.25rem;
+  position: relative;
 }
+
+/* ── Column resize handle ── */
+.col-resize-handle {
+  position: absolute;
+  right: -4px;
+  top: 0;
+  bottom: 0;
+  width: 8px;
+  cursor: col-resize;
+  z-index: 20;
+  border-radius: 4px;
+  transition: background 0.15s;
+}
+.col-resize-handle:hover,
+.col-resize-handle.dragging {
+  background: rgba(99, 102, 241, 0.35);
+}
+.project-column--collapsed .col-resize-handle { display: none; }
+body.col-resizing { cursor: col-resize !important; user-select: none; }
 
 /* ── Collapsed column – narrow vertical pill ── */
 .project-column--collapsed {
@@ -3729,6 +3765,11 @@ body.dark .task__tl-edit-delete:hover { background:#2d1515; color:#f87171; borde
 }
 
 /* -- Archive column -- */
+/* Done / Archive / Trash always pinned to the right of the board grid, in that order */
+.project-tasks .project-column[data-column-id="98"] { order: 997; }
+.project-tasks .project-column--archive              { order: 998; }
+.project-tasks .project-column--trash                { order: 999; }
+
 .project-column--archive {
   display:none;
   background:rgba(0,0,0,.03);
@@ -5977,25 +6018,7 @@ body.dark .activity-panel {
   position: relative;
 }
 
-/* Subtle indicator pill on the heading showing sub-column count */
-.project-column[data-subcols] .project-column-heading[data-subcols-label]::after {
-  content: attr(data-subcols-label);
-  font-size: 9.5px;
-  font-weight: 600;
-  color: #94a3b8;
-  background: rgba(148,163,184,0.12);
-  border: 1px solid rgba(148,163,184,0.2);
-  border-radius: 10px;
-  padding: 1px 7px;
-  margin-left: 6px;
-  vertical-align: middle;
-  letter-spacing: .02em;
-}
-body.dark .project-column[data-subcols] .project-column-heading[data-subcols-label]::after {
-  color: #475569;
-  background: rgba(71,85,105,0.18);
-  border-color: rgba(71,85,105,0.3);
-}
+
 
 /* ═══════════════════════════════════════════════════════════════
    BULK SELECTION
@@ -6977,19 +7000,7 @@ body.dark .topbar-search.open .topbar-search__filter { border-left-color: var(--
 
 
 
-/* ═══════════════════════════════════════════════════════════════════════════
-   Column empty-state hint
-   ═══════════════════════════════════════════════════════════════════════════ */
-.project-column--empty::after {
-  content: "No cards yet";
-  display: block;
-  text-align: center;
-  font-size: 11.5px;
-  color: var(--light-grey);
-  padding: 1.2rem .5rem .5rem;
-  pointer-events: none;
-  letter-spacing: .01em;
-}
+
 /* ═══════════════════════════════════════════════════════════
    LOGIN HERO — split landing panel for public visitors
    Hidden below 900 px; card stays centred as before

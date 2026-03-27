@@ -1,9 +1,11 @@
 // ── Serialize board-level data (name + columns only, no task bodies) ──
 function serializeBoard() {
-  const sidebar     = document.getElementById('collapsedSidebar');
-  const sidebarCols = sidebar ? [...sidebar.querySelectorAll('.project-column')] : [];
-  const boardCols   = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
-  const cols = [...sidebarCols, ...boardCols].sort((a, b) => (+a.dataset.colOrder || 0) - (+b.dataset.colOrder || 0));
+  const sidebar      = document.getElementById('collapsedSidebar');
+  const sidebarR     = document.getElementById('collapsedSidebarRight');
+  const sidebarCols  = sidebar  ? [...sidebar.querySelectorAll('.project-column')]  : [];
+  const sidebarRCols = sidebarR ? [...sidebarR.querySelectorAll('.project-column')] : [];
+  const boardCols    = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
+  const cols = [...sidebarCols, ...sidebarRCols, ...boardCols].sort((a, b) => (+a.dataset.colOrder || 0) - (+b.dataset.colOrder || 0));
   const name = document.querySelector('#boardComboMenu .board-combo__item.active')?.textContent
             || document.getElementById('boardComboLabel')?.textContent
             || 'My Board';
@@ -14,8 +16,10 @@ function serializeBoard() {
         id:       +col.dataset.columnId || i,
         title:    col.querySelector('.project-column-heading__title')?.textContent || `Column ${i + 1}`,
         ...(col.dataset.wipLimit ? { wipLimit: +col.dataset.wipLimit } : {}),
-        ...(col.classList.contains('project-column--archive') ? { archive: true } : {}),
-        ...(col.classList.contains('project-column--trash')   ? { trash:   true } : {})
+        ...(col.classList.contains('project-column--archive')  ? { archive:   true } : {}),
+        ...(col.classList.contains('project-column--trash')    ? { trash:     true } : {}),
+        ...(col.classList.contains('project-column--collapsed') ? { collapsed: true } : {}),
+        ...(col.dataset.colWidth ? { width: +col.dataset.colWidth } : {})
       }))
     }
   };
@@ -24,10 +28,12 @@ function serializeBoard() {
 // ── Persist board to Firestore ──
 // Tasks are stored as a subcollection: boards/{id}/tasks/{taskId}
 function saveChanges(silent) {
-  const sidebar     = document.getElementById('collapsedSidebar');
-  const sidebarCols = sidebar ? [...sidebar.querySelectorAll('.project-column')] : [];
-  const boardCols   = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
-  const cols = [...sidebarCols, ...boardCols].sort((a, b) => (+a.dataset.colOrder || 0) - (+b.dataset.colOrder || 0));
+  const sidebar      = document.getElementById('collapsedSidebar');
+  const sidebarR     = document.getElementById('collapsedSidebarRight');
+  const sidebarCols  = sidebar  ? [...sidebar.querySelectorAll('.project-column')]  : [];
+  const sidebarRCols = sidebarR ? [...sidebarR.querySelectorAll('.project-column')] : [];
+  const boardCols    = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
+  const cols = [...sidebarCols, ...sidebarRCols, ...boardCols].sort((a, b) => (+a.dataset.colOrder || 0) - (+b.dataset.colOrder || 0));
   const batch = db.batch();
 
   cols.forEach((col, i) => {
@@ -77,6 +83,7 @@ function setupColDropdown(colEl) {
   const isTrash   = colEl.classList.contains('project-column--trash');
   const isSpecial = isArchive || isTrash;
   const isDone    = +colEl.dataset.columnId === 98;
+  colEl.insertAdjacentHTML('beforeend', `<div class='col-resize-handle' title='Drag to resize · Double-click to reset'></div>`);
   heading.insertAdjacentHTML('beforeend',
     `<div class='col-dropdown'>
        ${isSpecial ? '' : `<button class='col-opt-rename'><i class='fas fa-pen'></i> Rename</button>`}
@@ -95,28 +102,33 @@ function setupColDropdown(colEl) {
 }
 
 // ── Keep the CSS grid in sync with the number of visible columns (+ sub-col spans) ──
+const _GRID_GAP = 16; // matches grid-column-gap: 1rem in CSS
 function syncGrid() {
   const board   = document.querySelector('.project-tasks');
   const colEls  = [...board.querySelectorAll('.project-column:not(.project-column--archive):not(.project-column--trash)')];
   const showArc = board.classList.contains('show-archive');
   const showTrsh= board.classList.contains('show-trash');
-  let totalCells = 0;
+  const tracks  = [];
   colEls.forEach(col => {
     const sub = parseInt(col.dataset.subcols) || 1;
     col.style.gridColumn = sub > 1 ? `span ${sub}` : '';
-    totalCells += sub;
+    if (col.dataset.colWidth) {
+      // Subtract inter-track gaps so the column's total rendered width matches colWidth exactly
+      const trackW = Math.round((+col.dataset.colWidth - (sub - 1) * _GRID_GAP) / sub);
+      for (let i = 0; i < sub; i++) tracks.push(`${Math.max(trackW, 1)}px`);
+    } else {
+      for (let i = 0; i < sub; i++) tracks.push('1fr');
+    }
   });
   if (showArc) {
     const arc = board.querySelector('.project-column--archive');
-    if (arc) arc.style.gridColumn = '';
-    totalCells += 1;
+    if (arc) { arc.style.gridColumn = ''; tracks.push('1fr'); }
   }
   if (showTrsh) {
     const trsh = board.querySelector('.project-column--trash');
-    if (trsh) trsh.style.gridColumn = '';
-    totalCells += 1;
+    if (trsh) { trsh.style.gridColumn = ''; tracks.push('1fr'); }
   }
-  board.style.gridTemplateColumns = totalCells ? `repeat(${totalCells}, 1fr)` : '';
+  board.style.gridTemplateColumns = tracks.length ? tracks.join(' ') : '';
 }
 
 // ── Distribute overflow cards into CSS sub-columns when content exceeds viewport ──
@@ -130,39 +142,32 @@ function checkColumnOverflow() {
   const colEls = [...board.querySelectorAll('.project-column:not(.project-column--archive):not(.project-column--trash)')];
   if (!colEls.length) return;
 
-  // 1. Reset sub-col state so we measure natural single-column heights
+  // 1. Reset sub-col state; keep colWidth so the measurement grid reflects manual sizes
   colEls.forEach(c => { delete c.dataset.subcols; c.style.gridColumn = ''; });
-  const showArc = board.classList.contains('show-archive');
+  const showArc  = board.classList.contains('show-archive');
   const showTrsh = board.classList.contains('show-trash');
-  board.style.gridTemplateColumns = `repeat(${colEls.length + (showArc ? 1 : 0) + (showTrsh ? 1 : 0)}, 1fr)`;
-  void board.offsetHeight; // synchronous reflow to get accurate measurements
+  const measureTracks = colEls.map(c => c.dataset.colWidth ? `${+c.dataset.colWidth}px` : '1fr');
+  if (showArc  && board.querySelector('.project-column--archive'))  measureTracks.push('1fr');
+  if (showTrsh && board.querySelector('.project-column--trash'))    measureTracks.push('1fr');
+  board.style.gridTemplateColumns = measureTracks.join(' ');
+  void board.offsetHeight; // synchronous reflow
 
-  // 2. Calculate available space
+  // 2. Available viewport height
   const topbarH = document.querySelector('.project-info')?.offsetHeight ?? 56;
   const availH  = window.innerHeight - topbarH - 48;
-  const numCols = colEls.length;
-  // Max sub-columns an expanding column can have:
-  // take total board width, reserve one minimum-width slot for every OTHER column,
-  // then see how many 300px sub-columns fit in the remainder.
-  // e.g. 1800px board, 3 cols → floor((1800 - 2×300) / 300) = 4
-  //      1400px board, 2 cols → floor((1400 - 1×300) / 300) = 3
-  const maxSubs = Math.max(1, Math.min(4, Math.floor(
-    (board.clientWidth - (numCols - 1) * _SUBCOL_MIN_W) / _SUBCOL_MIN_W
-  )));
 
-  // 3. For each column, measure natural height and decide how many sub-cols are needed
+  // 3. Per-column: maxSubs based on that column's own rendered width
   colEls.forEach(col => {
     const heading  = col.querySelector('.project-column-heading');
     const headingH = heading?.offsetHeight ?? 52;
     const cardsH   = [...col.querySelectorAll(':scope > .task')]
                        .reduce((s, c) => s + c.offsetHeight + 9, 0);
     const totalH   = headingH + cardsH + 24;
-    if (totalH > availH && maxSubs > 1) {
-      const sub = Math.min(maxSubs, Math.ceil(totalH / availH));
-      col.dataset.subcols = sub;
-      if (heading) heading.dataset.subcolsLabel = `${sub} cols`;
-    } else {
-      if (heading) delete heading.dataset.subcolsLabel;
+    if (totalH > availH) {
+      const colW    = col.getBoundingClientRect().width;
+      const maxSubs = Math.max(1, Math.min(4, Math.floor(colW / _SUBCOL_MIN_W)));
+      const sub     = Math.min(maxSubs, Math.ceil(totalH / availH));
+      if (sub > 1) col.dataset.subcols = sub;
     }
   });
 
