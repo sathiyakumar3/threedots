@@ -30,9 +30,34 @@ function showToast(msg, isError) {
   if (!t) return;
   t.textContent = msg;
   t.style.background = isError ? '#e05252' : 'var(--purple)';
+  t.classList.remove('toast--undo');
   t.classList.add('show');
   clearTimeout(_toastTimer);
-  _toastTimer = setTimeout(() => t.classList.remove('show'), 2000);
+  _toastTimer = setTimeout(() => t.classList.remove('show'), isError ? 4000 : 2000);
+}
+
+// ── Undo toast — shows an action button for a limited time window ──
+let _undoTimer;
+function showUndoToast(msg, onUndo, duration = 6000) {
+  const t = document.getElementById('saveToast');
+  if (!t) return;
+  clearTimeout(_toastTimer);
+  clearTimeout(_undoTimer);
+  t.classList.add('toast--undo');
+  t.innerHTML = `<span class="toast__msg">${msg}</span><button class="toast__undo-btn" type="button">Undo</button>`;
+  t.style.background = 'var(--purple)';
+  t.classList.add('show');
+  const btn = t.querySelector('.toast__undo-btn');
+  const dismiss = () => {
+    t.classList.remove('show');
+    t.classList.remove('toast--undo');
+  };
+  btn.addEventListener('click', () => {
+    clearTimeout(_undoTimer);
+    dismiss();
+    if (typeof onUndo === 'function') onUndo();
+  });
+  _undoTimer = setTimeout(dismiss, duration);
 }
 
 // ── Activity feed ──

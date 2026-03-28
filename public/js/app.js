@@ -702,7 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const { Calendar } = window.VanillaCalendarPro;
       _activityCalendar = new Calendar('#activityCalendar', {
         selectionDatesMode: 'multiple-ranged',
-        selectedTheme: document.body.classList.contains('dark') ? 'dark' : 'light',
+        selectedTheme: 'light',
         onClickDate(self) {
           const dates = self.context.selectedDates;
           if (dates.length >= 2) {
@@ -772,10 +772,6 @@ document.addEventListener('DOMContentLoaded', () => {
     themeBtn.title = dark ? 'Switch to light mode' : 'Switch to dark mode';
     themeBtn.classList.toggle('active', dark);
     if (window.Coloris) Coloris({ themeMode: dark ? 'dark' : 'light' });
-    if (_activityCalendar) {
-      _activityCalendar.context.selectedTheme = dark ? 'dark' : 'light';
-      _activityCalendar.update({ dates: true });
-    }
   }
   applyTheme(localStorage.getItem('theme') === 'dark');
   themeBtn.addEventListener('click', () => {
@@ -935,10 +931,10 @@ document.addEventListener('DOMContentLoaded', () => {
       .forEach(b => b.classList.toggle('active', b.dataset.boardId === id));
     // Reset archive button + show-archive state
     board.classList.add('show-archive');
-    document.getElementById('archiveBtn').classList.add('active');
+    document.getElementById('archiveBtn')?.classList.add('active');
     // Reset trash button + show-trash state
     board.classList.add('show-trash');
-    document.getElementById('trashBtn').classList.add('active');
+    document.getElementById('trashBtn')?.classList.add('active');
     // Close board options dropdown if open
     document.getElementById('boardDropdown').classList.remove('open');
     // Reset activity panel to collapsed
@@ -985,8 +981,8 @@ document.addEventListener('DOMContentLoaded', () => {
               buildColumnsFromData(data.columns);
               // Show archive and trash by default
               board.classList.add('show-archive', 'show-trash');
-              document.getElementById('archiveBtn').classList.add('active');
-              document.getElementById('trashBtn').classList.add('active');
+              document.getElementById('archiveBtn')?.classList.add('active');
+              document.getElementById('trashBtn')?.classList.add('active');
               syncGrid();
               // ── Migration: add Trash column to boards that pre-date the feature ──
               if (!board.querySelector('.project-column--trash')) {
@@ -1038,6 +1034,7 @@ document.addEventListener('DOMContentLoaded', () => {
               });
 
               let _tasksInitialised = false;
+              window._boardLayoutReady = false;
               _tasksUnsub = db.collection(`boards/${id}/tasks`)
                 .onSnapshot(snap => {
                   if (!_tasksInitialised) {
@@ -1082,6 +1079,8 @@ document.addEventListener('DOMContentLoaded', () => {
                     } else if (data.tasks && !Array.isArray(data.tasks)) {
                       buildTasksFromData(data.tasks);
                     }
+                    // Mark layout ready after columns + tasks have settled
+                    setTimeout(() => { window._boardLayoutReady = true; }, 800);
                     return;
                   }
 
@@ -2338,6 +2337,16 @@ document.addEventListener('DOMContentLoaded', () => {
       const expandWait = 220 + (tasks.length > 0 ? (tasks.length - 1) * 28 : 0) + 60;
       setTimeout(() => {
         tasks.forEach(t => { t.style.opacity = t.style.transform = t.style.transition = ''; });
+        // ── Auto-revert if expanding pushed columns beyond minimum renderable width ──
+        const body      = document.querySelector('.project-body');
+        const boardCols = [...board.querySelectorAll('.project-column')];
+        const totalMinW = boardCols.length * (window._SUBCOL_MIN_W || 300);
+        const anyOffScreen = body && totalMinW > body.clientWidth;
+        if (anyOffScreen) {
+          showToast('Not enough space — column re-collapsed automatically.', true);
+          toggleColCollapse(colEl);
+          return;
+        }
         scheduleOverflowCheck();
         saveChanges(true);
       }, expandWait);
@@ -2375,6 +2384,7 @@ document.addEventListener('DOMContentLoaded', () => {
   (() => {
     let _resizeCol = null, _resizeStartX = 0, _resizeStartW = 0;
     let _liveOverflowTimer = null;
+    let _resizeJustFinished = false;
 
     board.addEventListener('mousedown', e => {
       const handle = e.target.closest('.col-resize-handle');
@@ -2405,7 +2415,13 @@ document.addEventListener('DOMContentLoaded', () => {
       scheduleOverflowCheck();
       saveChanges(true);
       _resizeCol = null;
+      // Suppress the click event that the browser fires after mouseup
+      _resizeJustFinished = true;
+      setTimeout(() => { _resizeJustFinished = false; }, 0);
     });
+
+    // Expose flag so the quick-add click handler can check it
+    window._colResizeJustFinished = () => _resizeJustFinished;
 
     // Double-click handle → reset column to auto width
     board.addEventListener('dblclick', e => {
@@ -2432,6 +2448,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   board.addEventListener('click', e => {
+    if (window._colResizeJustFinished?.()) return;
     if (e.target.closest('.task')) return;
     if (e.target.closest('.project-column-heading')) return;
     if (e.target.closest('.col-dropdown')) return;
@@ -2623,42 +2640,47 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      Swal.fire({
-        title: 'Move to Trash?',
-        text: `"${cardTitle}" will be moved to Trash and auto-deleted after 30 days.`,
-        icon: 'warning',
-        showCancelButton: true,
-        confirmButtonText: 'Move to Trash',
-        confirmButtonColor: '#e05252',
-        cancelButtonText: 'Cancel',
-        reverseButtons: true
-      }).then(result => {
-        if (!result.isConfirmed) return;
-        const trashCol = document.querySelector('.project-column--trash');
-        if (trashCol) {
-          task.dataset.deletedAt = Date.now().toString();
-          task.style.transition = 'opacity .2s';
-          task.style.opacity    = '0';
-          setTimeout(() => {
-            task.style.opacity = '';
-            task.style.transition = '';
-            trashCol.appendChild(task);
-            _addCardTlEntry(task, 'delete', 'Card Deleted');
-            refreshAllColCounts();
-            saveChanges(true);
-          }, 200);
-        } else {
-          // Fallback: hard delete if no trash column exists
-          task.style.transition = 'opacity .2s';
-          task.style.opacity    = '0';
-          const deleteDoc = taskId
-            ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(err => console.warn('Could not delete task doc:', err))
-            : Promise.resolve();
-          setTimeout(() => { task.remove(); deleteDoc.then(() => saveChanges(true)); }, 200);
-        }
+      // Move to Trash immediately — no confirmation dialog, undo available for 6 s
+      const trashCol   = document.querySelector('.project-column--trash');
+      const originCol  = task.closest('.project-column');
+      const originNext = task.nextElementSibling;
+      task.querySelector('.task__dropdown')?.classList.remove('open');
+      openDropdown = null;
+      if (trashCol) {
+        task.dataset.deletedAt = Date.now().toString();
+        task.style.transition = 'opacity .2s';
+        task.style.opacity    = '0';
+        setTimeout(() => {
+          task.style.opacity = '';
+          task.style.transition = '';
+          trashCol.appendChild(task);
+          _addCardTlEntry(task, 'delete', 'Card Deleted');
+          refreshAllColCounts();
+          saveTask(task, true);
+        }, 200);
         logActivity('delete', `<b>${_authorName()}</b> deleted "${cardTitle}"`);
-        openDropdown = null;
-      });
+        showUndoToast(`"${cardTitle}" moved to Trash`, () => {
+          delete task.dataset.deletedAt;
+          delete task.dataset.deletedLabel;
+          if (originCol) {
+            if (originNext && originCol.contains(originNext)) originCol.insertBefore(task, originNext);
+            else originCol.appendChild(task);
+          }
+          _addCardTlEntry(task, 'create', 'Card Recovered');
+          refreshAllColCounts();
+          saveTask(task, true);
+          logActivity('move', `<b>${_authorName()}</b> restored "${cardTitle}"`);
+        });
+      } else {
+        // Fallback: hard delete if no trash column exists
+        task.style.transition = 'opacity .2s';
+        task.style.opacity    = '0';
+        const deleteDoc = taskId
+          ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(err => console.warn('Could not delete task doc:', err))
+          : Promise.resolve();
+        setTimeout(() => { task.remove(); deleteDoc.then(() => saveChanges(true)); }, 200);
+        logActivity('delete', `<b>${_authorName()}</b> deleted "${cardTitle}"`);
+      }
       return;
     }
   });
@@ -3046,14 +3068,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
 
   // ── Archive toggle ───────────────────────────────────────────────────────
-  document.getElementById('archiveBtn').addEventListener('click', function () {
+  document.getElementById('archiveBtn')?.addEventListener('click', function () {
     board.classList.toggle('show-archive');
     this.classList.toggle('active');
     syncGrid();
   });
 
   // ── Trash toggle ─────────────────────────────────────────────────────────
-  document.getElementById('trashBtn').addEventListener('click', function () {
+  document.getElementById('trashBtn')?.addEventListener('click', function () {
     board.classList.toggle('show-trash');
     this.classList.toggle('active');
     syncGrid();

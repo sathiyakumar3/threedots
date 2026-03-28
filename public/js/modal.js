@@ -507,12 +507,11 @@
     // Attach VanillaCalendarPro to each start/end-date input overlay
     if (window.VanillaCalendarPro) {
       const { Calendar } = window.VanillaCalendarPro;
-      const isDark = document.body.classList.contains('dark');
       todoList.querySelectorAll('.todo-start-input').forEach(input => {
         const idx = +input.dataset.idx;
         new Calendar(input, {
           inputMode: true,
-          selectedTheme: isDark ? 'dark' : 'light',
+          selectedTheme: 'light',
           positionToInput: ['bottom', 'right'],
           selectedDates: pendingTodos[idx].startDate ? [pendingTodos[idx].startDate] : [],
           onChangeToInput(self) {
@@ -527,7 +526,7 @@
         const idx = +input.dataset.idx;
         new Calendar(input, {
           inputMode: true,
-          selectedTheme: isDark ? 'dark' : 'light',
+          selectedTheme: 'light',
           positionToInput: ['bottom', 'right'],
           selectedDates: pendingTodos[idx].endDate ? [pendingTodos[idx].endDate] : [],
           onChangeToInput(self) {

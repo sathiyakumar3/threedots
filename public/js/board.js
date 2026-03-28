@@ -108,14 +108,32 @@ function syncGrid() {
   const colEls  = [...board.querySelectorAll('.project-column:not(.project-column--archive):not(.project-column--trash)')];
   const showArc = board.classList.contains('show-archive');
   const showTrsh= board.classList.contains('show-trash');
+
+  // ── Clamp fixed-width columns so total tracks never exceed available board width ──
+  const boardW        = board.clientWidth || window.innerWidth;
+  const fixedCols     = colEls.filter(c => c.dataset.colWidth);
+  const fluidCount    = colEls.length - fixedCols.length
+                        + (showArc  && board.querySelector('.project-column--archive')  ? 1 : 0)
+                        + (showTrsh && board.querySelector('.project-column--trash')    ? 1 : 0);
+  const minFluidSpace = fluidCount * _SUBCOL_MIN_W;
+  const totalFixed    = fixedCols.reduce((s, c) => s + +c.dataset.colWidth, 0);
+  if (totalFixed + minFluidSpace > boardW) {
+    // Scale all fixed widths down proportionally so they fit
+    const scale = (boardW - minFluidSpace) / totalFixed;
+    fixedCols.forEach(c => {
+      const clamped = Math.max(_SUBCOL_MIN_W, Math.round(+c.dataset.colWidth * scale));
+      c.dataset.colWidth = clamped;
+    });
+  }
+
   const tracks  = [];
   colEls.forEach(col => {
     const sub = parseInt(col.dataset.subcols) || 1;
     col.style.gridColumn = sub > 1 ? `span ${sub}` : '';
     if (col.dataset.colWidth) {
-      // Subtract inter-track gaps so the column's total rendered width matches colWidth exactly
+      // Use minmax so the column can shrink if viewport narrows, but won't overflow
       const trackW = Math.round((+col.dataset.colWidth - (sub - 1) * _GRID_GAP) / sub);
-      for (let i = 0; i < sub; i++) tracks.push(`${Math.max(trackW, 1)}px`);
+      for (let i = 0; i < sub; i++) tracks.push(`minmax(${_SUBCOL_MIN_W}px, ${Math.max(trackW, _SUBCOL_MIN_W)}px)`);
     } else {
       for (let i = 0; i < sub; i++) tracks.push('1fr');
     }
@@ -134,6 +152,7 @@ function syncGrid() {
 // ── Distribute overflow cards into CSS sub-columns when content exceeds viewport ──
 // Minimum card width to determine how many sub-columns fit: SUBCOL_MIN_W px
 const _SUBCOL_MIN_W = 300;
+window._SUBCOL_MIN_W = _SUBCOL_MIN_W;
 
 function checkColumnOverflow() {
   const board = document.querySelector('.project-tasks');
@@ -146,7 +165,7 @@ function checkColumnOverflow() {
   colEls.forEach(c => { delete c.dataset.subcols; c.style.gridColumn = ''; });
   const showArc  = board.classList.contains('show-archive');
   const showTrsh = board.classList.contains('show-trash');
-  const measureTracks = colEls.map(c => c.dataset.colWidth ? `${+c.dataset.colWidth}px` : '1fr');
+  const measureTracks = colEls.map(c => c.dataset.colWidth ? `minmax(${_SUBCOL_MIN_W}px, ${+c.dataset.colWidth}px)` : '1fr');
   if (showArc  && board.querySelector('.project-column--archive'))  measureTracks.push('1fr');
   if (showTrsh && board.querySelector('.project-column--trash'))    measureTracks.push('1fr');
   board.style.gridTemplateColumns = measureTracks.join(' ');
@@ -179,3 +198,67 @@ function scheduleOverflowCheck() {
   clearTimeout(_overflowCheckTimer);
   _overflowCheckTimer = setTimeout(checkColumnOverflow, 150);
 }
+
+// ── Off-screen column detector ───────────────────────────────────────────────
+// Checks whether the board grid is wider than its scroll container can handle
+// (i.e. columns are genuinely unrenderable, not just scrolled out of view).
+let _offScreenToastTimer = null;
+function checkColumnsOffScreen() {
+  if (!window._boardLayoutReady) return;
+  const body = document.querySelector('.project-body');
+  const board = document.querySelector('.project-tasks');
+  if (!body || !board) return;
+  // A column is truly inaccessible only when the grid's minimum possible width
+  // (sum of minmax minimums) already exceeds what the scroll container can provide.
+  const cols = [...board.querySelectorAll('.project-column')];
+  if (!cols.length) return;
+  // Each column must fit at least _SUBCOL_MIN_W; if total minimum > container width
+  // there is a real overflow that scrolling alone cannot resolve.
+  const containerW = body.clientWidth;
+  const totalMinW  = cols.length * _SUBCOL_MIN_W;
+  if (totalMinW > containerW) {
+    clearTimeout(_offScreenToastTimer);
+    _offScreenToastTimer = setTimeout(() => {
+      showToast(`⚠️ Too many columns to fit — try collapsing some.`, true);
+    }, 400);
+  }
+}
+window.addEventListener('resize', () => { clearTimeout(_offScreenToastTimer); _offScreenToastTimer = setTimeout(checkColumnsOffScreen, 300); });
+
+// ── Auto-fit: distribute available board width equally across all columns ──
+function autoResizeColumns() {
+  const body  = document.querySelector('.project-body');
+  const board = document.querySelector('.project-tasks');
+  if (!body || !board) return;
+
+  // Include archive/trash only when they are currently visible
+  const showArc  = board.classList.contains('show-archive');
+  const showTrsh = board.classList.contains('show-trash');
+  const cols = [...board.querySelectorAll('.project-column')].filter(col => {
+    if (col.classList.contains('project-column--archive')) return showArc;
+    if (col.classList.contains('project-column--trash'))   return showTrsh;
+    return true;
+  });
+  if (!cols.length) return;
+
+  // Account for sidebar widths and board padding
+  const sidebarL = document.getElementById('collapsedSidebar')?.offsetWidth  || 0;
+  const sidebarR = document.getElementById('collapsedSidebarRight')?.offsetWidth || 0;
+  const boardPad = 32; // 1rem padding each side
+  const gapTotal = (cols.length - 1) * (_GRID_GAP || 16);
+  const available = body.clientWidth - sidebarL - sidebarR - boardPad - gapTotal;
+  const colW = Math.max(_SUBCOL_MIN_W, Math.floor(available / cols.length));
+
+  cols.forEach(col => {
+    col.dataset.colWidth = colW;
+  });
+
+  syncGrid();
+  scheduleOverflowCheck();
+  saveChanges(true);
+  showToast('Columns auto-fitted ✓');
+}
+
+document.addEventListener('DOMContentLoaded', () => {
+  document.getElementById('autoResizeColsBtn')?.addEventListener('click', autoResizeColumns);
+});
