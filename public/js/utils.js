@@ -131,7 +131,7 @@ function firstNameOnly(name) {
 
 // ── Build comment tl-meta HTML snippet ──
 function tlMetaHTML(comment, time, author) {
-  return `${comment}<div class='task__tl-meta'><time>${time}</time><b>${author}</b></div>`;
+  return `${escapeHTML(comment)}<div class='task__tl-meta'><time>${escapeHTML(time)}</time><b>${escapeHTML(author)}</b></div>`;
 }
 
 // ── Timeline HTML builder ──
@@ -145,7 +145,7 @@ function buildTimeline(entries, opts) {
       const _resolved   = (window._uidMap && e.author) ? window._uidMap[e.author] : null;
       const authorName  = firstNameOnly(_resolved ? _resolved.name  : (e.author || 'User'));
       const authorPhoto = _resolved ? _resolved.photo : (window._userPhotoMap && e.author ? (window._userPhotoMap[e.author] || '') : '');
-      const initial     = authorName[0].toUpperCase();
+      const initial     = authorName && authorName[0] ? authorName[0].toUpperCase() : '?';
       const _safeAuthor = String(authorName).replace(/\\/g, '\\\\').replace(/[\r\n]/g, ' ').replace(/'/g, "\\'").replace(/"/g, '&quot;');
       const avatarFallback = `this.replaceWith(Object.assign(document.createElement('span'),{className:'tl-avatar tl-avatar--initial',title:'${_safeAuthor}',textContent:'${initial}'}))`;
       const avatarHTML  = authorPhoto

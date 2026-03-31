@@ -880,9 +880,10 @@ document.addEventListener('DOMContentLoaded', () => {
   function _authorAvatar() {
     const name  = _authorName();
     const photo = _authorPhoto();
+    const safeName = escapeHTML(name);
     return photo
-      ? `<img class='tl-avatar' src='${photo}' alt='${name}' title='${name}'>`
-      : `<span class='tl-avatar tl-avatar--initial' title='${name}'>${name[0].toUpperCase()}</span>`;
+      ? `<img class='tl-avatar' src='${photo}' alt='${safeName}' title='${safeName}'>`
+      : `<span class='tl-avatar tl-avatar--initial' title='${safeName}'>${escapeHTML(name[0].toUpperCase())}</span>`;
   }
 
   // ── Board nav helpers ────────────────────────────────────────────────────
@@ -2136,8 +2137,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (taskId && newColId !== null) {
       const siblings = [...col.querySelectorAll(':scope > .task')];
       const idx      = siblings.indexOf(dragSrcEl);
-      const prevOrder = idx > 0                    ? parseFloat(siblings[idx - 1].dataset.order ?? (idx - 1)) : null;
-      const nextOrder = idx < siblings.length - 1  ? parseFloat(siblings[idx + 1].dataset.order ?? (idx + 1)) : null;
+      const prevOrder = idx > 0                    ? parseFloat(siblings[idx - 1].dataset.order || (idx - 1)) : null;
+      const nextOrder = idx < siblings.length - 1  ? parseFloat(siblings[idx + 1].dataset.order || (idx + 1)) : null;
       let newOrder;
       if      (prevOrder === null && nextOrder === null) newOrder = 0;
       else if (prevOrder === null) newOrder = nextOrder - 1;
@@ -2778,7 +2779,7 @@ document.addEventListener('DOMContentLoaded', () => {
       textDiv.dataset.comment = newText;
       textDiv.innerHTML = tlMetaHTML(newText, time, textDiv._savedAuthor || _authorName());
       const cardText = entry.closest('.task')?.querySelector('p')?.textContent.slice(0, 40) || 'Card';
-      logActivity('edit', `<b>${_authorName()}</b> edited a comment on "<em>${cardText}</em>"<br><span class='activity-diff'><s>${oldText.slice(0, 60)}${oldText.length > 60 ? '…' : ''}</s> → ${newText.slice(0, 60)}${newText.length > 60 ? '…' : ''}</span>`);
+      logActivity('edit', `<b>${escapeHTML(_authorName())}</b> edited a comment on "<em>${escapeHTML(cardText)}</em>"<br><span class='activity-diff'><s>${escapeHTML(oldText.slice(0, 60))}${oldText.length > 60 ? '…' : ''}</s> → ${escapeHTML(newText.slice(0, 60))}${newText.length > 60 ? '…' : ''}</span>`);
       saveTask(entry.closest('.task'));
       return;
     }
@@ -2806,7 +2807,7 @@ document.addEventListener('DOMContentLoaded', () => {
       entry.dataset.ts = _now;
       entry.dataset.authorUid = currentUser?.uid || '';
       entry.innerHTML = `<span class='task__tl-dot task__tl-dot--comment'>${_authorAvatar()}</span>
-        <div class='task__tl-text' data-comment="${comment.replace(/"/g, '&quot;')}">${comment}<div class='task__tl-meta'><time>${today}</time><b>${_authorName()}</b></div></div>`;
+        <div class='task__tl-text' data-comment="${escapeHTML(comment)}">${escapeHTML(comment)}<div class='task__tl-meta'><time>${escapeHTML(today)}</time><b>${escapeHTML(_authorName())}</b></div></div>`;
 
       let tl = task.querySelector('.task__timeline');
       if (!tl) {
@@ -2827,7 +2828,7 @@ document.addEventListener('DOMContentLoaded', () => {
       input.value = '';
       box.classList.remove('open');
       const cardText = task.querySelector('p')?.textContent.slice(0, 40) || 'Card';
-      logActivity('comment', `<b>${_authorName()}</b> commented on "<b>${cardText}</b>": ${comment.slice(0, 80)}${comment.length > 80 ? '�' : ''}`);
+      logActivity('comment', `<b>${escapeHTML(_authorName())}</b> commented on "<b>${escapeHTML(cardText)}</b>": ${escapeHTML(comment.slice(0, 80))}${comment.length > 80 ? '…' : ''}`);
       saveChanges();
       return;
     }

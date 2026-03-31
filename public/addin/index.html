@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>QNotes</title>
+  <script src="https://appsforoffice.microsoft.com/lib/1/hosted/office.js"></script>
+  <link rel="stylesheet" href="taskpane.css"/>
+</head>
+<body>
+
+  <!-- Login -->
+  <div id="login-view">
+    <div class="logo">Q<span>Notes</span></div>
+    <h2>Sign in</h2>
+    <input id="email" type="email" placeholder="Email" autocomplete="email"/>
+    <input id="password" type="password" placeholder="Password" autocomplete="current-password"/>
+    <button id="loginBtn">Sign In</button>
+    <p id="login-error" class="error"></p>
+  </div>
+
+  <!-- Main -->
+  <div id="main-view" style="display:none">
+    <div class="header">
+      <div class="logo">Q<span>Notes</span></div>
+      <button id="logoutBtn" class="logout">Sign out</button>
+    </div>
+
+    <div id="email-preview">
+      <div id="preview-from" class="from"></div>
+      <div id="preview-subject" class="subject"></div>
+    </div>
+
+    <div class="field">
+      <label for="boardSelect">Board</label>
+      <select id="boardSelect"></select>
+    </div>
+
+    <div class="field">
+      <label for="columnSelect">Column</label>
+      <select id="columnSelect"></select>
+    </div>
+
+    <button id="sendBtn">Create Card</button>
+    <p id="status" class="status"></p>
+  </div>
+
+  <script src="taskpane.js"></script>
+</body>
+</html>

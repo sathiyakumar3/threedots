@@ -1,0 +1,32 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<OfficeApp xmlns="http://schemas.microsoft.com/office/appforoffice/1.1"
+           xsi:type="MailApp"
+           xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+  <Id>3f8a1c2d-4e5b-6f7a-8b9c-0d1e2f3a4b5c</Id>
+  <Version>1.0.0</Version>
+  <ProviderName>QNotes</ProviderName>
+  <DefaultLocale>en-US</DefaultLocale>
+  <DisplayName DefaultValue="QNotes"/>
+  <Description DefaultValue="Send emails as cards to your QNotes boards"/>
+  <IconUrl DefaultValue="https://threedots-92cd6.web.app/images/icon-32.png"/>
+  <HighResolutionIconUrl DefaultValue="https://threedots-92cd6.web.app/images/icon-64.png"/>
+  <SupportUrl DefaultValue="https://threedots-92cd6.web.app"/>
+  <Hosts>
+    <Host Name="Mailbox"/>
+  </Hosts>
+  <Requirements>
+    <Sets><Set Name="Mailbox" MinVersion="1.1"/></Sets>
+  </Requirements>
+  <FormSettings>
+    <Form xsi:type="ItemRead">
+      <DesktopSettings>
+        <SourceLocation DefaultValue="https://threedots-92cd6.web.app/addin/index.html"/>
+        <RequestedHeight>500</RequestedHeight>
+      </DesktopSettings>
+    </Form>
+  </FormSettings>
+  <Permissions>ReadItem</Permissions>
+  <Rule xsi:type="RuleCollection" Mode="Or">
+    <Rule xsi:type="ItemIs" ItemType="Message" FormType="Read"/>
+  </Rule>
+</OfficeApp>

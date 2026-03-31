@@ -88,7 +88,8 @@ function buildTodosHTML(todos) {
 
 // ── Serialize a single card DOM element to plain JSON ──
 function serializeTask(cardEl) {
-  const tagClass = [...cardEl.querySelector('.task__tag').classList].find(c => c.startsWith('task__tag--'));
+  const tagEl    = cardEl.querySelector('.task__tag');
+  const tagClass = tagEl ? [...tagEl.classList].find(c => c.startsWith('task__tag--')) : undefined;
   const tag      = tagClass ? tagClass.replace('task__tag--', '') : 'copyright';
   const text     = cardEl.querySelector('.task__desc')?.dataset.raw
                ?? cardEl.querySelector('p')?.textContent ?? '';
@@ -109,17 +110,17 @@ function serializeTask(cardEl) {
   const timeline    = [];
   cardEl.querySelectorAll('.task__tl-entry').forEach(entry => {
     const dotEl  = entry.querySelector('.task__tl-dot');
-    const dotCls = [...dotEl.classList].find(c => c.startsWith('task__tl-dot--'));
+    const dotCls = dotEl ? [...dotEl.classList].find(c => c.startsWith('task__tl-dot--')) : undefined;
     const type   = dotCls ? dotCls.replace('task__tl-dot--', '') : 'create';
     const textDiv = entry.querySelector('.task__tl-text');
-    const author  = textDiv.querySelector('b')?.textContent || '';
+    const author  = textDiv?.querySelector('b')?.textContent || '';
     let entryText, date;
     if (type === 'comment') {
-      entryText = textDiv.dataset.comment || '';
-      date      = textDiv.querySelector('.task__tl-meta time')?.textContent || '';
+      entryText = textDiv?.dataset.comment || '';
+      date      = textDiv?.querySelector('.task__tl-meta time')?.textContent || '';
     } else {
-      date      = textDiv.querySelector('time')?.textContent || '';
-      entryText = [...textDiv.childNodes]
+      date      = textDiv?.querySelector('time')?.textContent || '';
+      entryText = [...(textDiv?.childNodes ?? [])]
         .filter(n => n.nodeType === 3)
         .map(n => n.textContent.trim())
         .filter(Boolean).join(' ');
