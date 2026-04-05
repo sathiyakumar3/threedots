@@ -108,6 +108,7 @@
               <button id="boardOptBackground"><i class="fas fa-image"></i> Background</button>
               <button id="boardOptRename"><i class="fas fa-pen"></i> Rename board</button>
               <button id="boardOptExport"><i class="fas fa-file-export"></i> Export board</button>
+              <button id="boardOptRestoreCards"><i class="fas fa-life-ring"></i> Restore lost cards</button>
               <button id="boardOptDelete" class="danger"><i class="fas fa-trash-alt"></i> Delete board</button>
               <div class="board-dropdown__divider" id="boardOptLeaveDivider"></div>
               <button id="boardOptLeave" class="danger"><i class="fas fa-sign-out-alt"></i> Leave board</button>
@@ -204,6 +205,13 @@
             </div>
           </div>
   
+        </div>
+
+        <!-- Collapsed columns centre strip -->
+        <div class="collapsed-bar-wrap" id="collapsedBarWrap">
+          <button class="collapsed-bar-scroll collapsed-bar-scroll--left"  id="collapsedBarScrollLeft"  aria-label="Scroll left"  tabindex="-1"><i class="fas fa-chevron-left"></i></button>
+          <div class="collapsed-bar" id="collapsedBar"></div>
+          <button class="collapsed-bar-scroll collapsed-bar-scroll--right" id="collapsedBarScrollRight" aria-label="Scroll right" tabindex="-1"><i class="fas fa-chevron-right"></i></button>
         </div>
 
         <!-- Right group -->
@@ -314,9 +322,7 @@
       <div class="app">
         <main class="project">
           <div class="project-body">
-            <div class="collapsed-sidebar" id="collapsedSidebar"></div>
             <div class="project-tasks"></div>
-            <div class="collapsed-sidebar collapsed-sidebar--right" id="collapsedSidebarRight"></div>
           </div>
         </main>
         <aside class="task-details collapsed" id="activityPanel">

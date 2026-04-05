@@ -1,39 +1,33 @@
 // ── Serialize board-level data (name + columns only, no task bodies) ──
 function serializeBoard() {
-  const sidebar      = document.getElementById('collapsedSidebar');
-  const sidebarR     = document.getElementById('collapsedSidebarRight');
-  const sidebarCols  = sidebar  ? [...sidebar.querySelectorAll('.project-column')]  : [];
-  const sidebarRCols = sidebarR ? [...sidebarR.querySelectorAll('.project-column')] : [];
-  const boardCols    = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
-  const cols = [...sidebarCols, ...sidebarRCols, ...boardCols].sort((a, b) => (+a.dataset.colOrder || 0) - (+b.dataset.colOrder || 0));
+  const barCols   = [...(document.getElementById('collapsedBar')?.querySelectorAll('.project-column') ?? [])];
+  const boardCols = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
+  const cols = [...barCols, ...boardCols].sort((a, b) => (+a.dataset.colOrder || 0) - (+b.dataset.colOrder || 0));
   const name = document.querySelector('#boardComboMenu .board-combo__item.active')?.textContent
             || document.getElementById('boardComboLabel')?.textContent
             || 'My Board';
   return {
     name,
-    columns: {
-      columns: cols.map((col, i) => ({
-        id:       +col.dataset.columnId || i,
-        title:    col.querySelector('.project-column-heading__title')?.textContent || `Column ${i + 1}`,
-        ...(col.dataset.wipLimit ? { wipLimit: +col.dataset.wipLimit } : {}),
-        ...(col.classList.contains('project-column--archive')  ? { archive:   true } : {}),
-        ...(col.classList.contains('project-column--trash')    ? { trash:     true } : {}),
-        ...(col.classList.contains('project-column--collapsed') ? { collapsed: true } : {}),
-        ...(col.dataset.colWidth ? { width: +col.dataset.colWidth } : {})
-      }))
-    }
+    columns: cols.map((col, i) => ({
+      id:       +col.dataset.columnId || i,
+      seq:      i,
+      title:    col.querySelector('.project-column-heading__title')?.textContent || `Column ${i + 1}`,
+      ...(col.dataset.wipLimit ? { wipLimit: +col.dataset.wipLimit } : {}),
+      ...(col.classList.contains('project-column--archive')  ? { archive:   true } : {}),
+      ...(col.classList.contains('project-column--trash')    ? { trash:     true } : {}),
+      // Only persist collapsed:true for non-special columns (archive/trash are always force-collapsed on load)
+      ...(!col.classList.contains('project-column--archive') && !col.classList.contains('project-column--trash') && col.classList.contains('project-column--collapsed') ? { collapsed: true } : {}),
+      ...(col.dataset.colWidth && !col.classList.contains('project-column--archive') && !col.classList.contains('project-column--trash') ? { width: +col.dataset.colWidth } : {})
+    }))
   };
 }
 
 // ── Persist board to Firestore ──
 // Tasks are stored as a subcollection: boards/{id}/tasks/{taskId}
 function saveChanges(silent) {
-  const sidebar      = document.getElementById('collapsedSidebar');
-  const sidebarR     = document.getElementById('collapsedSidebarRight');
-  const sidebarCols  = sidebar  ? [...sidebar.querySelectorAll('.project-column')]  : [];
-  const sidebarRCols = sidebarR ? [...sidebarR.querySelectorAll('.project-column')] : [];
-  const boardCols    = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
-  const cols = [...sidebarCols, ...sidebarRCols, ...boardCols].sort((a, b) => (+a.dataset.colOrder || 0) - (+b.dataset.colOrder || 0));
+  const barCols   = [...(document.getElementById('collapsedBar')?.querySelectorAll('.project-column') ?? [])];
+  const boardCols = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
+  const cols = [...barCols, ...boardCols].sort((a, b) => (+a.dataset.colOrder || 0) - (+b.dataset.colOrder || 0));
   const batch = db.batch();
 
   cols.forEach((col, i) => {
@@ -84,6 +78,9 @@ function setupColDropdown(colEl) {
   const isSpecial = isArchive || isTrash;
   const isDone    = +colEl.dataset.columnId === 98;
   colEl.insertAdjacentHTML('beforeend', `<div class='col-resize-handle' title='Drag to resize · Double-click to reset'></div>`);
+  if (!isSpecial) {
+    heading.insertAdjacentHTML('afterbegin', `<span class='col-drag-handle' draggable='true' title='Drag to reorder column'><i class='fas fa-grip-vertical'></i></span>`);
+  }
   heading.insertAdjacentHTML('beforeend',
     `<div class='col-dropdown'>
        ${isSpecial ? '' : `<button class='col-opt-rename'><i class='fas fa-pen'></i> Rename</button>`}

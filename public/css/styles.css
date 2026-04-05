@@ -268,52 +268,82 @@ h1 {
   overflow-y: visible;
 }
 
-/* ── Collapsed columns sidebar ── */
-.collapsed-sidebar {
+/* ── Collapsed-columns strip — lives inside .project-info bar ── */
+.collapsed-bar-wrap {
   display: flex;
-  flex-direction: column;
-  gap: 8px;
+  flex-direction: row;
+  align-items: center;
+  flex: 1;
+  min-width: 0;
+  position: relative;
+}
+.collapsed-bar {
+  display: flex;
+  flex-direction: row;
+  flex-wrap: nowrap;
+  align-items: center;
+  gap: 5px;
+  flex: 1;
+  min-width: 0;
+  overflow-x: auto;
+  overflow-y: hidden;
+  padding: 0 6px;
+  scrollbar-width: none;
+}
+.collapsed-bar::-webkit-scrollbar { display: none; }
+
+/* Left/right gradient fade when content overflows */
+.collapsed-bar-wrap::before,
+.collapsed-bar-wrap::after {
+  content: '';
+  position: absolute;
+  top: 0; bottom: 0;
+  width: 32px;
+  pointer-events: none;
+  z-index: 1;
+  opacity: 0;
+  transition: opacity 0.2s;
+}
+.collapsed-bar-wrap::before {
+  left: 28px;
+  background: linear-gradient(to right, rgba(255,255,255,0.9), transparent);
+}
+.collapsed-bar-wrap::after {
+  right: 28px;
+  background: linear-gradient(to left, rgba(255,255,255,0.9), transparent);
+}
+body.dark .collapsed-bar-wrap::before {
+  background: linear-gradient(to right, rgba(30,32,52,0.92), transparent);
+}
+body.dark .collapsed-bar-wrap::after {
+  background: linear-gradient(to left, rgba(30,32,52,0.92), transparent);
+}
+.collapsed-bar-wrap.can-scroll-left::before  { opacity: 1; }
+.collapsed-bar-wrap.can-scroll-right::after  { opacity: 1; }
+
+/* Scroll arrow buttons */
+.collapsed-bar-scroll {
   flex-shrink: 0;
-  width: 0;
+  display: none;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 6px;
+  background: transparent;
+  color: #94a3b8;
+  font-size: 11px;
+  cursor: pointer;
   padding: 0;
-  overflow: hidden;
-  position: sticky;
-  top: 0;
-  z-index: 10;
-  align-self: flex-start;
-  transition: width 0.28s cubic-bezier(0.4,0,.2,1),
-              padding 0.28s cubic-bezier(0.4,0,.2,1);
+  transition: background 0.15s, color 0.15s;
+  z-index: 2;
 }
-.collapsed-sidebar:not(.collapsed-sidebar--right) {
-  left: 0;
-}
-.collapsed-sidebar--right {
-  right: 0;
-}
-.collapsed-sidebar:not(:empty) {
-  width: 60px;
-  padding: 0.5rem 4px;
-  overflow-y: auto;
-  overflow-x: hidden;
-  margin-right: 0px;
-}
-/* right sidebar: same style, margin flipped */
-.collapsed-sidebar--right:not(:empty) {
-  margin-right: 0;
-  margin-left: 0px;
-}
-/* columns inside sidebar fill the available width */
-.collapsed-sidebar .project-column--collapsed {
-  width: 100%;
-  flex-shrink: 0;
-}
-/* archive/trash are display:none by default; override so they're visible in either sidebar */
-#collapsedSidebar .project-column--archive,
-#collapsedSidebar .project-column--trash,
-#collapsedSidebarRight .project-column--archive,
-#collapsedSidebarRight .project-column--trash {
-  display: flex !important;
-}
+.collapsed-bar-scroll:hover { background: rgba(99,102,241,0.12); color: var(--purple); }
+.collapsed-bar-wrap.can-scroll-left  .collapsed-bar-scroll--left  { display: inline-flex; }
+.collapsed-bar-wrap.can-scroll-right .collapsed-bar-scroll--right { display: inline-flex; }
+body.dark .collapsed-bar-scroll { color: #4a5068; }
+body.dark .collapsed-bar-scroll:hover { color: #a5b4fc; }
 
 /* --------------------------------------------------
    TOPBAR  (Metronic demo3 inspired)
@@ -1580,7 +1610,8 @@ body.dark #appShell[data-role="member"] .board-combo__trigger::after {
 .project-tasks {
   display:grid;
   grid-template-columns:repeat(4,1fr);
-  width:100%;
+  width:max-content;
+  min-width:100%;
   grid-column-gap:1rem;
   grid-row-gap:1rem;
   flex:1;
@@ -2086,59 +2117,154 @@ body.dark .task__assignees .tl-avatar--initial {
   background: rgba(99, 102, 241, 0.35);
 }
 .project-column--collapsed .col-resize-handle { display: none; }
+.project-column--collapsed .col-drag-handle   { display: none; }
 body.col-resizing { cursor: col-resize !important; user-select: none; }
 
-/* ── Collapsed column – narrow vertical pill ── */
+/* ── Column drag-reorder handle ── */
+.col-drag-handle {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 22px;
+  height: 28px;
+  margin-right: 4px;
+  color: #c4cad8;
+  font-size: 12px;
+  cursor: grab;
+  border-radius: 5px;
+  flex-shrink: 0;
+  opacity: 0;
+  transition: opacity .15s, color .15s, background .15s;
+}
+.project-column:hover .col-drag-handle,
+.project-column-heading:hover .col-drag-handle {
+  opacity: 1;
+}
+.col-drag-handle:hover {
+  color: var(--purple);
+  background: rgba(99,102,241,0.10);
+}
+.col-drag-handle:active { cursor: grabbing; }
+.col-dragging {
+  opacity: 0.45;
+  outline: 2px dashed rgba(99,102,241,0.5);
+  outline-offset: 2px;
+}
+body.dark .col-drag-handle { color: #4a5068; }
+body.dark .col-drag-handle:hover { color: #a5b4fc; background: rgba(165,180,252,0.10); }
+
+/* ── Column drop-position indicator lines ── */
+.col-drop-before,
+.col-drop-after {
+  position: relative;
+}
+.col-drop-before::before,
+.col-drop-after::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  bottom: 0;
+  width: 3px;
+  border-radius: 3px;
+  background: var(--purple);
+  z-index: 30;
+  animation: colDropPulse 0.7s ease-in-out infinite alternate;
+}
+.col-drop-before::before { left: -9px; }
+.col-drop-after::after   { right: -9px; }
+@keyframes colDropPulse {
+  from { opacity: 0.6; }
+  to   { opacity: 1; }
+}
+
+/* ── Collapsed column chip (in bottom bar) ── */
 .project-column--collapsed {
-  min-height: 80px;
-  padding: 0.5rem 0.3rem;
+  display: inline-flex !important;
+  flex-direction: row;
+  align-items: center;
+  gap: 5px;
+  height: 30px !important;
+  min-height: 0 !important;
+  max-height: 30px !important;
+  padding: 0 10px 0 9px !important;
+  border-radius: 8px;
   cursor: pointer;
   overflow: hidden;
+  min-width: 60px;
+  max-width: 180px;
+  flex-shrink: 0;
+  background: rgba(99,102,241,0.09);
+  border: 1px solid rgba(99,102,241,0.20);
+  box-shadow: 0 1px 4px rgba(0,0,0,0.07);
+  transition: background 0.15s, box-shadow 0.15s, transform 0.12s;
+}
+.project-column--collapsed:hover {
+  background: rgba(99,102,241,0.16);
+  box-shadow: 0 2px 8px rgba(99,102,241,0.18);
+  transform: translateY(-1px);
 }
 .project-column--collapsed > .task,
 .project-column--collapsed > .trash-col-notice {
   display: none !important;
 }
-/* card count + options hidden by default; count shown in sidebar */
 .project-column--collapsed .col-count,
 .project-column--collapsed .project-column-heading__options {
   display: none;
 }
-.collapsed-sidebar .project-column--collapsed .col-count {
+.collapsed-bar .project-column--collapsed .col-count {
   display: inline-flex;
-  margin: 4px auto 0;
+  align-items: center;
+  justify-content: center;
+  min-width: 17px;
+  height: 17px;
+  padding: 0 4px;
+  border-radius: 9px;
+  font-size: 10px;
+  font-weight: 700;
+  background: rgba(99,102,241,0.18);
+  color: var(--purple);
 }
 .project-column--collapsed .project-column-heading {
-  flex-direction: column;
+  flex-direction: row;
   align-items: center;
   justify-content: flex-start;
-  gap: 4px;
+  gap: 6px;
   margin: 0;
-  padding: 0.5rem 0 0.75rem;
+  padding: 0;
   border-bottom: none;
-  border-radius: 8px;
-  background: linear-gradient(180deg, rgba(99,102,241,0.10) 0%, transparent 100%);
-  position: sticky;
-  top: 0;
+  border-radius: 0;
+  background: none;
+  position: static;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
 }
-/* small expand hint at top of pill */
-
 .project-column--collapsed .project-column-heading__title {
-  writing-mode: vertical-rl;
+  writing-mode: horizontal-tb;
   text-orientation: mixed;
-  transform: rotate(180deg);
+  transform: none;
   font-size: 12px;
   font-weight: 600;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
-  max-height: calc(100vh - 160px);
+  max-height: none;
   margin: 0;
   padding: 0;
-  flex-shrink: 0;
+  flex-shrink: 1;
+  min-width: 0;
 }
-body.dark .project-column--collapsed .project-column-heading {
-  background: linear-gradient(180deg, rgba(99,102,241,0.18) 0%, transparent 100%);
+body.dark .project-column--collapsed {
+  background: rgba(99,102,241,0.13);
+  border-color: rgba(165,180,252,0.22);
+  box-shadow: none !important;
+}
+body.dark .project-column--collapsed:hover {
+  background: rgba(99,102,241,0.22);
+}
+body.dark .collapsed-bar .project-column--collapsed .col-count {
+  background: rgba(165,180,252,0.18);
+  color: #a5b4fc;
 }
 
 .column-drag-over {
@@ -3796,6 +3922,19 @@ body.dark .col-dropdown button.danger:hover { background:#2d1515; color:#f87171;
 .project-tasks .project-column[data-column-id="98"] { order: 997; }
 .project-tasks .project-column--archive              { order: 998; }
 .project-tasks .project-column--trash                { order: 999; }
+/* Archive/Trash chips in the collapsed bar must be visible and right-justified */
+.collapsed-bar .project-column--archive,
+.collapsed-bar .project-column--trash {
+  display: inline-flex !important;
+  margin-left: auto;
+}
+/* If two special chips are adjacent, only the first gets auto margin */
+.collapsed-bar .project-column--archive ~ .project-column--archive,
+.collapsed-bar .project-column--archive ~ .project-column--trash,
+.collapsed-bar .project-column--trash   ~ .project-column--archive,
+.collapsed-bar .project-column--trash   ~ .project-column--trash {
+  margin-left: 0;
+}
 
 .project-column--archive {
   display:none;
@@ -5949,10 +6088,6 @@ body.dark .project-column {
     0 1px 4px rgba(0,0,0,0.25),
     inset 0 1px 0 rgba(255,255,255,0.09) !important;
 }
-body.dark .project-column--collapsed {
-  box-shadow: none !important;
-}
-
 body.dark .task {
   background: rgba(15,18,38,0.72) !important;
   border: 1px solid rgba(255,255,255,0.07) !important;
