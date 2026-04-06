@@ -71,6 +71,14 @@ function setupColDropdown(colEl) {
   const isTrash   = colEl.classList.contains('project-column--trash');
   const isSpecial = isArchive || isTrash;
   const isDone    = +colEl.dataset.columnId === 98;
+  const colCountEl = heading.querySelector('.col-count');
+  const _ins = (html) => colCountEl
+    ? colCountEl.insertAdjacentHTML('beforebegin', html)
+    : heading.insertAdjacentHTML('beforeend', html);
+  _ins(`<button class='col-collapse-btn' title='Collapse column'><i class='fas fa-minus'></i></button>`);
+  if (!isSpecial) {
+    _ins(`<span class='col-drag-handle' draggable='true' title='Drag to reorder column'><i class='fas fa-grip-vertical'></i></span>`);
+  }
   heading.insertAdjacentHTML('beforeend',
     `<div class='col-dropdown'>
        ${isSpecial ? '' : `<button class='col-opt-rename'><i class='fas fa-pen'></i> Rename</button>`}

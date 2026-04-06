@@ -2663,6 +2663,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.col-dropdown')) return;
     if (e.target.closest('.drop-zone')) return;
     if (e.target.closest('.col-resize-handle')) return;
+    if (e.target.closest('.col-collapse-btn')) return;
+    if (e.target.closest('.col-drag-handle')) return;
     const colEl = e.target.closest('.project-column');
     if (!colEl) return;
     if (colEl.classList.contains('project-column--archive')) return;
@@ -3076,6 +3078,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.project-column-heading') &&
         !e.target.closest('.project-column-heading__title') &&
         !e.target.closest('.project-column-heading__options') &&
+        !e.target.closest('.col-collapse-btn') &&
         !e.target.closest('.col-dropdown') &&
         !e.target.closest('.col-resize-handle') &&
         !e.target.closest('.col-drag-handle')) {
@@ -3089,6 +3092,13 @@ document.addEventListener('DOMContentLoaded', () => {
           if (document.contains(colEl)) toggleColCollapse(colEl);
         }, 250);
       }
+      return;
+    }
+    // Collapse button
+    if (e.target.closest('.col-collapse-btn')) {
+      e.stopPropagation();
+      const colEl = e.target.closest('.project-column');
+      if (colEl) toggleColCollapse(colEl);
       return;
     }
     // Toggle dropdown
@@ -3410,6 +3420,7 @@ document.addEventListener('DOMContentLoaded', () => {
       '.nav-toggle',
       '.topbar-user__trigger',
       '#boardOptionsBtn',
+      '.collapsed-bar .project-column--collapsed',
     ].join(',');
 
     let _rafId = null;

@@ -78,8 +78,13 @@ function setupColDropdown(colEl) {
   const isSpecial = isArchive || isTrash;
   const isDone    = +colEl.dataset.columnId === 98;
   colEl.insertAdjacentHTML('beforeend', `<div class='col-resize-handle' title='Drag to resize · Double-click to reset'></div>`);
+  const colCountEl = heading.querySelector('.col-count');
+  const _ins = (html) => colCountEl
+    ? colCountEl.insertAdjacentHTML('beforebegin', html)
+    : heading.insertAdjacentHTML('beforeend', html);
+  _ins(`<button class='col-collapse-btn' title='Collapse column'><i class='fas fa-minus'></i></button>`);
   if (!isSpecial) {
-    heading.insertAdjacentHTML('afterbegin', `<span class='col-drag-handle' draggable='true' title='Drag to reorder column'><i class='fas fa-grip-vertical'></i></span>`);
+    _ins(`<span class='col-drag-handle' draggable='true' title='Drag to reorder column'><i class='fas fa-grip-vertical'></i></span>`);
   }
   heading.insertAdjacentHTML('beforeend',
     `<div class='col-dropdown'>

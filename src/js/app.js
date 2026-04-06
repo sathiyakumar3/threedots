@@ -2196,6 +2196,8 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.project-column-heading')) return;
     if (e.target.closest('.col-dropdown')) return;
     if (e.target.closest('.drop-zone')) return;
+    if (e.target.closest('.col-collapse-btn')) return;
+    if (e.target.closest('.col-drag-handle')) return;
     const colEl = e.target.closest('.project-column');
     if (!colEl) return;
     if (colEl.classList.contains('project-column--archive')) return;
@@ -2599,6 +2601,13 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   board.addEventListener('click', e => {
+    // Collapse button
+    if (e.target.closest('.col-collapse-btn')) {
+      e.stopPropagation();
+      const colEl = e.target.closest('.project-column');
+      if (colEl) toggleColCollapse(colEl);
+      return;
+    }
     // Toggle dropdown
     if (e.target.closest('.project-column-heading__options')) {
       e.stopPropagation();
@@ -2905,6 +2914,7 @@ document.addEventListener('DOMContentLoaded', () => {
       '.nav-toggle',
       '.topbar-user__trigger',
       '#boardOptionsBtn',
+      '.collapsed-bar .project-column--collapsed',
     ].join(',');
 
     let _rafId = null;
