@@ -71,7 +71,7 @@
                 window._refreshTemplateCombo();
               }
             })
-            .catch(err => console.error('Delete template error:', err));
+            .catch(() => {});
         });
       });
 
@@ -94,8 +94,7 @@
           .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
         render(templates);
       })
-      .catch(err => {
-        console.error('Templates popup load error:', err);
+      .catch(() => {
         listEl.innerHTML = '<p class="template-combo__empty">Failed to load templates.</p>';
       });
   }

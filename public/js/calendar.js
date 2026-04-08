@@ -298,7 +298,7 @@
 
     // Persist to Firestore via saveTask
     if (typeof saveTask === 'function') {
-      saveTask(cardEl).catch(err => console.error('Calendar save error:', err));
+      saveTask(cardEl).catch(() => {});
     }
 
     if (typeof logActivity === 'function') {
@@ -356,10 +356,7 @@
     cardEl.dataset.deadline  = endStr;
     updateCardDateSpans(cardEl, startStr, endStr);
 
-    if (typeof saveTask === 'function') saveTask(cardEl).catch(e => console.error(e));
-    if (typeof logActivity === 'function') {
-      const author = typeof _authorName === 'function' ? _authorName() : 'Someone';
-      logActivity('edit', `<b>${author}</b> scheduled <em>${cardEl.dataset.title || ''}</em> via calendar`);
+    if (typeof saveTask === 'function') saveTask(cardEl).catch(() => {});
     }
     reloadCalendarEvents();
   }
@@ -449,10 +446,7 @@
 
     fcEvent.remove();
 
-    if (typeof saveTask === 'function') saveTask(cardEl).catch(e => console.error(e));
-    if (typeof logActivity === 'function') {
-      const author = typeof _authorName === 'function' ? _authorName() : 'Someone';
-      logActivity('edit', `<b>${author}</b> unscheduled <em>${cardEl.dataset.title || ''}</em>`);
+    if (typeof saveTask === 'function') saveTask(cardEl).catch(() => {});
     }
     buildSidebar(document.getElementById('calSidebarSearch')?.value || '');
   }

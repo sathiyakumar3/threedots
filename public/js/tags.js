@@ -106,7 +106,7 @@
     if (!BOARD_ID) return;
     db.doc(`boards/${BOARD_ID}`)
       .update({ tags: activeTags })
-      .catch(err => console.error('Tag save error:', err));
+      .catch(() => {});
   }
 
   // ── Render popup list ──

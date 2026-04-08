@@ -33,23 +33,6 @@ window.closeAllPopups = function(skip = []) {
   });
 };
 
-function sendInvitationEmail({ email, boardName, invitedByName, inviteLink }) {
-  const cfg = window.EMAILJS_CONFIG;
-  if (!cfg?.serviceId || cfg.serviceId === 'YOUR_SERVICE_ID') {
-    console.warn('EmailJS not configured — invitation stored in Firestore but email not sent.');
-    showToast('Invite saved — email delivery requires EmailJS setup', true);
-    return;
-  }
-  if (typeof emailjs === 'undefined') {
-    console.warn('EmailJS library not loaded.');
-    return;
-  }
-  emailjs.send(cfg.serviceId, cfg.templateId,
-    { to_email: email, board_name: boardName, invited_by: invitedByName, invite_link: inviteLink },
-    cfg.publicKey
-  ).catch(err => console.error('EmailJS send error:', err));
-}
-
 document.addEventListener('DOMContentLoaded', () => {
 
   // ── Auth: gate the whole app behind Google sign-in ──────────────────────
@@ -126,7 +109,7 @@ document.addEventListener('DOMContentLoaded', () => {
           email:       user.email       || '',
           photoURL:    user.photoURL    || '',
           lastLogin:   firebase.firestore.FieldValue.serverTimestamp()
-        }, { merge: true }).catch(err => console.error('Error saving user:', err));
+        }, { merge: true });
 
         // Convert any pending invitations for this user's email to full membership
         const conversionPromise = user.email
@@ -151,7 +134,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 });
                 return batch.commit();
               })
-              .catch(err => console.error('Invitation conversion error:', err))
           : Promise.resolve();
 
         conversionPromise.finally(() => {
@@ -239,13 +221,15 @@ document.addEventListener('DOMContentLoaded', () => {
         });
         docs.forEach(doc => addBoardSelectOption(doc.id, doc.data().name || doc.id));
         const ids      = docs.map(d => d.id);
-        const targetId = (userFavouriteBoard && ids.includes(userFavouriteBoard))
-          ? userFavouriteBoard
-          : ids.includes('main') ? 'main' : docs[0].id;
-        loadBoard(targetId);
+        const _urlBoard = new URLSearchParams(location.search).get('board');
+        const targetId = (_urlBoard && ids.includes(_urlBoard))
+          ? _urlBoard
+          : (userFavouriteBoard && ids.includes(userFavouriteBoard))
+            ? userFavouriteBoard
+            : ids.includes('main') ? 'main' : docs[0].id;
+        loadBoard(targetId, { replaceState: true });
       })
       .catch(err => {
-        console.error('Could not load boards:', err);
         board.insertAdjacentHTML('beforebegin',
           `<p style="color:#e05252;padding:.5rem 1rem;font-size:13px">⚠ Could not connect to Firestore.</p>`);
       });
@@ -268,7 +252,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!currentUser) return;
     db.collection('users').doc(currentUser.uid)
       .set({ viewPreference: view }, { merge: true })
-      .catch(err => console.error('Error saving view preference:', err));
+      .catch(() => {});
   };
 
   appShell.style.display = 'none';
@@ -294,7 +278,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btnGoogle.classList.add('btn-social--loading');
     auth.signInWithPopup(googleProvider)
       .catch(err => {
-        console.error('Google sign-in error:', err.code, err.message);
         const msg = friendlyAuthError(err.code);
         if (msg !== null) { if (msg) setLoginError(msg); }
         else setLoginError(err.message);
@@ -309,7 +292,6 @@ document.addEventListener('DOMContentLoaded', () => {
     btn.classList.add('btn-social--loading');
     auth.signInWithPopup(microsoftProvider)
       .catch(err => {
-        console.error('Microsoft sign-in error:', err.code, err.message);
         const msg = friendlyAuthError(err.code);
         if (msg !== null) { if (msg) setLoginError(msg); }
         else setLoginError(err.message);
@@ -512,7 +494,7 @@ document.addEventListener('DOMContentLoaded', () => {
         await db.doc(`users/${uid}`).delete().catch(() => {});
 
       } catch (err) {
-        console.warn('Pre-delete cleanup error (non-fatal):', err);
+        // non-fatal — continue with account deletion
       }
 
       // Delete the Firebase Auth account
@@ -634,8 +616,7 @@ document.addEventListener('DOMContentLoaded', () => {
           btn.disabled = false;
           showToast('Activity logs cleared');
         })
-        .catch(err => {
-          console.error('Clear activity error:', err);
+        .catch(() => {
           btn.innerHTML = '<i class="fas fa-trash-alt"></i> Clear logs';
           btn.disabled = false;
           showToast('Could not clear logs', true);
@@ -904,7 +885,14 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Load a board by Firestore doc ID ────────────────────────────────────
   let _currentLoadId = 0; // incremented on every loadBoard call to discard stale responses
-  function loadBoard(id) {
+  function loadBoard(id, { replaceState = false } = {}) {
+    // Update URL so the board is bookmarkable / deep-linkable
+    const _urlParam = '?board=' + encodeURIComponent(id);
+    if (replaceState) {
+      history.replaceState({ boardId: id }, '', _urlParam);
+    } else {
+      history.pushState({ boardId: id }, '', _urlParam);
+    }
     // Tear down any previous tasks listener before switching boards
     if (_tasksUnsub) { _tasksUnsub(); _tasksUnsub = null; }
     const _loadId = ++_currentLoadId; // capture for stale-response guard
@@ -919,7 +907,7 @@ document.addEventListener('DOMContentLoaded', () => {
     window._persistActivity = (type, text, date, ts) => {
       db.collection(`boards/${BOARD_ID}/activity`)
         .add({ type, text, date, ts })
-        .catch(err => console.error('Activity persist error:', err));
+        .catch(() => {});
     };
     const srch = document.getElementById('boardSearch');
     if (srch) { srch.value = ''; searchClear.classList.remove('visible'); }
@@ -1066,7 +1054,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             .sort((a, b) => (a.order || 0) - (b.order || 0));
                           buildTasksFromFlatData(tasks);
                         })
-                        .catch(err => console.error('Could not migrate tasks:', err));
+                        .catch(() => {});
                     } else if (data.tasks && !Array.isArray(data.tasks)) {
                       buildTasksFromData(data.tasks);
                     }
@@ -1123,7 +1111,7 @@ document.addEventListener('DOMContentLoaded', () => {
                       scheduleOverflowCheck();
                     }
                   });
-                }, err => console.error('Tasks listener error:', err));
+                }, () => {});
             }
             renderParticipants(_adminUids, _boardUsers);
             // Refresh filter assignee list after board loads
@@ -1138,7 +1126,7 @@ document.addEventListener('DOMContentLoaded', () => {
                   logActivity(a.type, a.text, a.date, a.ts, true /* skipPersist */);
                 });
               })
-              .catch(err => console.error('Activity load error:', err));
+              .catch(() => {});
           });
           // sync favourite star + dropdown button
           const isFav = userFavouriteBoard === id;
@@ -1151,7 +1139,6 @@ document.addEventListener('DOMContentLoaded', () => {
         }
       })
       .catch(err => {
-        console.error('Could not load board:', err);
         board.insertAdjacentHTML('beforebegin',
           `<p style="color:#e05252;padding:.5rem 1rem;font-size:13px">⚠ Could not connect to Firestore.</p>`);
       });
@@ -1511,12 +1498,10 @@ document.addEventListener('DOMContentLoaded', () => {
               renderTeamPanel(admins, members, newNonMembers, document.getElementById('teamSearch').value.trim());
               document.getElementById('teamPanelCount').textContent = admins.length + members.length + newNonMembers.length;
               logActivity('participant', `<b>${_authorName()}</b> invited <b>${email}</b> (pending sign-up)`);
-            }).catch(err => {
-              console.error(err);
+            }).catch(() => {
               participantMsg.textContent = 'Error sending invitation.';
             });
-          }).catch(err => {
-            console.error(err);
+          }).catch(() => {
             participantMsg.textContent = 'Error. Please try again.';
           });
           return;
@@ -1552,8 +1537,7 @@ document.addEventListener('DOMContentLoaded', () => {
           });
         });
       })
-      .catch(err => {
-        console.error(err);
+      .catch(() => {
         participantMsg.textContent = 'Error. Please try again.';
       });
   });
@@ -1651,7 +1635,7 @@ document.addEventListener('DOMContentLoaded', () => {
             document.getElementById('boardComboLabel').textContent = 'Select board';
           }
         })
-        .catch(err => { console.error(err); showToast('Delete failed', true); });
+        .catch(() => { showToast('Delete failed', true); });
     });
   });
 
@@ -2023,8 +2007,15 @@ document.addEventListener('DOMContentLoaded', () => {
         loadBoard(docRef.id);
         return docRef;
       })
-      .catch(err => { console.error('Create board failed:', err); showToast('Could not create board', true); });
+      .catch(() => { showToast('Could not create board', true); });
   }
+
+  // ── Browser back / forward navigation ───────────────────────────────────
+  window.addEventListener('popstate', e => {
+    if (appShell.style.display === 'none') return; // user not logged in
+    const id = e.state?.boardId || new URLSearchParams(location.search).get('board');
+    if (id) loadBoard(id, { replaceState: true });
+  });
 
   // ── Drag & Drop ──────────────────────────────────────────────────────────
   function clearHighlights() {
@@ -2213,7 +2204,7 @@ document.addEventListener('DOMContentLoaded', () => {
         db.collection(`boards/${BOARD_ID}/tasks`).doc(id)
           .update({ columnId: newColId, order })
           .then(() => setTimeout(() => window._localWriteIds?.delete(id), 500))
-          .catch(err => console.error('Multi-drag save failed:', err));
+          .catch(() => {});
       });
       if (typeof window._bulkDeselectAll === 'function') window._bulkDeselectAll();
       dragSrcEl = null;
@@ -2272,12 +2263,12 @@ document.addEventListener('DOMContentLoaded', () => {
         // Full save to persist timeline entry + deletedAt change
         saveTask(dragSrcEl, true)
           .then(() => setTimeout(() => window._localWriteIds?.delete(taskId), 500))
-          .catch(err => console.error('Drag save failed:', err));
+          .catch(() => {});
       } else {
         db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId)
           .update({ columnId: newColId, order: newOrder })
           .then(() => setTimeout(() => window._localWriteIds?.delete(taskId), 500))
-          .catch(err => console.error('Drag save failed:', err));
+          .catch(() => {});
       }
     }
     dragSrcEl = null;
@@ -2352,7 +2343,7 @@ document.addEventListener('DOMContentLoaded', () => {
         db.collection(`boards/${BOARD_ID}/tasks`).doc(id)
           .update({ columnId: newColId, order })
           .then(() => setTimeout(() => window._localWriteIds?.delete(id), 500))
-          .catch(err => console.error('Bar drop save failed:', err));
+          .catch(() => {});
       });
 
       if (typeof window._bulkDeselectAll === 'function') window._bulkDeselectAll();
@@ -2541,59 +2532,45 @@ document.addEventListener('DOMContentLoaded', () => {
   function toggleColCollapse(colEl, skipSave) {
     const collapsedBar = document.getElementById('collapsedBar');
     const isCollapsed  = colEl.classList.contains('project-column--collapsed');
-    const tasks        = [...colEl.querySelectorAll(':scope > .task')];
 
     if (isCollapsed) {
-      // ── Expand: move from bottom bar back into board at correct sorted position ──
+      // ── Expand: move from bar back into board, then animate in ──
       colEl.classList.remove('project-column--collapsed');
       const myOrder   = +colEl.dataset.colOrder || 0;
       const boardCols = [...board.querySelectorAll('.project-column')];
       const anchor    = boardCols.find(c => (+c.dataset.colOrder || 0) > myOrder);
       if (anchor) board.insertBefore(colEl, anchor);
       else        board.appendChild(colEl);
-      // Stagger-fade cards back in
-      tasks.forEach((t, i) => {
-        t.style.opacity    = '0';
-        t.style.transform  = 'translateY(-10px)';
-        t.style.transition = 'none';
-        void t.offsetHeight;
-        t.style.transition = `opacity 0.22s ${i * 28}ms ease, transform 0.22s ${i * 28}ms ease`;
-        requestAnimationFrame(() => { t.style.opacity = '1'; t.style.transform = ''; });
-      });
-      const expandWait = 220 + (tasks.length > 0 ? (tasks.length - 1) * 28 : 0) + 60;
-      setTimeout(() => {
-        tasks.forEach(t => { t.style.opacity = t.style.transform = t.style.transition = ''; });
-        autoFitColumns(); // calls syncGrid + scheduleOverflowCheck internally
-        saveChanges(true);
-      }, expandWait);
+      syncGrid();
+      colEl.classList.add('col--animating-in');
+      colEl.addEventListener('animationend', () => {
+        colEl.classList.remove('col--animating-in');
+        autoFitColumns();
+        if (!skipSave) saveChanges(true);
+      }, { once: true });
     } else {
-      // ── Collapse: fade cards out then move to bottom bar ──
+      // ── Collapse: animate column out, then send to bar as a chip ──
       if (!colEl.dataset.colOrder) {
         const allCols = [...document.querySelectorAll('.project-column')];
         colEl.dataset.colOrder = allCols.indexOf(colEl);
       }
-      const doCollapse = () => {
+      colEl.classList.add('col--animating-out');
+      colEl.addEventListener('animationend', () => {
+        colEl.classList.remove('col--animating-out');
         colEl.classList.add('project-column--collapsed');
-        tasks.forEach(t => { t.style.opacity = t.style.transform = t.style.transition = ''; });
-        // Insert into bar in colOrder sort order
-        const myOrder   = +colEl.dataset.colOrder;
-        const barChips  = [...collapsedBar.querySelectorAll('.project-column--collapsed')];
-        const anchor    = barChips.find(c => (+c.dataset.colOrder || 0) > myOrder);
+        const myOrder  = +colEl.dataset.colOrder;
+        const barChips = [...collapsedBar.querySelectorAll('.project-column--collapsed')];
+        const anchor   = barChips.find(c => (+c.dataset.colOrder || 0) > myOrder);
         if (anchor) collapsedBar.insertBefore(colEl, anchor);
         else        collapsedBar.appendChild(colEl);
+        colEl.classList.add('col--chip-arrive');
+        colEl.addEventListener('animationend', () => colEl.classList.remove('col--chip-arrive'), { once: true });
         syncGrid();
         autoFitColumns();
         scheduleOverflowCheck();
         refreshColCount(colEl);
         if (!skipSave) saveChanges(true);
-      };
-      if (!tasks.length) { doCollapse(); return; }
-      tasks.forEach((t, i) => {
-        t.style.transition = `opacity 0.16s ${i * 22}ms ease, transform 0.16s ${i * 22}ms ease`;
-        t.style.opacity    = '0';
-        t.style.transform  = 'translateY(-8px)';
-      });
-      setTimeout(doCollapse, 160 + (tasks.length - 1) * 22 + 30);
+      }, { once: true });
     }
   }
 
@@ -2773,7 +2750,7 @@ document.addEventListener('DOMContentLoaded', () => {
       };
       db.collection(`boards/${BOARD_ID}/templates`).add(templateData)
         .then(() => showToast('Saved as template ✓'))
-        .catch(err => { console.error('Template save failed:', err); showToast('Failed to save template', true); });
+        .catch(() => { showToast('Failed to save template', true); });
       return;
     }
 
@@ -2840,7 +2817,7 @@ document.addEventListener('DOMContentLoaded', () => {
           task.style.transition = 'opacity .2s';
           task.style.opacity    = '0';
           const deleteDoc = taskId
-            ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(err => console.warn('Could not delete task doc:', err))
+            ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(() => {})
             : Promise.resolve();
           setTimeout(() => { task.remove(); deleteDoc.then(() => { refreshAllColCounts(); saveChanges(true); }); }, 200);
           logActivity('delete', `<b>${_authorName()}</b> permanently deleted "${cardTitle}"`);
@@ -2885,7 +2862,7 @@ document.addEventListener('DOMContentLoaded', () => {
         task.style.transition = 'opacity .2s';
         task.style.opacity    = '0';
         const deleteDoc = taskId
-          ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(err => console.warn('Could not delete task doc:', err))
+          ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(() => {})
           : Promise.resolve();
         setTimeout(() => { task.remove(); deleteDoc.then(() => saveChanges(true)); }, 200);
         logActivity('delete', `<b>${_authorName()}</b> deleted "${cardTitle}"`);
@@ -3220,7 +3197,7 @@ document.addEventListener('DOMContentLoaded', () => {
           if (tid) batch.delete(db.collection(`boards/${BOARD_ID}/tasks`).doc(tid));
           card.remove();
         });
-        batch.commit().catch(err => console.error('Empty trash failed:', err));
+        batch.commit().catch(() => {});
         refreshAllColCounts();
         _refreshTrashBadge();
         saveChanges(true);

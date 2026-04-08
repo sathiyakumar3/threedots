@@ -99,12 +99,8 @@
     db.collection(`boards/${BOARD_ID}/templates`).get()
       .then(snap => {
         _templates = snap.docs
-          .map(d => ({ id: d.id, ...d.data() }))
-          .sort((a, b) => (b.createdAt || 0) - (a.createdAt || 0));
-        templateRow.style.display = _templates.length ? 'block' : 'none';
-        renderTemplateList();
       })
-      .catch(err => { console.error('loadTemplates error:', err); templateRow.style.display = 'none'; });
+      .catch(() => { templateRow.style.display = 'none'; });
   }
 
   function renderTemplateList() {
@@ -143,7 +139,7 @@
               templateComboLabel.classList.add('assignee-placeholder');
             }
           })
-          .catch(err => console.error('Delete template failed:', err));
+          .catch(() => {});
       });
       item.appendChild(delBtn);
 

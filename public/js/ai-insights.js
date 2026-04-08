@@ -111,10 +111,6 @@
   }
 
   // ── Helpers ───────────────────────────────────────────────────────────────
-  function esc(s) {
-    return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  }
-
   function pctBar(pct, colorClass) {
     return `<div class="ins-bar"><div class="ins-bar__fill ins-bar__fill--${colorClass}" style="width:${Math.max(2,pct)}%"></div></div>`;
   }
@@ -176,7 +172,7 @@
     if (noTitle.length)        bullets.push(`<li>${noTitle.length} card${noTitle.length > 1 ? 's have' : ' has'} no title.</li>`);
     if (dateConflicts.length)  bullets.push(`<li>${dateConflicts.length} card${dateConflicts.length > 1 ? 's have' : ' has'} date conflicts with their to-do items.</li>`);
     const bottleneck = colsSorted.find(c => c.cards.length / total > 0.4 && columns.length > 1);
-    if (bottleneck)           bullets.push(`<li><strong>${esc(bottleneck.name)}</strong> holds ${Math.round(bottleneck.cards.length/total*100)}% of all work — consider redistributing.</li>`);
+    if (bottleneck)           bullets.push(`<li><strong>${escapeHTML(bottleneck.name)}</strong> holds ${Math.round(bottleneck.cards.length/total*100)}% of all work — consider redistributing.</li>`);
     if (recentCards.length)   bullets.push(`<li>${recentCards.length} card${recentCards.length > 1 ? 's were' : ' was'} added in the last 7 days.</li>`);
     const summaryHtml = bullets.length ? `
       <div class="ins-section">
@@ -189,7 +185,7 @@
       const pct      = Math.round(c.cards.length / maxColCards * 100);
       const barColor = c.cards.length === maxColCards && maxColCards > 1 ? 'amber' : 'blue';
       return `<div class="ins-row">
-        <span class="ins-row__label" title="${esc(c.name)}">${esc(c.name)}</span>
+        <span class="ins-row__label" title="${escapeHTML(c.name)}">${escapeHTML(c.name)}</span>
         <div class="ins-row__bar-wrap">${pctBar(pct, barColor)}<span class="ins-row__count">${c.cards.length}</span></div>
       </div>`;
     }).join('');
@@ -207,7 +203,7 @@
       const bg  = _tagColorByLabel[label] || '#94a3b8';
       const pct = Math.round(count / maxTag * 100);
       return `<div class="ins-row">
-        <span class="ins-row__label"><span class="ins-dot" style="background:${bg}"></span>${esc(label)}</span>
+        <span class="ins-row__label"><span class="ins-dot" style="background:${bg}"></span>${escapeHTML(label)}</span>
         <div class="ins-row__bar-wrap">${pctBar(pct, 'tag')}<span class="ins-row__count">${count}</span></div>
       </div>`;
     }).join('');
@@ -223,7 +219,7 @@
       const rows = assigneesSorted.map(([name, count]) => {
         const pct = Math.round(count / maxAssignee * 100);
         return `<div class="ins-row">
-          <span class="ins-row__label"><span class="ins-avatar">${esc(name[0]?.toUpperCase()||'?')}</span>${esc(name)}</span>
+          <span class="ins-row__label"><span class="ins-avatar">${escapeHTML(name[0]?.toUpperCase()||'?')}</span>${escapeHTML(name)}</span>
           <div class="ins-row__bar-wrap">${pctBar(pct, 'purple')}<span class="ins-row__count">${count}</span></div>
         </div>`;
       }).join('');
@@ -255,15 +251,15 @@
       const items = dateConflicts.slice(0, 8).map(({ card, reasons }) => {
         const reasonLines = reasons.map(r => {
           if (r.type === 'cardStartLate') {
-            return `<span class="ins-conflict-reason"><i class="fas fa-play-circle"></i> Card starts <strong>${esc(r.cardDate)}</strong> but todo &ldquo;${esc(r.todoText.length > 28 ? r.todoText.slice(0,28)+'…' : r.todoText)}&rdquo; starts <strong>${esc(r.todoDate)}</strong></span>`;
+            return `<span class="ins-conflict-reason"><i class="fas fa-play-circle"></i> Card starts <strong>${escapeHTML(r.cardDate)}</strong> but todo &ldquo;${escapeHTML(r.todoText.length > 28 ? r.todoText.slice(0,28)+'…' : r.todoText)}&rdquo; starts <strong>${escapeHTML(r.todoDate)}</strong></span>`;
           }
-          return `<span class="ins-conflict-reason"><i class="fas fa-flag"></i> Card ends <strong>${esc(r.cardDate)}</strong> but todo &ldquo;${esc(r.todoText.length > 28 ? r.todoText.slice(0,28)+'…' : r.todoText)}&rdquo; ends <strong>${esc(r.todoDate)}</strong></span>`;
+          return `<span class="ins-conflict-reason"><i class="fas fa-flag"></i> Card ends <strong>${escapeHTML(r.cardDate)}</strong> but todo &ldquo;${escapeHTML(r.todoText.length > 28 ? r.todoText.slice(0,28)+'…' : r.todoText)}&rdquo; ends <strong>${escapeHTML(r.todoDate)}</strong></span>`;
         }).join('');
         return `<div class="ins-card-row">
           <i class="fas fa-exclamation-triangle ins-card-row__icon ins-card-row__icon--amber"></i>
           <div class="ins-card-row__text">
-            <span class="ins-card-row__title">${esc(card.title || '(no title)')}</span>
-            <span class="ins-card-row__meta">${esc(card.colName)}</span>
+            <span class="ins-card-row__title">${escapeHTML(card.title || '(no title)')}</span>
+            <span class="ins-card-row__meta">${escapeHTML(card.colName)}</span>
             <div class="ins-conflict-reasons">${reasonLines}</div>
           </div>
         </div>`;
@@ -284,8 +280,8 @@
         <div class="ins-card-row">
           <i class="fas fa-exclamation-circle ins-card-row__icon ins-card-row__icon--red"></i>
           <div class="ins-card-row__text">
-            <span class="ins-card-row__title">${esc(c.title || '(no title)')}</span>
-            <span class="ins-card-row__meta">${esc(c.colName)} &middot; Due ${esc(c.deadline)}</span>
+            <span class="ins-card-row__title">${escapeHTML(c.title || '(no title)')}</span>
+            <span class="ins-card-row__meta">${escapeHTML(c.colName)} &middot; Due ${escapeHTML(c.deadline)}</span>
           </div>
         </div>`).join('');
       const more = overdueCards.length > 8 ? `<p class="ins-more">+${overdueCards.length - 8} more</p>` : '';

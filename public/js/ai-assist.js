@@ -58,7 +58,7 @@
       summarizer.destroy();
       if (result) onResult(result);
     } catch (err) {
-      console.error('[AI]', err);
+
       showToast('AI generation failed.', true);
     } finally {
       setLoading(btn, false);

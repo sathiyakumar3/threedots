@@ -76,7 +76,7 @@
                 if (id) setTimeout(() => window._localWriteIds?.delete(id), 500);
               });
             })
-            .catch(err => console.error('Order save failed:', err));
+            .catch(() => {});
         }
       }
     });

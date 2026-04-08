@@ -45,7 +45,7 @@ function saveChanges(silent) {
 
   return batch.commit()
     .then(() => { if (!silent) showToast('Saved ✓'); })
-    .catch(err => { console.error('Save failed:', err); showToast('Save failed', true); });
+    .catch(() => { showToast('Save failed', true); });
 }
 
 // ── Persist a single task card to Firestore (targeted, no full-board batch) ──
@@ -66,7 +66,7 @@ function saveTask(cardEl, silent) {
       setTimeout(() => window._localWriteIds?.delete(taskId), 500);
       if (!silent) showToast('Saved ✓');
     })
-    .catch(err => { console.error('Save failed:', err); showToast('Save failed', true); });
+    .catch(() => { showToast('Save failed', true); });
 }
 
 // ── Inject a column dropdown into an existing column element ──
@@ -78,9 +78,10 @@ function setupColDropdown(colEl) {
   const isSpecial = isArchive || isTrash;
   const isDone    = +colEl.dataset.columnId === 98;
   colEl.insertAdjacentHTML('beforeend', `<div class='col-resize-handle' title='Drag to resize · Double-click to reset'></div>`);
-  const colCountEl = heading.querySelector('.col-count');
-  const _ins = (html) => colCountEl
-    ? colCountEl.insertAdjacentHTML('beforebegin', html)
+  const optBtn  = heading.querySelector('.project-column-heading__options');
+  const countEl  = heading.querySelector('.col-count');
+  const _ins = (html) => countEl
+    ? countEl.insertAdjacentHTML('beforebegin', html)
     : heading.insertAdjacentHTML('beforeend', html);
   _ins(`<button class='col-collapse-btn' title='Collapse column'><i class='fas fa-minus'></i></button>`);
   if (!isSpecial) {
