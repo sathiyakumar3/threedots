@@ -1847,15 +1847,120 @@ document.addEventListener('DOMContentLoaded', () => {
     bgPresetsEl.appendChild(btn);
   });
 
+  // ── Animated background presets ──────────────────────────────────────────
+  const ANIMATED_BG_PRESETS = [
+    { label: 'Aurora',  id: 'aurora',
+      base: '#0d1b2a',
+      blobs: [
+        { color:'#3a0ca3', w:55, h:55, top:10, left:5,   dur:13 },
+        { color:'#023e8a', w:45, h:45, top:50, left:55,  dur:15 },
+        { color:'#1b4332', w:50, h:50, top:20, left:70,  dur:11 },
+        { color:'#560bad', w:40, h:40, top:65, left:20,  dur:17 },
+        { color:'#06d6a0', w:35, h:35, top:5,  left:40,  dur: 9 },
+      ], dark: true },
+    { label: 'Ember',   id: 'ember',
+      base: '#1a0000',
+      blobs: [
+        { color:'#c94b4b', w:55, h:55, top:15, left:10,  dur:12 },
+        { color:'#d97706', w:50, h:50, top:55, left:60,  dur:14 },
+        { color:'#7f1d1d', w:45, h:45, top:10, left:65,  dur:10 },
+        { color:'#b45309', w:40, h:40, top:70, left:25,  dur:16 },
+        { color:'#ef4444', w:38, h:38, top:40, left:45,  dur: 9 },
+      ], dark: true },
+    { label: 'Ocean',   id: 'ocean',
+      base: '#0c1321',
+      blobs: [
+        { color:'#0369a1', w:55, h:55, top:10, left:5,   dur:13 },
+        { color:'#06b6d4', w:50, h:50, top:50, left:55,  dur:15 },
+        { color:'#0c4a6e', w:45, h:45, top:20, left:70,  dur:11 },
+        { color:'#0891b2', w:40, h:40, top:65, left:20,  dur:17 },
+        { color:'#22d3ee', w:35, h:35, top:5,  left:40,  dur: 9 },
+      ], dark: true },
+    { label: 'Neon',    id: 'neon',
+      base: '#120020',
+      blobs: [
+        { color:'#7c3aed', w:55, h:55, top:10, left:5,   dur:12 },
+        { color:'#db2777', w:50, h:50, top:55, left:60,  dur:14 },
+        { color:'#4c1d95', w:48, h:48, top:10, left:65,  dur:10 },
+        { color:'#be185d', w:42, h:42, top:70, left:25,  dur:16 },
+        { color:'#a855f7', w:38, h:38, top:35, left:45,  dur: 9 },
+      ], dark: true },
+    { label: 'Horizon', id: 'horizon',
+      base: '#0d1117',
+      blobs: [
+        { color:'#ee7752', w:55, h:55, top:10, left:5,   dur:11 },
+        { color:'#e73c7e', w:50, h:50, top:50, left:60,  dur:13 },
+        { color:'#23a6d5', w:48, h:48, top:15, left:70,  dur:15 },
+        { color:'#23d5ab', w:42, h:42, top:65, left:20,  dur:17 },
+        { color:'#f97316', w:36, h:36, top:35, left:40,  dur: 9 },
+      ], dark: true },
+  ];
+
+  function _buildAnimLayer(preset) {
+    _removeAnimLayer();
+    const layer = document.createElement('div');
+    layer.id = 'animBgLayer';
+    layer.style.background = preset.base;
+    preset.blobs.forEach((b, i) => {
+      const div = document.createElement('div');
+      div.className = `anim-blob anim-blob--${(i % 6) + 1}`;
+      div.style.cssText = [
+        `background:${b.color}`,
+        `width:${b.w}vw`,
+        `height:${b.h}vw`,
+        `top:${b.top}%`,
+        `left:${b.left}%`,
+        `--bd:${b.dur}s`,
+        `animation-delay:-${(i * b.dur / preset.blobs.length).toFixed(1)}s`,
+      ].join(';');
+      layer.appendChild(div);
+    });
+    document.body.insertBefore(layer, document.body.firstChild);
+  }
+
+  function _removeAnimLayer() {
+    document.getElementById('animBgLayer')?.remove();
+  }
+
+  // Section label
+  const animatedLabel = document.createElement('div');
+  animatedLabel.className = 'board-bg-panel__section-label';
+  animatedLabel.textContent = 'Animated';
+  bgPresetsEl.appendChild(animatedLabel);
+
+  ANIMATED_BG_PRESETS.forEach(p => {
+    const btn = document.createElement('button');
+    btn.className = 'board-bg-preset board-bg-preset--animated';
+    btn.title = p.label + ' (animated)';
+    // Swatch thumbnail: show the blob colours as a quick gradient
+    btn.style.background = `linear-gradient(135deg, ${p.blobs.slice(0,3).map(b=>b.color).join(',')})`;
+    btn.dataset.bgAnimated = p.id;
+    btn.addEventListener('click', () => applyBackground(p.id, 'animated', p.dark));
+    bgPresetsEl.appendChild(btn);
+  });
+
   function applyBackground(value, type, isDark = true) {
+    // Clear any existing animated bg classes/layer
+    [...document.body.classList].filter(c => c.startsWith('bg-animated--')).forEach(c => document.body.classList.remove(c));
+    _removeAnimLayer();
     _currentBg = value ? { type, value, dark: isDark } : null;
-    document.body.style.backgroundImage = value || '';
+    if (type === 'animated' && value) {
+      const preset = ANIMATED_BG_PRESETS.find(p => p.id === value);
+      if (preset) _buildAnimLayer(preset);
+      document.body.style.backgroundImage = '';
+    } else {
+      document.body.style.backgroundImage = value || '';
+    }
     document.body.classList.toggle('has-bg', !!value);
     document.body.classList.toggle('bg-is-dark', !!value && !!isDark);
     appContent.classList.toggle('has-bg', !!value);
     appContent.classList.toggle('bg-is-dark', !!value && !!isDark);
     bgPresetsEl.querySelectorAll('.board-bg-preset').forEach(b => {
-      b.classList.toggle('active', b.dataset.bgValue === value);
+      b.classList.toggle('active',
+        type === 'animated'
+          ? b.dataset.bgAnimated === value
+          : b.dataset.bgValue === value
+      );
     });
     if (BOARD_ID) {
       db.doc(`boards/${BOARD_ID}`).update({
@@ -1867,16 +1972,29 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window._applyBoardBackground = function(bg) {
+    // Clear any existing animated bg layer
+    _removeAnimLayer();
     _currentBg = bg || null;
+    const type  = bg?.type || 'gradient';
     const value = bg?.value || '';
     const isDark = bg ? (bg.dark !== false) : false;
-    document.body.style.backgroundImage = value;
+    if (type === 'animated' && value) {
+      const preset = ANIMATED_BG_PRESETS.find(p => p.id === value);
+      if (preset) _buildAnimLayer(preset);
+      document.body.style.backgroundImage = '';
+    } else {
+      document.body.style.backgroundImage = value;
+    }
     document.body.classList.toggle('has-bg', !!value);
     document.body.classList.toggle('bg-is-dark', !!value && isDark);
     appContent.classList.toggle('has-bg', !!value);
     appContent.classList.toggle('bg-is-dark', !!value && isDark);
     bgPresetsEl.querySelectorAll('.board-bg-preset').forEach(b => {
-      b.classList.toggle('active', b.dataset.bgValue === value);
+      b.classList.toggle('active',
+        type === 'animated'
+          ? b.dataset.bgAnimated === value
+          : b.dataset.bgValue === value
+      );
     });
   };
 

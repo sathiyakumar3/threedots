@@ -7052,6 +7052,112 @@ body.dark .board-bg-panel__clear:hover { background: #3b1515; color: #f87171; bo
 body.dark .board-bg-panel__back:hover { background: #2a2d45; }
 body.dark .board-bg-preset.active { box-shadow: 0 0 0 2px var(--surface), 0 0 0 4px var(--purple); }
 
+/* ── Animated board backgrounds — floating orbs ────────────────────────── */
+@keyframes bg-live-dot {
+  0%, 100% { opacity: 1;  transform: scale(1);   }
+  50%       { opacity: .4; transform: scale(.65); }
+}
+@keyframes animated-swatch-shimmer {
+  0%   { background-position: -200% 0; }
+  100% { background-position:  200% 0; }
+}
+@keyframes blob-drift-1 {
+  0%   { transform: translate(0,  0)    scale(1);    }
+  33%  { transform: translate(18vw, 12vh) scale(1.12); }
+  66%  { transform: translate(-8vw, 22vh) scale(.9);  }
+  100% { transform: translate(0,  0)    scale(1);    }
+}
+@keyframes blob-drift-2 {
+  0%   { transform: translate(0, 0)      scale(1);   }
+  40%  { transform: translate(-22vw, -14vh) scale(1.08); }
+  75%  { transform: translate(12vw, -8vh) scale(.95); }
+  100% { transform: translate(0, 0)      scale(1);   }
+}
+@keyframes blob-drift-3 {
+  0%   { transform: translate(0, 0)    scale(1);    }
+  50%  { transform: translate(14vw, -20vh) scale(1.15); }
+  100% { transform: translate(0, 0)    scale(1);    }
+}
+@keyframes blob-drift-4 {
+  0%   { transform: translate(0, 0)     scale(1);   }
+  30%  { transform: translate(-16vw, 18vh) scale(.88); }
+  65%  { transform: translate(20vw, 5vh) scale(1.1); }
+  100% { transform: translate(0, 0)     scale(1);   }
+}
+@keyframes blob-drift-5 {
+  0%   { transform: translate(0, 0)    scale(1);   }
+  45%  { transform: translate(8vw, -16vh) scale(1.2); }
+  80%  { transform: translate(-18vw, 10vh) scale(.92); }
+  100% { transform: translate(0, 0)    scale(1);   }
+}
+@keyframes blob-drift-6 {
+  0%   { transform: translate(0, 0)    scale(1);   }
+  60%  { transform: translate(-10vw, -10vh) scale(1.05); }
+  100% { transform: translate(0, 0)    scale(1);   }
+}
+
+#animBgLayer {
+  position: fixed;
+  inset: 0;
+  z-index: -1;
+  overflow: hidden;
+  pointer-events: none;
+}
+#animBgLayer .anim-blob {
+  position: absolute;
+  border-radius: 50%;
+  filter: blur(72px);
+  opacity: .75;
+  will-change: transform;
+}
+#animBgLayer .anim-blob--1 { animation: blob-drift-1 var(--bd, 12s) ease-in-out infinite; }
+#animBgLayer .anim-blob--2 { animation: blob-drift-2 var(--bd, 14s) ease-in-out infinite; }
+#animBgLayer .anim-blob--3 { animation: blob-drift-3 var(--bd, 10s) ease-in-out infinite; }
+#animBgLayer .anim-blob--4 { animation: blob-drift-4 var(--bd, 16s) ease-in-out infinite; }
+#animBgLayer .anim-blob--5 { animation: blob-drift-5 var(--bd, 11s) ease-in-out infinite; }
+#animBgLayer .anim-blob--6 { animation: blob-drift-6 var(--bd,  9s) ease-in-out infinite; }
+
+/* Animated swatch thumbnail */
+.board-bg-preset--animated {
+  position: relative;
+  overflow: hidden;
+}
+.board-bg-preset--animated::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: 4px;
+  background: linear-gradient(90deg, transparent 0%, rgba(255,255,255,.28) 50%, transparent 100%);
+  background-size: 200% 100%;
+  animation: animated-swatch-shimmer 2s linear infinite;
+  pointer-events: none;
+}
+.board-bg-preset--animated::after {
+  content: '';
+  position: absolute;
+  bottom: 3px;
+  right: 3px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: rgba(255,255,255,.9);
+  box-shadow: 0 0 3px rgba(0,0,0,.35);
+  animation: bg-live-dot 1.5s ease infinite;
+  pointer-events: none;
+}
+
+/* Animated section label inside presets grid */
+.board-bg-panel__section-label {
+  grid-column: 1 / -1;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: .06em;
+  color: #9ca3af;
+  padding: 4px 0 0;
+}
+body.dark .board-bg-panel__section-label { color: #6b7280; }
+
 /* ── Board background active — frosted topbar/filter-bar ──────────────── */
 body.has-bg {
   background-size: cover !important;
