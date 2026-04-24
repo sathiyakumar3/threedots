@@ -84,7 +84,7 @@ function setupColDropdown(colEl) {
     ? countEl.insertAdjacentHTML('beforebegin', html)
     : heading.insertAdjacentHTML('beforeend', html);
   _ins(`<button class='col-collapse-btn' title='Collapse column'><i class='fas fa-minus'></i></button>`);
-  if (!isSpecial) {
+  if (!isSpecial && !isDone) {
     _ins(`<span class='col-drag-handle' draggable='true' title='Drag to reorder column'><i class='fas fa-grip-vertical'></i></span>`);
   }
   heading.insertAdjacentHTML('beforeend',
