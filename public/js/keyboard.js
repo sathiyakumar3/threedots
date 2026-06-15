@@ -71,6 +71,12 @@
         return;
       }
 
+      // ── G: toggle swimlane (group by tag) ────────────────────────────
+      if (e.key === 'g' || e.key === 'G') {
+        window._toggleSwimlane?.();
+        return;
+      }
+
       // ── ?: show keyboard shortcut cheatsheet ──────────────────────────
       if (e.key === '?') {
         showShortcuts();
@@ -96,6 +102,7 @@
           <tr><td><kbd>I</kbd></td><td>Board Insights</td></tr>
           <tr><td><kbd>D</kbd></td><td>Toggle Dark mode</td></tr>
           <tr><td><kbd>F</kbd></td><td>Toggle Fullscreen</td></tr>
+          <tr><td><kbd>G</kbd></td><td>Toggle Swimlane (group by tag)</td></tr>
           <tr><td><kbd>Esc</kbd></td><td>Close modal / popup</td></tr>
           <tr><td><kbd>?</kbd></td><td>This help</td></tr>
         </table>`,

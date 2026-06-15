@@ -176,6 +176,7 @@
             </div>
           </div>
           <button class="topbar-icon-btn" id="calendarBtn" title="Calendar"><i class="fas fa-calendar-alt"></i></button>
+          <button class="topbar-icon-btn" id="groupByTagBtn" title="Group by Tag"><i class="fas fa-layer-group"></i></button>
           <button class="topbar-icon-btn" id="autoResizeColsBtn" title="Auto-fit columns"><i class="fas fa-arrows-alt-h"></i></button>
                     <div class="project-participants" id="projectParticipants">
             <button class="topbar-icon-btn" id="addParticipantBtn" title="Manage team">
@@ -380,26 +381,11 @@
           <div class="modal__header">
             <div class="modal__header-brand">
               <h3 id="modalTitle">Add New Card</h3>
+              <button type="button" class="modal__close" id="modalClose" title="Close"><i class="fas fa-times"></i></button>
             </div>
             <div class="modal__header-bar"></div>
           </div>
           <div class="modal__body">
-            <div class="modal-field">
-              <label>Column</label>
-              <div class="col-combo" id="colCombo">
-                <button type="button" class="col-combo__trigger" id="colComboTrigger">
-                  <span id="colComboLabel">Select column</span>
-                  <i class="fas fa-chevron-down col-combo__chevron"></i>
-                </button>
-                <div class="col-combo__menu" id="colComboMenu">
-                  <div id="colComboList"></div>
-                  <div class="board-combo__footer">
-                    <input type="text" class="board-combo__new-input" id="colNewInput" placeholder="New column…" autocomplete="off">
-                    <button type="button" class="board-combo__new-add" id="colNewAdd" title="Add column"><i class="fas fa-plus"></i></button>
-                  </div>
-                </div>
-              </div>
-            </div>
             <div class="modal-field">
               <div class="modal-field__label-row">
                 <label for="cardTitle">Title</label>
@@ -409,6 +395,28 @@
               </div>
               <div class="ai-field-wrap">
                 <input type="text" id="cardTitle" placeholder="Short card title…" autocomplete="off">
+              </div>
+            </div>
+            <div class="modal-field modal-field--row">
+              <div class="modal-field modal-field--half">
+                <label>Column</label>
+                <div class="col-combo" id="colCombo">
+                  <button type="button" class="col-combo__trigger" id="colComboTrigger">
+                    <span id="colComboLabel">Select column</span>
+                    <i class="fas fa-chevron-down col-combo__chevron"></i>
+                  </button>
+                  <div class="col-combo__menu" id="colComboMenu">
+                    <div id="colComboList"></div>
+                    <div class="board-combo__footer">
+                      <input type="text" class="board-combo__new-input" id="colNewInput" placeholder="New column…" autocomplete="off">
+                      <button type="button" class="board-combo__new-add" id="colNewAdd" title="Add column"><i class="fas fa-plus"></i></button>
+                    </div>
+                  </div>
+                </div>
+              </div>
+              <div class="modal-field modal-field--half">
+                <label>Tag</label>
+                <div id="cardTag"></div>
               </div>
             </div>
             <div class="modal-field">
@@ -423,10 +431,6 @@
               </div>
             </div>
             <div class="modal-field">
-              <label>Tag</label>
-              <div id="cardTag"></div>
-            </div>
-            <div class="modal-field">
               <label>Priority</label>
               <div class="priority-selector" id="cardPriority">
                 <button type="button" class="priority-btn priority-btn--none active" data-value="">None</button>
@@ -434,6 +438,26 @@
                 <button type="button" class="priority-btn priority-btn--medium" data-value="medium">Medium</button>
                 <button type="button" class="priority-btn priority-btn--high" data-value="high">High</button>
                 <button type="button" class="priority-btn priority-btn--critical" data-value="critical">Critical</button>
+              </div>
+            </div>
+            <div class="modal-field">
+              <label>Assignee</label>
+              <div class="col-combo" id="assigneeCombo">
+                <button type="button" class="col-combo__trigger" id="assigneeComboTrigger">
+                  <span id="assigneeComboLabel" class="assignee-placeholder">Unassigned</span>
+                  <i class="fas fa-chevron-down col-combo__chevron"></i>
+                </button>
+                <div class="col-combo__menu" id="assigneeComboMenu"></div>
+              </div>
+            </div>
+            <div class="modal-field modal-field--row">
+              <div class="modal-field modal-field--half">
+                <label for="cardStartDate"><i class="fas fa-play-circle" style="font-size:10px;opacity:.6;margin-right:3px"></i>Start Date</label>
+                <input type="text" id="cardStartDate" placeholder="Select start…" readonly autocomplete="off">
+              </div>
+              <div class="modal-field modal-field--half">
+                <label for="cardDeadline"><i class="fas fa-flag" style="font-size:10px;opacity:.6;margin-right:3px"></i>Deadline</label>
+                <input type="text" id="cardDeadline" placeholder="Select deadline…" readonly autocomplete="off">
               </div>
             </div>
             <button type="button" class="modal-more-toggle" id="modalMoreToggle">
@@ -463,26 +487,6 @@
                     <input type="text" id="cardTodoInput" class="modal-todo-input" placeholder="Add a to-do item…">
                     <button type="button" id="cardTodoAdd" class="modal-todo-add-btn"><i class="fas fa-plus"></i></button>
                   </div>
-                </div>
-              </div>
-              <div class="modal-field">
-                <label>Assignee</label>
-                <div class="col-combo" id="assigneeCombo">
-                  <button type="button" class="col-combo__trigger" id="assigneeComboTrigger">
-                    <span id="assigneeComboLabel" class="assignee-placeholder">Unassigned</span>
-                    <i class="fas fa-chevron-down col-combo__chevron"></i>
-                  </button>
-                  <div class="col-combo__menu" id="assigneeComboMenu"></div>
-                </div>
-              </div>
-              <div class="modal-field modal-field--row">
-                <div class="modal-field modal-field--half">
-                  <label for="cardStartDate"><i class="fas fa-play-circle" style="font-size:10px;opacity:.6;margin-right:3px"></i>Start Date</label>
-                  <input type="text" id="cardStartDate" placeholder="Select start…" readonly autocomplete="off">
-                </div>
-                <div class="modal-field modal-field--half">
-                  <label for="cardDeadline"><i class="fas fa-flag" style="font-size:10px;opacity:.6;margin-right:3px"></i>Deadline</label>
-                  <input type="text" id="cardDeadline" placeholder="Select deadline…" readonly autocomplete="off">
                 </div>
               </div>
               <div class="modal-field modal-field--row">

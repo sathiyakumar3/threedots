@@ -2336,7 +2336,9 @@ document.addEventListener('DOMContentLoaded', () => {
     if (task && task !== dragSrcEl) {
       task.parentNode.insertBefore(dragSrcEl, task);
     } else if (col) {
-      col.appendChild(dragSrcEl);
+      // In swimlane mode, drop into the target group rather than the bare column
+      const group = e.target.closest('.swimlane-group');
+      group ? group.appendChild(dragSrcEl) : col.appendChild(dragSrcEl);
     }
 
     const toTrash = col && col.classList.contains('project-column--trash');
@@ -2364,7 +2366,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const taskId    = dragSrcEl.dataset.id;
     const newColId  = col ? +col.dataset.columnId : null;
     if (taskId && newColId !== null) {
-      const siblings = [...col.querySelectorAll(':scope > .task')];
+      // Use card's direct parent for order calc (may be .swimlane-group in swimlane mode)
+      const siblings = [...dragSrcEl.parentNode.querySelectorAll(':scope > .task')];
       const idx      = siblings.indexOf(dragSrcEl);
       const prevOrder = idx > 0                    ? parseFloat(siblings[idx - 1].dataset.order || (idx - 1)) : null;
       const nextOrder = idx < siblings.length - 1  ? parseFloat(siblings[idx + 1].dataset.order || (idx + 1)) : null;
@@ -2389,6 +2392,8 @@ document.addEventListener('DOMContentLoaded', () => {
           .catch(() => {});
       }
     }
+    // If swimlane is active, update the card's tag to match its new group
+    window._swimlaneOnCardDrop?.(dragSrcEl);
     dragSrcEl = null;
   });
 

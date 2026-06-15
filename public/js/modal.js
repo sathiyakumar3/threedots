@@ -165,7 +165,7 @@
       window._createInlineTagPicker(tpl.tag, tagWrap2);
     }
     if (Array.isArray(tpl.todos) && tpl.todos.length) {
-      pendingTodos = tpl.todos.map(t => ({ text: t.text, done: false, startDate: '', endDate: '' }));
+      pendingTodos = tpl.todos.map(t => ({ text: t.text, done: false, startDate: '', endDate: '', ref: t.ref || '' }));
       renderTodoList();
       // Auto-open More Options so todos are visible
       document.getElementById('modalMoreFields')?.classList.add('open');
@@ -464,6 +464,10 @@
            </button>
            <input type='text' class='todo-due-input' data-idx='${i}' value='${t.endDate || ''}' readonly autocomplete='off' placeholder='End date' aria-label='End date'>
          </div>
+         <div class='todo-ref-wrap'>
+           <button class='modal-todo-item__date-btn todo-ref-btn${t.ref ? " has-date" : ""}' tabindex='-1' title='Reference'><i class='fas fa-hashtag'></i>${t.ref ? `<span>${escapeHTML(t.ref)}</span>` : ''}</button>
+           <input type='text' class='todo-ref-input' data-idx='${i}' value='${escapeHTML(t.ref || "")}' autocomplete='off' placeholder='Reference…' aria-label='Reference'>
+         </div>
          <button class='modal-todo-item__del' data-idx='${i}' title='Remove'><i class='fas fa-times'></i></button>
        </div>`;
     }).join('');
@@ -498,6 +502,29 @@
           if (e.key === 'Escape') { renderTodoList(); }
         });
         inp.addEventListener('blur', commit);
+      });
+    });
+    // Reference field toggle
+    todoList.querySelectorAll('.todo-ref-btn').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const wrap = btn.closest('.todo-ref-wrap');
+        wrap.classList.add('open');
+        const inp = wrap.querySelector('.todo-ref-input');
+        inp.focus();
+        inp.select();
+      });
+    });
+    todoList.querySelectorAll('.todo-ref-input').forEach(inp => {
+      inp.addEventListener('click', e => e.stopPropagation());
+      const commit = () => {
+        pendingTodos[+inp.dataset.idx].ref = inp.value.trim();
+        renderTodoList();
+      };
+      inp.addEventListener('blur', commit);
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter')  { e.preventDefault(); inp.blur(); }
+        if (e.key === 'Escape') { inp.value = pendingTodos[+inp.dataset.idx].ref || ''; inp.blur(); }
       });
     });
     // Attach VanillaCalendarPro to each start/end-date input overlay
@@ -843,7 +870,7 @@
   function addTodoItem() {
     const val = todoInput.value.trim();
     if (!val) return;
-    pendingTodos.push({ text: val, done: false, startDate: '', endDate: '' });
+    pendingTodos.push({ text: val, done: false, startDate: '', endDate: '', ref: '' });
     todoInput.value = '';
     renderTodoList();
     todoInput.focus();
@@ -874,7 +901,7 @@
     refreshAssigneeCombo();
     loadTemplates();
     const tags = window._getActiveTags ? window._getActiveTags() : [];
-    if (window._createInlineTagPicker) window._createInlineTagPicker(tags[0]?.id || 'task', tagWrap);
+    if (window._createTagPicker) window._createTagPicker(tags[0]?.id || 'task', tagWrap);
     if (deleteBtn) deleteBtn.style.display = 'none';
     overlay.classList.add('open');
     titleEl.focus();
@@ -919,7 +946,7 @@
     const colIdx = cols.indexOf(cardEl.closest('.project-column'));
     refreshColCombo(colIdx >= 0 ? colIdx : 0);
     refreshAssigneeCombo();
-    if (window._createInlineTagPicker) window._createInlineTagPicker(data.tag || 'task', tagWrap);
+    if (window._createTagPicker) window._createTagPicker(data.tag || 'task', tagWrap);
     // Auto-expand More Options when editing an existing card
     document.getElementById('modalMoreFields')?.classList.add('open');
     document.getElementById('modalMoreToggle')?.classList.add('open');
@@ -933,7 +960,7 @@
     selectedAssignees.clear();
     if (data.assignee) data.assignee.split(', ').forEach(n => selectedAssignees.add(n.trim()));
     updateAssigneeLabel();
-    pendingTodos = (data.todos || []).map(t => ({ text: t.text, done: !!t.done, startDate: t.startDate || '', endDate: t.endDate || t.dueDate || '' }));
+    pendingTodos = (data.todos || []).map(t => ({ text: t.text, done: !!t.done, startDate: t.startDate || '', endDate: t.endDate || t.dueDate || '', ref: t.ref || '' }));
     renderTodoList();
     syncCardDatesToTodos();
     setPriority(data.priority || '');
@@ -959,6 +986,7 @@
     }
   });
   cancel.addEventListener('click', closeModal);
+  document.getElementById('modalClose')?.addEventListener('click', closeModal);
   deleteBtn?.addEventListener('click', () => {
     if (!_editingCard) return;
     _editingCard.querySelector('.task__opt-delete')?.dispatchEvent(new MouseEvent('click', { bubbles: true }));
@@ -1101,6 +1129,8 @@
       saveTask(card);
       // Refresh search cache after edit
       card.dataset.search = `${title} ${text} ${tagLabels[tag] || ''} ${priority || ''}`.toLowerCase();
+      // If swimlane is active, move card to the correct tag group
+      window._swimlaneRefreshCard?.(card);
       closeModal();
       return;
     }

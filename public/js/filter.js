@@ -198,12 +198,224 @@
     });
   }
 
+  // ── Group by Tag: sticky dividers inside existing columns ──────────────
+  let _groupByTag    = false;
+  let _cardOrigOrder = new Map(); // card el → { col, nextSibling }
+
+  function _getTagId(card) {
+    const cls = [...card.querySelectorAll('[class*="task__tag--"]')]
+      .map(el => [...el.classList].find(c => c.startsWith('task__tag--')))
+      .find(Boolean);
+    return cls ? cls.replace('task__tag--', '') : '__none__';
+  }
+
+  function _makeDivider(tag, count) {
+    const d = document.createElement('div');
+    d.className = 'swimlane-divider';
+    d.dataset.tagId = tag.id;
+    d.innerHTML =
+      `<span class="swimlane-divider__dot" style="background:${tag.color}"></span>` +
+      `<span class="swimlane-divider__label">${tag.label}</span>` +
+      `<span class="swimlane-divider__line"></span>` +
+      `<span class="swimlane-divider__count">${count}</span>`;
+    return d;
+  }
+
+  function buildSwimlaneBoard() {
+    const boardEl = document.querySelector('.project-tasks');
+    if (!boardEl || _cardOrigOrder.size) return;
+
+    const allTags = typeof window._getActiveTags === 'function' ? window._getActiveTags() : [];
+    const tagMap  = {};
+    allTags.forEach(t => { tagMap[t.id] = t; });
+    tagMap['__none__'] = { id: '__none__', label: 'Untagged', color: '#9ca3af' };
+
+    const cols = [...boardEl.querySelectorAll(
+      '.project-column:not(.project-column--archive):not(.project-column--trash)'
+    )];
+
+    // Collect every tag id that appears in any column, in tag order, __none__ last
+    const globalTagCounts = {};
+    cols.forEach(col => {
+      [...col.querySelectorAll(':scope > .task')].forEach(card => {
+        const id = _getTagId(card);
+        globalTagCounts[id] = (globalTagCounts[id] || 0) + 1;
+      });
+    });
+    const presentTagIds = allTags.map(t => t.id).filter(id => globalTagCounts[id]);
+    if (globalTagCounts['__none__']) presentTagIds.push('__none__');
+    if (!presentTagIds.length) return;
+
+    cols.forEach(col => {
+      const cards = [...col.querySelectorAll(':scope > .task')];
+      if (!cards.length) return;
+
+      // Remember original order
+      cards.forEach(card => {
+        _cardOrigOrder.set(card, { col, nextSibling: card.nextSibling });
+      });
+
+      // Group cards by tag
+      const cardsByTag = {};
+      cards.forEach(card => {
+        const id = _getTagId(card);
+        if (!cardsByTag[id]) cardsByTag[id] = [];
+        cardsByTag[id].push(card);
+      });
+
+      const dropZone = col.querySelector('.drop-zone');
+
+      // Render EVERY tag section in EVERY column (empty sections get count 0)
+      presentTagIds.forEach(tagId => {
+        const tag      = tagMap[tagId] || tagMap['__none__'];
+        const colCards = cardsByTag[tagId] || [];
+
+        const div = _makeDivider(tag, colCards.length);
+        dropZone ? col.insertBefore(div, dropZone) : col.appendChild(div);
+
+        const group = document.createElement('div');
+        group.className    = 'swimlane-group';
+        group.dataset.tagId = tagId;
+        dropZone ? col.insertBefore(group, dropZone) : col.appendChild(group);
+
+        colCards.forEach(card => group.appendChild(card));
+
+        // Highlight group on dragover so user sees where they'll drop
+        group.addEventListener('dragover', e => {
+          e.preventDefault();
+          document.querySelectorAll('.swimlane-group.drag-over').forEach(g => g.classList.remove('drag-over'));
+          group.classList.add('drag-over');
+        });
+        group.addEventListener('dragleave', e => {
+          if (!group.contains(e.relatedTarget)) group.classList.remove('drag-over');
+        });
+        group.addEventListener('drop', () => group.classList.remove('drag-over'));
+      });
+    });
+
+    // Equalize group heights so the same tag section lines up across columns
+    requestAnimationFrame(() => _equalizeGroupHeights(boardEl));
+  }
+
+  function _equalizeGroupHeights(boardEl) {
+    boardEl = boardEl || document.querySelector('.project-tasks');
+    if (!boardEl) return;
+    // Reset min-heights first so shrinkage is measured correctly
+    boardEl.querySelectorAll('.swimlane-group').forEach(g => { g.style.minHeight = ''; });
+    // Group by tagId, measure, then apply max
+    const byTag = {};
+    boardEl.querySelectorAll('.swimlane-group').forEach(g => {
+      const id = g.dataset.tagId;
+      if (!byTag[id]) byTag[id] = [];
+      byTag[id].push(g);
+    });
+    Object.values(byTag).forEach(groups => {
+      const maxH = Math.max(0, ...groups.map(g => g.getBoundingClientRect().height));
+      groups.forEach(g => { g.style.minHeight = maxH + 'px'; });
+    });
+  }
+
+  function teardownSwimlaneBoard() {
+    if (!_cardOrigOrder.size) return;
+
+    // Lift cards out of group wrappers, then remove wrappers + dividers
+    document.querySelectorAll('.project-tasks .swimlane-group').forEach(group => {
+      const col  = group.closest('.project-column');
+      const zone = col?.querySelector('.drop-zone');
+      [...group.querySelectorAll(':scope > .task')].forEach(card => {
+        zone ? col.insertBefore(card, zone) : col?.appendChild(card);
+      });
+      group.remove();
+    });
+    document.querySelectorAll('.project-tasks .swimlane-divider').forEach(d => d.remove());
+
+    // Restore original card positions
+    _cardOrigOrder.forEach((origin, card) => {
+      const { col, nextSibling } = origin;
+      if (nextSibling && col.contains(nextSibling)) {
+        col.insertBefore(card, nextSibling);
+      } else {
+        const zone = col.querySelector('.drop-zone');
+        zone ? col.insertBefore(card, zone) : col.appendChild(card);
+      }
+    });
+    _cardOrigOrder.clear();
+  }
+
+  // Expose toggle for keyboard shortcut
+  window._toggleSwimlane = () => document.getElementById('groupByTagBtn')?.click();
+
+  // Called after a card is drag-dropped — updates tag if card moved to a different group
+  window._swimlaneOnCardDrop = function(card) {
+    if (!_groupByTag || !card) return;
+    const group = card.closest('.swimlane-group');
+    if (!group) return;
+    const newTagId = group.dataset.tagId;
+    const oldTagId = _getTagId(card);
+    if (newTagId !== oldTagId) {
+      // Update tag span class + label
+      const tagSpan = card.querySelector('.task__tag');
+      if (tagSpan) {
+        tagSpan.className   = `task__tag task__tag--${newTagId}`;
+        tagSpan.textContent = tagLabels[newTagId] || newTagId;
+      }
+      // Full save to persist new tag to Firestore
+      saveTask(card, true);
+      // Update divider counts for old and new groups in this column
+      const col = group.closest('.project-column');
+      if (col) {
+        const oldGroup = col.querySelector(`.swimlane-group[data-tag-id="${oldTagId}"]`);
+        [oldGroup, group].forEach(g => {
+          if (!g) return;
+          const count   = g.querySelectorAll(':scope > .task').length;
+          const divider = g.previousElementSibling;
+          if (divider?.classList.contains('swimlane-divider')) {
+            divider.querySelector('.swimlane-divider__count').textContent = count;
+          }
+        });
+      }
+    }
+    requestAnimationFrame(() => _equalizeGroupHeights());
+  };
+
+  // Called after a card is edited — moves it to the correct tag group
+  window._swimlaneRefreshCard = function(card) {
+    if (!_groupByTag || !_cardOrigOrder.size) return;
+    const col = _cardOrigOrder.get(card)?.col || card.closest('.project-column');
+    if (!col) return;
+    const newTagId = _getTagId(card);
+    const targetGroup = col.querySelector(`.swimlane-group[data-tag-id="${newTagId}"]`);
+    if (!targetGroup) {
+      // Tag group doesn't exist yet in this column — rebuild cleanly
+      teardownSwimlaneBoard();
+      buildSwimlaneBoard();
+      return;
+    }
+    const currentGroup = card.closest('.swimlane-group');
+    if (currentGroup === targetGroup) return; // already in the right place
+    targetGroup.appendChild(card);
+    // Update divider counts for both groups
+    [currentGroup, targetGroup].forEach(g => {
+      if (!g) return;
+      const count = g.querySelectorAll(':scope > .task').length;
+      const divider = g.previousElementSibling;
+      if (divider?.classList.contains('swimlane-divider')) {
+        divider.querySelector('.swimlane-divider__count').textContent = count;
+      }
+    });
+    // Re-equalize all row heights after the card moved
+    requestAnimationFrame(() => _equalizeGroupHeights());
+  };
+
   // ── Clear all filters ────────────────────────────────────────────────────
   function clearFilters() {
     _activeTag      = '';
     _activePriority = '';
     _activeAssignee = '';
     _activeSort     = 'default';
+    _groupByTag     = false;
+    teardownSwimlaneBoard();
+    document.getElementById('groupByTagBtn')?.classList.remove('active');
     // Reset chip labels
     updateChipLabel('filterTagBtn',      'fas fa-tag',  'Tag',      false);
     updateChipLabel('filterPrioBtn',     'fas fa-flag', 'Priority', false);
@@ -260,6 +472,20 @@
     window._refreshFilterAssignees = buildAssigneeMenu;
     // Apply filters after board renders
     window._applyBoardFilters = applyFilters;
+
+    // Group by Tag → sticky dividers inside existing columns
+    const groupByTagBtn = document.getElementById('groupByTagBtn');
+    if (groupByTagBtn) {
+      groupByTagBtn.addEventListener('click', () => {
+        _groupByTag = !_groupByTag;
+        groupByTagBtn.classList.toggle('active', _groupByTag);
+        if (_groupByTag) {
+          buildSwimlaneBoard();
+        } else {
+          teardownSwimlaneBoard();
+        }
+      });
+    }
 
     // Hook into _applyBoardTags so the tag menu rebuilds when board tags load/change
     const _origApplyBoardTags = window._applyBoardTags;

@@ -63,6 +63,7 @@ function buildTodosHTML(todos) {
   const items = todos.map((t, i) => {
     const displayDate = t.endDate || t.dueDate || '';
     const startDate   = t.startDate || '';
+    const ref         = t.ref || '';
     let dateBadge = '';
     if (startDate && displayDate) {
       dateBadge = `<span class='task__todo-date${isOverdue(displayDate) ? " task__todo-date--overdue" : ""}'><i class='fas fa-play-circle'></i>${fmtDeadline(startDate)}<i class='fas fa-arrow-right' style='font-size:7px;margin:0 2px'></i>${fmtDeadline(displayDate)}</span>`;
@@ -71,10 +72,11 @@ function buildTodosHTML(todos) {
     } else if (startDate) {
       dateBadge = `<span class='task__todo-date'><i class='fas fa-play-circle'></i>${fmtDeadline(startDate)}</span>`;
     }
-    return `<label class='task__todo-item'${displayDate ? ` data-due-date='${displayDate}'` : ''}${startDate ? ` data-start-date='${startDate}'` : ''}>
+    const refBadge = ref ? `<span class='task__todo-ref'><i class='fas fa-hashtag'></i>${escapeHTML(ref)}</span>` : '';
+    return `<label class='task__todo-item'${displayDate ? ` data-due-date='${displayDate}'` : ''}${startDate ? ` data-start-date='${startDate}'` : ''}${ref ? ` data-ref='${escapeHTML(ref)}'` : ''}>
        <input type='checkbox' class='task__todo-cb' data-idx='${i}' ${t.done ? 'checked' : ''}>
        <span class='task__todo-text${t.done ? ' task__todo-text--done' : ''}'>${escapeHTML(t.text)}</span>
-       ${dateBadge}
+       ${dateBadge}${refBadge}
      </label>`;
   }).join('');
   return `<div class='task__todos'>
@@ -104,7 +106,8 @@ function serializeTask(cardEl) {
     text:      el.querySelector('.task__todo-text')?.textContent || '',
     done:      el.querySelector('.task__todo-cb')?.checked || false,
     startDate: el.dataset.startDate || '',
-    endDate:   el.dataset.dueDate   || ''
+    endDate:   el.dataset.dueDate   || '',
+    ref:       el.dataset.ref       || ''
   }));
   const link = cardEl.querySelector('.task__link a')?.getAttribute('href') || '';
   const timeline    = [];
