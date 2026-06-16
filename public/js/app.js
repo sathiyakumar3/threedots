@@ -2669,6 +2669,8 @@ document.addEventListener('DOMContentLoaded', () => {
       colEl.addEventListener('animationend', () => {
         colEl.classList.remove('col--animating-in');
         autoFitColumns();
+        // Re-integrate the expanded column into swimlane if group-by-tag is active
+        window._swimlaneRebuild?.();
         if (!skipSave) saveChanges(true);
       }, { once: true });
     } else {
@@ -2680,6 +2682,8 @@ document.addEventListener('DOMContentLoaded', () => {
       colEl.classList.add('col--animating-out');
       colEl.addEventListener('animationend', () => {
         colEl.classList.remove('col--animating-out');
+        // Strip swimlane groups/dividers before the column becomes a collapsed chip
+        window._swimlanePrepareCollapse?.(colEl);
         colEl.classList.add('project-column--collapsed');
         const myOrder  = +colEl.dataset.colOrder;
         const barChips = [...collapsedBar.querySelectorAll('.project-column--collapsed')];
@@ -2769,9 +2773,14 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!colEl) return;
     if (colEl.classList.contains('project-column--archive')) return;
     if (colEl.classList.contains('project-column--trash')) return;
-    const cols   = [...document.querySelectorAll('.project-column')];
+    const cols   = [...document.querySelectorAll('.project-column:not(.project-column--trash)')];
     const colIdx = cols.indexOf(colEl);
-    if (colIdx >= 0 && typeof window._openModal === 'function') window._openModal(colIdx);
+    // In group-by-tag (swimlane) mode, detect which tag group was clicked
+    const swimlaneGroup   = e.target.closest('.swimlane-group');
+    const swimlaneDivider = e.target.closest('.swimlane-divider');
+    const tagId = swimlaneGroup?.dataset.tagId ||
+                  (swimlaneDivider ? swimlaneDivider.dataset.tagId : undefined);
+    if (colIdx >= 0 && typeof window._openModal === 'function') window._openModal(colIdx, tagId);
   });
 
   // ── Card expand / collapse ───────────────────────────────────────────────

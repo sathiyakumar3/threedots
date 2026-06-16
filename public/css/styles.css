@@ -2271,7 +2271,9 @@ body.dark .col-drag-handle:hover {
   transform: translateY(-1px);
 }
 .project-column--collapsed > .task,
-.project-column--collapsed > .trash-col-notice {
+.project-column--collapsed > .trash-col-notice,
+.project-column--collapsed > .swimlane-divider,
+.project-column--collapsed > .swimlane-group {
   display: none !important;
 }
 .project-column--collapsed .col-count,

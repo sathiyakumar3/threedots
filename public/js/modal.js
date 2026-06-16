@@ -893,7 +893,7 @@
       : '<i class="fas fa-plus"></i> Add Card';
   }
 
-  function openModal(colIdx) {
+  function openModal(colIdx, tagId) {
     initDeadlinePicker();
     initStartDatePicker();
     const _colIdx = (typeof colIdx === 'number' && colIdx >= 0) ? colIdx : 0;
@@ -901,7 +901,8 @@
     refreshAssigneeCombo();
     loadTemplates();
     const tags = window._getActiveTags ? window._getActiveTags() : [];
-    if (window._createTagPicker) window._createTagPicker(tags[0]?.id || 'task', tagWrap);
+    const initialTag = tagId || tags[0]?.id || 'task';
+    if (window._createTagPicker) window._createTagPicker(initialTag, tagWrap);
     if (deleteBtn) deleteBtn.style.display = 'none';
     overlay.classList.add('open');
     titleEl.focus();
@@ -942,7 +943,7 @@
     _editingCard = cardEl;
     initDeadlinePicker();
     initStartDatePicker();
-    const cols   = [...document.querySelectorAll('.project-column')];
+    const cols   = [...document.querySelectorAll('.project-column:not(.project-column--trash)')];
     const colIdx = cols.indexOf(cardEl.closest('.project-column'));
     refreshColCombo(colIdx >= 0 ? colIdx : 0);
     refreshAssigneeCombo();
@@ -1126,6 +1127,14 @@
       } else {
         logActivity('edit', `<b>${_editAuthor}</b> edited "<em>${text.slice(0, 40)}</em>"`);
       }
+      // Move card to a different column if the column selection changed
+      const _allEditCols = [...document.querySelectorAll('.project-column:not(.project-column--trash)')];
+      const _newCol = _allEditCols[selectedColIdx];
+      const _currentCol = card.closest('.project-column');
+      if (_newCol && _newCol !== _currentCol) {
+        const _zone = _newCol.querySelector('.drop-zone');
+        _zone ? _newCol.insertBefore(card, _zone) : _newCol.appendChild(card);
+      }
       saveTask(card);
       // Refresh search cache after edit
       card.dataset.search = `${title} ${text} ${tagLabels[tag] || ''} ${priority || ''}`.toLowerCase();
@@ -1136,7 +1145,7 @@
     }
 
     // ── Create new card ──
-    const colEl    = document.querySelectorAll('.project-column')[selectedColIdx];
+    const colEl    = document.querySelectorAll('.project-column:not(.project-column--trash)')[selectedColIdx];
 
     const authorName  = currentUser?.displayName || currentUser?.email || 'You';
     const authorPhoto = currentUser?.photoURL    || '';
@@ -1207,6 +1216,8 @@
     saveTask(card, true);
     // Stamp search cache on new card
     card.dataset.search = `${title} ${text} ${tagLabels[tag] || ''} ${priority || ''}`.toLowerCase();
+    // If swimlane is active, place the new card into the correct tag group
+    window._swimlaneRefreshCard?.(card);
     closeModal();
   });
 }());

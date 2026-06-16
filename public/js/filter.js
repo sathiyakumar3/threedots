@@ -380,8 +380,8 @@
 
   // Called after a card is edited — moves it to the correct tag group
   window._swimlaneRefreshCard = function(card) {
-    if (!_groupByTag || !_cardOrigOrder.size) return;
-    const col = _cardOrigOrder.get(card)?.col || card.closest('.project-column');
+    if (!_groupByTag) return;
+    const col = card.closest('.project-column');
     if (!col) return;
     const newTagId = _getTagId(card);
     const targetGroup = col.querySelector(`.swimlane-group[data-tag-id="${newTagId}"]`);
@@ -405,6 +405,27 @@
     });
     // Re-equalize all row heights after the card moved
     requestAnimationFrame(() => _equalizeGroupHeights());
+  };
+
+  // Strip swimlane structure from a single column before it collapses to the bar
+  window._swimlanePrepareCollapse = function(colEl) {
+    if (!_groupByTag) return;
+    colEl.querySelectorAll('.swimlane-group').forEach(group => {
+      const zone = colEl.querySelector('.drop-zone');
+      [...group.querySelectorAll(':scope > .task')].forEach(card => {
+        _cardOrigOrder.delete(card); // remove from teardown tracking
+        zone ? colEl.insertBefore(card, zone) : colEl.appendChild(card);
+      });
+      group.remove();
+    });
+    colEl.querySelectorAll('.swimlane-divider').forEach(d => d.remove());
+  };
+
+  // Tear down and rebuild the entire swimlane (called after a column is expanded)
+  window._swimlaneRebuild = function() {
+    if (!_groupByTag) return;
+    teardownSwimlaneBoard();
+    buildSwimlaneBoard();
   };
 
   // ── Clear all filters ────────────────────────────────────────────────────

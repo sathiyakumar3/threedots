@@ -357,7 +357,6 @@
     updateCardDateSpans(cardEl, startStr, endStr);
 
     if (typeof saveTask === 'function') saveTask(cardEl).catch(() => {});
-    }
     reloadCalendarEvents();
   }
 
@@ -447,7 +446,6 @@
     fcEvent.remove();
 
     if (typeof saveTask === 'function') saveTask(cardEl).catch(() => {});
-    }
     buildSidebar(document.getElementById('calSidebarSearch')?.value || '');
   }
 
