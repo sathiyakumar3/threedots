@@ -3121,6 +3121,73 @@ body.dark .insights-panel__header { border-color:var(--border); }
 body.dark .insights-panel__title  { color:var(--text); }
 body.dark .insights-panel__action-btn { color:#64748b; }
 body.dark .insights-panel__action-btn:hover { background:#2a2d45; color:var(--text); }
+
+/* ── Summary Report panel ─────────────────────────────────────────────── */
+.summary-report__item {
+  display:flex;
+  flex-direction:column;
+  gap:5px;
+  padding:14px 16px;
+  border-bottom:1px solid #e9edf4;
+}
+.summary-report__num {
+  font-size:10.5px;
+  font-weight:700;
+  color:var(--purple);
+  text-transform:uppercase;
+  letter-spacing:.05em;
+}
+.summary-report__title {
+  font-size:13.5px;
+  font-weight:600;
+  color:#1e293b;
+  line-height:1.4;
+}
+.summary-report__meta {
+  font-size:11.5px;
+  color:#64748b;
+  display:flex;
+  gap:10px;
+  flex-wrap:wrap;
+  align-items:center;
+  min-height:14px;
+}
+.summary-report__comment-label {
+  font-size:10px;
+  font-weight:700;
+  color:#9ca3af;
+  text-transform:uppercase;
+  letter-spacing:.05em;
+  margin-top:2px;
+}
+.summary-report__comment {
+  font-size:12.5px;
+  color:#374151;
+  background:#f5f6fa;
+  border-left:3px solid var(--purple);
+  padding:6px 10px;
+  border-radius:0 4px 4px 0;
+  line-height:1.5;
+}
+.summary-report__no-comment {
+  font-size:12px;
+  color:#9ca3af;
+  font-style:italic;
+}
+.summary-report__empty {
+  padding:40px 16px;
+  text-align:center;
+  color:#9ca3af;
+  font-size:13px;
+}
+.summary-report__empty i { font-size:28px; display:block; margin-bottom:10px; }
+
+body.dark .summary-report__item      { border-color:var(--border); }
+body.dark .summary-report__title     { color:#e2e8f0; }
+body.dark .summary-report__meta      { color:#8892b0; }
+body.dark .summary-report__comment   { background:#2a2d45; color:#cbd5e1; border-left-color:var(--purple); }
+body.dark .summary-report__no-comment{ color:#4a5568; }
+
 body.dark .ins-kpi { background:#1e2132; border-color:var(--border); }
 body.dark .ins-kpi--red    { background:#2a1a1a; border-color:#7f1d1d; }
 body.dark .ins-kpi--amber  { background:#29230a; border-color:#78350f; }

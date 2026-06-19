@@ -24,6 +24,7 @@ window.closeAllPopups = function(skip = []) {
     { id: 'tplPopup',             cls: 'open', extra: 'tplBtn' },
     { id: 'densityPicker',        cls: 'open', extra: null },
     { id: 'teamPanel',            cls: 'open', extra: null },
+    { id: 'summaryPanel',         cls: 'open', extra: null },
     { id: 'topbarUser',           cls: 'open', extra: null },
   ];
   all.forEach(({ id, cls, extra }) => {
@@ -424,6 +425,157 @@ document.addEventListener('DOMContentLoaded', () => {
     else if (isFair) { wrap.className = 'pwd-strength pwd-strength--fair';   lbl.textContent = 'Fair'; }
     else             { wrap.className = 'pwd-strength pwd-strength--weak';   lbl.textContent = 'Weak'; }
   });
+
+  document.getElementById('recoverCardsBtn').addEventListener('click', () => {
+    document.getElementById('topbarUser')?.classList.remove('open');
+    document.getElementById('boardOptRestoreCards')?.click();
+  });
+
+  // ── Summary Report ────────────────────────────────────────────────────────
+  function buildAndOpenSummaryReport() {
+    const panel = document.getElementById('summaryPanel');
+    const body  = document.getElementById('summaryPanelBody');
+    if (!body) return;
+
+    const cols = [...document.querySelectorAll('.project-column')]
+      .filter(c => !c.classList.contains('project-column--trash') && !c.classList.contains('project-column--archive'));
+
+    const cards = [];
+    cols.forEach(col => {
+      const colTitle = col.querySelector('.project-column-heading__title')?.textContent?.trim() || 'Unknown';
+      col.querySelectorAll(':scope > .task').forEach(card => {
+        const title    = card.querySelector('.task__title')?.textContent?.trim() || card.dataset.title || '(Untitled)';
+        const priority = card.dataset.priority || '';
+        const deadline = card.dataset.deadline || '';
+
+        const commentEntries = [...card.querySelectorAll('.task__tl-entry')]
+          .filter(e => e.querySelector('.task__tl-dot--comment'));
+        let lastComment = '', lastCommentDate = '';
+        if (commentEntries.length) {
+          const last = commentEntries.reduce((a, b) => (+b.dataset.ts || 0) > (+a.dataset.ts || 0) ? b : a);
+          lastComment     = last.querySelector('.task__tl-text')?.dataset.comment || '';
+          lastCommentDate = last.querySelector('.task__tl-meta time')?.textContent || last.querySelector('time')?.textContent || '';
+        }
+        cards.push({ title, colTitle, priority, deadline, lastComment, lastCommentDate });
+      });
+    });
+
+    if (!cards.length) {
+      body.innerHTML = `<div class="summary-report__empty"><i class="fas fa-inbox"></i><p>No cards on the board.</p></div>`;
+    } else {
+      const prioColor = { low: '#22c55e', medium: '#f59e0b', high: '#ef4444', critical: '#7c3aed' };
+      body.innerHTML = cards.map((c, i) => {
+        const prioHtml = c.priority
+          ? `<span style="color:${prioColor[c.priority] || '#64748b'};font-weight:600;text-transform:capitalize">${escapeHTML(c.priority)}</span>`
+          : '';
+        const dlHtml = c.deadline
+          ? `<span><i class="fas fa-calendar-alt" style="font-size:10px;margin-right:3px"></i>${escapeHTML(c.deadline)}</span>`
+          : '';
+        const commentBlock = c.lastComment
+          ? `<div class="summary-report__comment-label">Last comment${c.lastCommentDate ? ' · ' + escapeHTML(c.lastCommentDate) : ''}</div>
+             <div class="summary-report__comment">${escapeHTML(c.lastComment)}</div>`
+          : `<div class="summary-report__no-comment">No comments yet</div>`;
+        return `<div class="summary-report__item">
+          <div class="summary-report__num">#${i + 1} &nbsp;·&nbsp; ${escapeHTML(c.colTitle)}</div>
+          <div class="summary-report__title">${escapeHTML(c.title)}</div>
+          <div class="summary-report__meta">${prioHtml}${dlHtml}</div>
+          ${commentBlock}
+        </div>`;
+      }).join('');
+    }
+    panel.classList.add('open');
+  }
+
+  document.getElementById('summaryReportBtn').addEventListener('click', () => {
+    document.getElementById('topbarUser')?.classList.remove('open');
+    buildAndOpenSummaryReport();
+  });
+
+  document.getElementById('summaryPanelClose').addEventListener('click', () => {
+    document.getElementById('summaryPanel').classList.remove('open');
+  });
+
+  document.getElementById('summaryPanelCopy').addEventListener('click', () => {
+    const boardName = document.getElementById('boardComboLabel')?.textContent || 'Board';
+    const generated = new Date().toLocaleString();
+    const body      = document.getElementById('summaryPanelBody');
+
+    // ── Build HTML version (preserves formatting when pasted into rich editors) ──
+    let htmlRows = '';
+    (body?.querySelectorAll('.summary-report__item') || []).forEach(item => {
+      const num     = item.querySelector('.summary-report__num')?.textContent?.trim()  || '';
+      const title   = item.querySelector('.summary-report__title')?.textContent?.trim() || '';
+      const meta    = item.querySelector('.summary-report__meta')?.innerHTML?.trim()   || '';
+      const comment = item.querySelector('.summary-report__comment')?.textContent?.trim() || '';
+      const commentDate = item.querySelector('.summary-report__comment-label')?.textContent?.trim() || '';
+      htmlRows += `
+        <tr>
+          <td colspan="2" style="padding:4px 8px;font-size:11px;color:#7c3aed;font-weight:700;border-top:1px solid #e9edf4">${escapeHTML(num)}</td>
+        </tr>
+        <tr>
+          <td colspan="2" style="padding:2px 8px 4px;font-size:14px;font-weight:600;color:#1e293b">${escapeHTML(title)}</td>
+        </tr>
+        ${meta ? `<tr><td colspan="2" style="padding:2px 8px 4px;font-size:12px;color:#64748b">${meta}</td></tr>` : ''}
+        ${comment
+          ? `<tr>
+               <td colspan="2" style="padding:2px 8px 6px">
+                 <div style="font-size:10px;color:#9ca3af;font-weight:700;text-transform:uppercase;margin-bottom:3px">${escapeHTML(commentDate)}</div>
+                 <div style="font-size:12.5px;color:#374151;background:#f5f6fa;border-left:3px solid #7c3aed;padding:6px 10px;border-radius:0 4px 4px 0">${escapeHTML(comment)}</div>
+               </td>
+             </tr>`
+          : `<tr><td colspan="2" style="padding:2px 8px 6px;font-size:12px;color:#9ca3af;font-style:italic">No comments yet</td></tr>`
+        }`;
+    });
+
+    const fullHtml = `
+      <html><body style="font-family:system-ui,sans-serif;margin:0;padding:16px;color:#1e293b">
+        <h2 style="margin:0 0 4px;font-size:16px;color:#1e293b">Summary Report — ${escapeHTML(boardName)}</h2>
+        <p style="margin:0 0 16px;font-size:12px;color:#64748b">Generated: ${escapeHTML(generated)}</p>
+        <table style="border-collapse:collapse;width:100%">
+          <tbody>${htmlRows}</tbody>
+        </table>
+      </body></html>`;
+
+    // ── Build plain-text fallback ──
+    const lines = [`Summary Report — ${boardName}`, `Generated: ${generated}`, ''];
+    (body?.querySelectorAll('.summary-report__item') || []).forEach((item, i) => {
+      const title   = item.querySelector('.summary-report__title')?.textContent?.trim() || '';
+      const meta    = item.querySelector('.summary-report__meta')?.textContent?.trim()  || '';
+      const comment = item.querySelector('.summary-report__comment')?.textContent?.trim() || '';
+      const commentDate = item.querySelector('.summary-report__comment-label')?.textContent?.trim() || '';
+      lines.push(`${i + 1}. ${title}`);
+      if (meta)    lines.push(`   ${meta}`);
+      if (comment) lines.push(`   ${commentDate}: ${comment}`);
+      lines.push('');
+    });
+
+    // ── Write both formats to clipboard ──
+    try {
+      const item = new ClipboardItem({
+        'text/html':  new Blob([fullHtml],          { type: 'text/html' }),
+        'text/plain': new Blob([lines.join('\n')],  { type: 'text/plain' })
+      });
+      navigator.clipboard.write([item])
+        .then(() => showToast('Summary copied (with formatting)'))
+        .catch(() => navigator.clipboard.writeText(lines.join('\n'))
+          .then(() => showToast('Summary copied as plain text'))
+          .catch(() => showToast('Could not copy to clipboard', true)));
+    } catch (_) {
+      // ClipboardItem not supported — fall back to plain text
+      navigator.clipboard.writeText(lines.join('\n'))
+        .then(() => showToast('Summary copied to clipboard'))
+        .catch(() => showToast('Could not copy to clipboard', true));
+    }
+  });
+
+  document.addEventListener('click', e => {
+    const panel = document.getElementById('summaryPanel');
+    if (!panel?.classList.contains('open')) return;
+    const btn = document.getElementById('summaryReportBtn');
+    if (!panel.contains(e.target) && e.target !== btn && !btn?.contains(e.target)) {
+      panel.classList.remove('open');
+    }
+  }, true);
 
   document.getElementById('logoutBtn').addEventListener('click', () => {
     document.getElementById('topbarUser')?.classList.remove('open');

@@ -243,6 +243,8 @@
               <button class="topbar-user__item" id="themeToggleBtn"><i class="fas fa-moon" id="themeToggleIcon"></i> <span id="themeToggleLabel">Dark mode</span></button>
               <button class="topbar-user__item" id="fullscreenBtn"><i class="fas fa-expand" id="fullscreenIcon"></i> <span id="fullscreenLabel">Full screen</span></button>
               <button class="topbar-user__item" id="shortcutsBtn"><i class="fas fa-keyboard"></i> Keyboard shortcuts</button>
+              <button class="topbar-user__item" id="recoverCardsBtn"><i class="fas fa-life-ring"></i> Recover lost cards</button>
+              <button class="topbar-user__item" id="summaryReportBtn"><i class="fas fa-clipboard-list"></i> Summary Report</button>
               <div class="topbar-user__divider"></div>
               <button class="topbar-user__item danger" id="deleteAccountBtn"><i class="fas fa-user-times"></i> Delete Account</button>
               <button class="topbar-user__item danger" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
@@ -359,6 +361,18 @@
     </div>
 
     <div class="save-toast" id="saveToast"></div>
+
+    <!-- Summary Report panel -->
+    <div class="insights-panel" id="summaryPanel">
+      <div class="insights-panel__header">
+        <span class="insights-panel__title"><i class="fas fa-clipboard-list"></i> Summary Report</span>
+        <div class="insights-panel__header-actions">
+          <button class="insights-panel__action-btn" id="summaryPanelCopy" title="Copy to clipboard"><i class="fas fa-copy"></i></button>
+          <button class="insights-panel__action-btn" id="summaryPanelClose" title="Close"><i class="fas fa-times"></i></button>
+        </div>
+      </div>
+      <div class="insights-panel__body" id="summaryPanelBody"></div>
+    </div>
 
     <!-- AI Board Insights panel -->
     <div class="insights-panel" id="insightsPanel">
