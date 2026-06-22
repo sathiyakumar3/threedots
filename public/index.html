@@ -104,11 +104,15 @@
               <div class="board-dropdown__divider"></div>
               <button id="insightsBtn"><i class="fas fa-lightbulb"></i> Insights</button>
               <button id="activityToggle"><i class="fas fa-stream"></i> Activity</button>
+              <button id="summaryReportBtn"><i class="fas fa-clipboard-list"></i> Summary</button>
+              <button id="themeToggleBtn"><i class="fas fa-moon" id="themeToggleIcon"></i> <span id="themeToggleLabel">Dark mode</span></button>
               <div class="board-dropdown__divider"></div>
               <button id="boardOptBackground"><i class="fas fa-image"></i> Background</button>
               <button id="boardOptRename"><i class="fas fa-pen"></i> Rename board</button>
-              <button id="boardOptExport"><i class="fas fa-file-export"></i> Export board</button>
-              <button id="boardOptRestoreCards"><i class="fas fa-life-ring"></i> Restore lost cards</button>
+              <button id="boardOptBackup"><i class="fas fa-download"></i> Backup board</button>
+              <button id="boardOptRestore"><i class="fas fa-upload"></i> Restore board</button>
+              <input type="file" id="boardRestoreInput" accept=".json" style="display:none">
+              <button id="boardOptRestoreCards"><i class="fas fa-life-ring"></i> Recover lost cards</button>
               <button id="boardOptDelete" class="danger"><i class="fas fa-trash-alt"></i> Delete board</button>
               <div class="board-dropdown__divider" id="boardOptLeaveDivider"></div>
               <button id="boardOptLeave" class="danger"><i class="fas fa-sign-out-alt"></i> Leave board</button>
@@ -240,11 +244,8 @@
                   <div class="topbar-user__hd-email" id="navUserEmail"></div>
                 </div>
               </div>
-              <button class="topbar-user__item" id="themeToggleBtn"><i class="fas fa-moon" id="themeToggleIcon"></i> <span id="themeToggleLabel">Dark mode</span></button>
               <button class="topbar-user__item" id="fullscreenBtn"><i class="fas fa-expand" id="fullscreenIcon"></i> <span id="fullscreenLabel">Full screen</span></button>
               <button class="topbar-user__item" id="shortcutsBtn"><i class="fas fa-keyboard"></i> Keyboard shortcuts</button>
-              <button class="topbar-user__item" id="recoverCardsBtn"><i class="fas fa-life-ring"></i> Recover lost cards</button>
-              <button class="topbar-user__item" id="summaryReportBtn"><i class="fas fa-clipboard-list"></i> Summary Report</button>
               <div class="topbar-user__divider"></div>
               <button class="topbar-user__item danger" id="deleteAccountBtn"><i class="fas fa-user-times"></i> Delete Account</button>
               <button class="topbar-user__item danger" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</button>

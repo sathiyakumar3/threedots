@@ -426,11 +426,6 @@ document.addEventListener('DOMContentLoaded', () => {
     else             { wrap.className = 'pwd-strength pwd-strength--weak';   lbl.textContent = 'Weak'; }
   });
 
-  document.getElementById('recoverCardsBtn').addEventListener('click', () => {
-    document.getElementById('topbarUser')?.classList.remove('open');
-    document.getElementById('boardOptRestoreCards')?.click();
-  });
-
   // ── Summary Report ────────────────────────────────────────────────────────
   function buildAndOpenSummaryReport() {
     const panel = document.getElementById('summaryPanel');
@@ -487,7 +482,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   document.getElementById('summaryReportBtn').addEventListener('click', () => {
-    document.getElementById('topbarUser')?.classList.remove('open');
+    boardDropdown.classList.remove('open');
     buildAndOpenSummaryReport();
   });
 
@@ -906,10 +901,10 @@ document.addEventListener('DOMContentLoaded', () => {
     themeBtn.classList.toggle('active', dark);
     if (window.Coloris) Coloris({ themeMode: dark ? 'dark' : 'light' });
   }
-  applyTheme(localStorage.getItem('theme') === 'dark');
+  applyTheme(localStorage.getItem(BOARD_ID ? `theme_${BOARD_ID}` : 'theme') === 'dark');
   themeBtn.addEventListener('click', () => {
     const isDark = !document.body.classList.contains('dark');
-    localStorage.setItem('theme', isDark ? 'dark' : 'light');
+    localStorage.setItem(BOARD_ID ? `theme_${BOARD_ID}` : 'theme', isDark ? 'dark' : 'light');
     applyTheme(isDark);
   });
 
@@ -1050,7 +1045,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const _loadId = ++_currentLoadId; // capture for stale-response guard
     window._localWriteIds = new Set();
     BOARD_ID = id;
-    board.innerHTML = '';
+    applyTheme(localStorage.getItem(`theme_${id}`) === 'dark');
     // Clear any collapsed columns carried over from the previous board
     const _csl = document.getElementById('collapsedBar');
     if (_csl) _csl.innerHTML = '';
@@ -1895,69 +1890,144 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast(`Restored ${totalRestored} card(s) into ${orphansByColId.size} new column(s). Rename and save to keep.`);
   });
 
-  document.getElementById('boardOptExport').addEventListener('click', () => {
+  // ── Backup board (download full Firestore snapshot as JSON) ──────────────
+  document.getElementById('boardOptBackup').addEventListener('click', async () => {
     boardDropdown.classList.remove('open');
     if (!BOARD_ID) return;
     const boardName = document.getElementById('boardComboLabel').textContent || 'board';
-    // Build export data from live DOM
-    const cols = [...document.querySelector('.project-tasks').querySelectorAll('.project-column')];
-    const exportData = {
-      board: boardName,
-      exportedAt: new Date().toISOString(),
-      columns: cols.map(col => ({
-        id:    col.dataset.columnId,
-        title: col.querySelector('.project-column-heading__title')?.textContent || '',
-        cards: [...col.querySelectorAll(':scope > .task')].map(c => serializeTask(c))
-      }))
-    };
-    Swal.fire({
-      title: 'Export Board',
-      html: `<p style="margin-bottom:12px">Choose export format for <b>${boardName}</b>:</p>`,
+    const btn = document.getElementById('boardOptBackup');
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Backing up…';
+    btn.disabled = true;
+    try {
+      const [boardSnap, tasksSnap, templatesSnap, activitySnap] = await Promise.all([
+        db.doc(`boards/${BOARD_ID}`).get(),
+        db.collection(`boards/${BOARD_ID}/tasks`).get(),
+        db.collection(`boards/${BOARD_ID}/templates`).get(),
+        db.collection(`boards/${BOARD_ID}/activity`).orderBy('ts', 'desc').limit(500).get(),
+      ]);
+      const backup = {
+        version:    2,
+        backupType: 'taskbz-board',
+        backedUpAt: new Date().toISOString(),
+        boardId:    BOARD_ID,
+        boardName,
+        boardData:  boardSnap.exists ? boardSnap.data() : {},
+        tasks:      tasksSnap.docs.map(d => ({ _id: d.id, ...d.data() })),
+        templates:  templatesSnap.docs.map(d => ({ _id: d.id, ...d.data() })),
+        activity:   activitySnap.docs.map(d => d.data()),
+      };
+      const blob = new Blob([JSON.stringify(backup, null, 2)], { type: 'application/json' });
+      const url  = URL.createObjectURL(blob);
+      const a    = document.createElement('a');
+      a.href     = url;
+      const safeDate = new Date().toISOString().slice(0, 10);
+      a.download = `${boardName.replace(/\s+/g, '-')}-backup-${safeDate}.json`;
+      a.click();
+      URL.revokeObjectURL(url);
+      showToast('Backup downloaded ✓');
+    } catch (err) {
+      showToast('Backup failed: ' + err.message, true);
+    } finally {
+      btn.innerHTML = origHtml;
+      btn.disabled  = false;
+    }
+  });
+
+  // ── Restore board from backup file ───────────────────────────────────────
+  document.getElementById('boardOptRestore').addEventListener('click', () => {
+    boardDropdown.classList.remove('open');
+    document.getElementById('boardRestoreInput').value = '';
+    document.getElementById('boardRestoreInput').click();
+  });
+
+  document.getElementById('boardRestoreInput').addEventListener('change', async function () {
+    const file = this.files[0];
+    if (!file) return;
+    let backup;
+    try {
+      backup = JSON.parse(await file.text());
+    } catch (_) {
+      showToast('Invalid backup file — could not parse JSON.', true);
+      return;
+    }
+    if (backup.backupType !== 'taskbz-board' || !backup.boardData || !Array.isArray(backup.tasks)) {
+      showToast('This file is not a valid Taskbz board backup.', true);
+      return;
+    }
+    const boardName = document.getElementById('boardComboLabel').textContent || 'this board';
+    const result = await Swal.fire({
+      title: 'Restore from backup?',
+      html: `This will <strong>overwrite all cards, columns, and settings</strong> of <b>${escapeHTML(boardName)}</b> with the backup from <b>${escapeHTML(backup.backedUpAt?.slice(0, 10) || 'unknown date')}</b>.<br><br>This cannot be undone.`,
+      icon: 'warning',
       showCancelButton: true,
-      confirmButtonText: '<i class="fas fa-file-code"></i> JSON',
-      cancelButtonText:  '<i class="fas fa-file-csv"></i> CSV',
-      showDenyButton: false,
-      confirmButtonColor: 'var(--purple)',
-      cancelButtonColor: '#6b7280',
-      reverseButtons: false
-    }).then(result => {
-      if (result.isConfirmed) {
-        // JSON export
-        const blob = new Blob([JSON.stringify(exportData, null, 2)], { type: 'application/json' });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href     = url;
-        a.download = `${boardName.replace(/\s+/g, '-')}-export.json`;
-        a.click();
-        URL.revokeObjectURL(url);
-      } else if (result.isDismissed && result.dismiss === Swal.DismissReason.cancel) {
-        // CSV export — flatten all cards
-        const rows = [['Column','Title','Description','Tag','Priority','Assignee','Start Date','Deadline','Created']];
-        exportData.columns.forEach(col => {
-          col.cards.forEach(card => {
-            rows.push([
-              col.title,
-              card.title  || '',
-              card.text   || '',
-              card.tag    || '',
-              card.priority || '',
-              card.assignee || '',
-              card.startDate || '',
-              card.deadline  || '',
-              card.created   || ''
-            ].map(v => `"${String(v).replace(/"/g, '""')}"`));
-          });
-        });
-        const csv  = rows.map(r => r.join(',')).join('\r\n');
-        const blob = new Blob([csv], { type: 'text/csv' });
-        const url  = URL.createObjectURL(blob);
-        const a    = document.createElement('a');
-        a.href     = url;
-        a.download = `${boardName.replace(/\s+/g, '-')}-export.csv`;
-        a.click();
-        URL.revokeObjectURL(url);
-      }
+      confirmButtonText: 'Yes, restore',
+      confirmButtonColor: '#e05252',
+      cancelButtonText: 'Cancel',
+      reverseButtons: true,
     });
+    if (!result.isConfirmed) return;
+
+    const btn = document.getElementById('boardOptRestore');
+    const origHtml = btn.innerHTML;
+    btn.innerHTML = '<i class="fas fa-circle-notch fa-spin"></i> Restoring…';
+    btn.disabled = true;
+    try {
+      // ── 1. Delete all existing tasks ──
+      const existingTasks = await db.collection(`boards/${BOARD_ID}/tasks`).get();
+      const CHUNK = 450;
+      for (let i = 0; i < existingTasks.docs.length; i += CHUNK) {
+        const b = db.batch();
+        existingTasks.docs.slice(i, i + CHUNK).forEach(d => b.delete(d.ref));
+        await b.commit();
+      }
+      // ── 2. Delete all existing templates ──
+      const existingTemplates = await db.collection(`boards/${BOARD_ID}/templates`).get();
+      for (let i = 0; i < existingTemplates.docs.length; i += CHUNK) {
+        const b = db.batch();
+        existingTemplates.docs.slice(i, i + CHUNK).forEach(d => b.delete(d.ref));
+        await b.commit();
+      }
+      // ── 3. Write board metadata (preserve current users/admins) ──
+      const currentBoardSnap = await db.doc(`boards/${BOARD_ID}`).get();
+      const currentUsers = currentBoardSnap.exists ? (currentBoardSnap.data().users || {}) : {};
+      const restoredBoardData = { ...backup.boardData, users: currentUsers };
+      await db.doc(`boards/${BOARD_ID}`).set(restoredBoardData);
+      // ── 4. Write tasks ──
+      for (let i = 0; i < backup.tasks.length; i += CHUNK) {
+        const b = db.batch();
+        backup.tasks.slice(i, i + CHUNK).forEach(task => {
+          const { _id, ...data } = task;
+          const ref = _id
+            ? db.collection(`boards/${BOARD_ID}/tasks`).doc(_id)
+            : db.collection(`boards/${BOARD_ID}/tasks`).doc();
+          b.set(ref, { ...data, boardId: BOARD_ID });
+        });
+        await b.commit();
+      }
+      // ── 5. Write templates ──
+      if (Array.isArray(backup.templates) && backup.templates.length) {
+        for (let i = 0; i < backup.templates.length; i += CHUNK) {
+          const b = db.batch();
+          backup.templates.slice(i, i + CHUNK).forEach(tpl => {
+            const { _id, ...data } = tpl;
+            const ref = _id
+              ? db.collection(`boards/${BOARD_ID}/templates`).doc(_id)
+              : db.collection(`boards/${BOARD_ID}/templates`).doc();
+            b.set(ref, data);
+          });
+          await b.commit();
+        }
+      }
+      logActivity('create', `<b>${escapeHTML(_authorName())}</b> restored board from backup (${escapeHTML(backup.backedUpAt?.slice(0, 10) || 'unknown date')})`);
+      showToast('Board restored — reloading…');
+      setTimeout(() => loadBoard(BOARD_ID, { replaceState: true }), 1200);
+    } catch (err) {
+      showToast('Restore failed: ' + err.message, true);
+    } finally {
+      btn.innerHTML = origHtml;
+      btn.disabled  = false;
+    }
   });
 
   // ── Board background picker ─────────────────────────────────────────────────

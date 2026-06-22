@@ -1039,6 +1039,14 @@
 
     // ── Edit existing card ──
     if (_editingCard) {
+      // If the card was replaced in the DOM by the Firestore real-time listener while
+      // the modal was open (e.g. another tab/device saved first), recover the new element
+      // by its data-id so we don't save with a detached (column-less) reference.
+      if (!_editingCard.isConnected) {
+        const recovered = document.querySelector(`.task[data-id="${_editingCard.dataset.id}"]`);
+        if (recovered) { _editingCard = recovered; }
+        else { closeModal(); return; }
+      }
       const card = _editingCard;
       const oldText = card.querySelector('.task__desc')?.dataset.raw || card.querySelector('.task__desc')?.textContent || '';
       // update title
