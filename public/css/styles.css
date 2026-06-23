@@ -75,6 +75,7 @@ body.dark .project-column {
   border-color:var(--border);
 }
 body.dark .project-column-heading {
+  background:var(--surface);
   border-color:var(--border);
 }
 body.dark .task {
@@ -1624,6 +1625,7 @@ body.dark #appShell[data-role="member"] .board-combo__trigger::after {
   position:sticky;
   top:0;
   z-index:20;
+  background:#f4f4f5;
   backdrop-filter:blur(8px);
   -webkit-backdrop-filter:blur(8px);
   border-radius:10px 10px 0 0;
@@ -3995,7 +3997,7 @@ body.dark .task__dropdown button.danger:hover { background:#2d1515; color:#f8717
 .board-dropdown button.fav-active:hover { background:#fff7ed; }
 
 /* -- Column heading dropdown -- */
-.project-column-heading { position:relative; }
+.project-column-heading { position:sticky; top:0; }
 .col-dropdown {
   position:absolute;
   top:calc(100% + 4px);
@@ -6955,7 +6957,7 @@ body.dark .swimlane-row-label { background: var(--bg); }
 body.dark .swimlane-col-header { background: var(--surface); border-color: var(--border); }
 
 /* Old inline-divider style (kept for safety) */
-.swimlane-group { display:flex; flex-direction:column; border-radius:6px; transition:background .15s; }
+.swimlane-group { display:flex; flex-direction:column; border-radius:6px; transition:background .15s; min-height:56px; padding-bottom:32px; }
 .swimlane-group.drag-over { background:rgba(99,102,241,0.07); outline:2px dashed rgba(99,102,241,0.35); outline-offset:-2px; }
 .swimlane-divider { display:flex; align-items:center; gap:7px; padding:5px 4px 3px; margin-top:6px; pointer-events:none; user-select:none; }
 .swimlane-divider:first-child { margin-top:0; }
