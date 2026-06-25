@@ -20,6 +20,11 @@
     bar.classList.toggle('active', n > 0);
     if (_boardEl) _boardEl.classList.toggle('board--bulk-active', n > 0);
     countEl.textContent = `${n} card${n !== 1 ? 's' : ''} selected`;
+    // Auto-open the toolbar bar when a selection starts so actions are visible
+    if (n > 0) {
+      document.getElementById('filterBar')?.classList.add('filter-bar--open');
+      document.getElementById('filterToggle')?.classList.add('active');
+    }
   }
 
   function _selectCard(cardEl) {

@@ -89,32 +89,39 @@ const { saveChanges } = window;
     const hasFilter = _activeTag || _activePriority || _activeAssignee || _activeSort !== 'default';
     document.getElementById('filterClear')?.classList.toggle('filter-bar__clear--visible', hasFilter);
     document.getElementById('filterBar')?.classList.toggle('filter-bar--active', hasFilter);
+
+    // Hide "Group by Tag" when a tag filter is active
+    const groupByBtn = document.getElementById('groupByTagBtn');
+    if (groupByBtn) {
+      const tagFiltered = !!_activeTag;
+      groupByBtn.style.display = tagFiltered ? 'none' : '';
+      if (tagFiltered && _groupByTag) {
+        _groupByTag = false;
+        groupByBtn.classList.remove('active');
+        teardownSwimlaneBoard();
+      }
+    }
   }
 
-  // ── Populate tag menu from tagLabels (populated/mutated by tags.js) ──────
-  function buildTagMenu() {
-    const menu = document.getElementById('filterTagMenu');
-    if (!menu) return;
-    // tagLabels is a const in utils.js — accessible as a plain global (not window.tagLabels)
-    const labels = window.tagLabels || {};
-    const prevActive = _activeTag; // preserve current selection
-    menu.innerHTML = `<button class="filter-chip__opt${!prevActive ? ' filter-chip__opt--active' : ''}" data-value="">All</button>` +
+  // ── Render inline tag pills directly in the filter bar ───────────────────
+  function buildTagPills() {
+    const wrap = document.getElementById('filterTagPills');
+    if (!wrap) return;
+    const labels = (typeof tagLabels !== 'undefined') ? tagLabels : (window.tagLabels || {});
+    wrap.innerHTML =
+      `<button class="filter-tag-pill${!_activeTag ? ' filter-tag-pill--active' : ''}" data-value="">All</button>` +
       Object.entries(labels).map(([k, v]) =>
-        `<button class="filter-chip__opt${_activeTag === k ? ' filter-chip__opt--active' : ''}" data-value="${k}"><span class="filter-tag-dot tag-dot--${k}"></span>${v}</button>`
+        `<button class="filter-tag-pill${_activeTag === k ? ' filter-tag-pill--active' : ''}" data-value="${k}"><span class="filter-tag-pill__dot tag-dot--${k}"></span>${v}</button>`
       ).join('');
-    menu.querySelectorAll('.filter-chip__opt').forEach(btn => {
+    wrap.querySelectorAll('.filter-tag-pill').forEach(btn => {
       btn.addEventListener('click', () => {
         _activeTag = btn.dataset.value;
-        menu.querySelectorAll('.filter-chip__opt').forEach(b => b.classList.remove('filter-chip__opt--active'));
-        btn.classList.add('filter-chip__opt--active');
-        const label = btn.dataset.value
-          ? (btn.querySelector('.filter-tag-dot') ? btn.textContent.trim() : btn.dataset.value)
-          : 'Tag';
-        updateChipLabel('filterTagBtn', 'fas fa-tag', label, !!btn.dataset.value);
-        menu.classList.remove('open');
+        wrap.querySelectorAll('.filter-tag-pill').forEach(b => b.classList.remove('filter-tag-pill--active'));
+        btn.classList.add('filter-tag-pill--active');
         applyFilters();
       });
     });
+    window._updateTagPillsScroll?.();
   }
 
   // ── Populate assignee menu from current board members ───────────────────
@@ -208,8 +215,12 @@ const { saveChanges } = window;
     _activePriority = '';
     _activeAssignee = '';
     _activeSort     = 'default';
+    // Reset tag pills
+    const tagPills = document.getElementById('filterTagPills');
+    if (tagPills) {
+      tagPills.querySelectorAll('.filter-tag-pill').forEach(b => b.classList.toggle('filter-tag-pill--active', b.dataset.value === ''));
+    }
     // Reset chip labels
-    updateChipLabel('filterTagBtn',      'fas fa-tag',  'Tag',      false);
     updateChipLabel('filterPrioBtn',     'fas fa-flag', 'Priority', false);
     updateChipLabel('filterAssigneeBtn', 'fas fa-user', 'Assignee', false);
     updateChipLabel('filterSortBtn',     'fas fa-sort', 'Default',  false);
@@ -245,8 +256,7 @@ const { saveChanges } = window;
   }
 
   document.addEventListener('DOMContentLoaded', () => {
-    buildTagMenu();
-    setupChipToggle('filterTagBtn',      'filterTagMenu');
+    buildTagPills();
     setupChipToggle('filterPrioBtn',     'filterPrioMenu');
     setupChipToggle('filterAssigneeBtn', 'filterAssigneeMenu');
     setupChipToggle('filterSortBtn',     'filterSortMenu');
@@ -260,16 +270,54 @@ const { saveChanges } = window;
       bar?.classList.contains('filter-bar--open') ? closeFilterBar() : openFilterBar();
     });
 
+    // Click on blank board space (not on a column) → toggle toolbar
+    // Does NOT close the bar while any filter is active
+    document.querySelector('.project-tasks')?.addEventListener('click', e => {
+      const bar = document.getElementById('filterBar');
+      if (!bar) return;
+      if (!e.target.closest('.project-column') && !e.target.closest('.tbar')) {
+        if (bar.classList.contains('filter-bar--open')) {
+          if (!bar.classList.contains('filter-bar--active')) closeFilterBar();
+        } else {
+          openFilterBar();
+        }
+      }
+    });
+
+    // ── Tag pills scroll arrows ───────────────────────────────────────────────
+    (() => {
+      const pillsEl = document.getElementById('filterTagPills');
+      const wrap    = document.getElementById('tbarTagsWrap');
+      const btnL    = document.getElementById('tbarTagsScrollLeft');
+      const btnR    = document.getElementById('tbarTagsScrollRight');
+      if (!pillsEl || !wrap || !btnL || !btnR) return;
+
+      function updateTagScroll() {
+        const canLeft  = pillsEl.scrollLeft > 2;
+        const canRight = pillsEl.scrollLeft + pillsEl.clientWidth < pillsEl.scrollWidth - 2;
+        wrap.classList.toggle('can-scroll-left',  canLeft);
+        wrap.classList.toggle('can-scroll-right', canRight);
+      }
+
+      const STEP = 140;
+      btnL.addEventListener('click', () => pillsEl.scrollBy({ left: -STEP, behavior: 'smooth' }));
+      btnR.addEventListener('click', () => pillsEl.scrollBy({ left:  STEP, behavior: 'smooth' }));
+      pillsEl.addEventListener('scroll', updateTagScroll, { passive: true });
+      new ResizeObserver(updateTagScroll).observe(pillsEl);
+      new MutationObserver(updateTagScroll).observe(pillsEl, { childList: true });
+      window._updateTagPillsScroll = updateTagScroll;
+    })();
+
     // Re-build assignee list when board loads
     window._refreshFilterAssignees = buildAssigneeMenu;
     // Apply filters after board renders
     window._applyBoardFilters = applyFilters;
 
-    // Hook into _applyBoardTags so the tag menu rebuilds when board tags load/change
+    // Hook into _applyBoardTags so the tag pills rebuild when board tags load/change
     const _origApplyBoardTags = window._applyBoardTags;
     window._applyBoardTags = (tags) => {
       if (_origApplyBoardTags) _origApplyBoardTags(tags);
-      setTimeout(buildTagMenu, 0);
+      setTimeout(buildTagPills, 0);
     };
   });
 

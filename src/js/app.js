@@ -2124,6 +2124,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let   nextColId    = 100;
 
   function buildColumnsFromData(colData) {
+    board.innerHTML = '';
     let maxId = 0;
     colData.columns.forEach(col => {
       const div       = document.createElement('div');

@@ -2749,6 +2749,7 @@ document.addEventListener('DOMContentLoaded', () => {
   let   nextColOrder  = 0;
 
   function buildColumnsFromData(colData) {
+    board.innerHTML = '';
     let maxId = 0;
     // Backward-compat: old boards stored columns as { columns: [] }
     const colArr = Array.isArray(colData) ? colData : (colData.columns || []);
@@ -2893,6 +2894,8 @@ document.addEventListener('DOMContentLoaded', () => {
         autoFitColumns();
         // Re-integrate the expanded column into swimlane if group-by-tag is active
         window._swimlaneRebuild?.();
+        window._updateCollapsedBarScroll?.();
+        window._updateIconContrast?.();
         if (!skipSave) saveChanges(true);
       }, { once: true });
     } else {
@@ -2918,6 +2921,8 @@ document.addEventListener('DOMContentLoaded', () => {
         autoFitColumns();
         scheduleOverflowCheck();
         refreshColCount(colEl);
+        window._updateCollapsedBarScroll?.();
+        window._updateIconContrast?.();
         if (!skipSave) saveChanges(true);
       }, { once: true });
     }

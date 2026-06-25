@@ -156,36 +156,14 @@
             </div>
           </div>
 
-          <div class="tags-wrap" id="tplWrap">
-            <button class="tags-btn" id="tplBtn" title="Templates"><i class="fas fa-layer-group"></i></button>
-            <div class="tags-popup" id="tplPopup">
-              <div class="tags-popup__title">Templates</div>
-              <div class="tags-list" id="tplPopupList">
-                <p class="template-combo__empty">No saved templates yet.</p>
-              </div>
-            </div>
-          </div>
-
-          <!-- ── Density picker ── -->
-          <div class="density-picker" id="densityPicker">
-            <button class="topbar-icon-btn density-picker__trigger" id="densityTrigger" title="Card density"><i class="fas fa-th-large"></i></button>
-            <div class="density-picker__menu" id="densityMenu">
-              <div class="density-picker__menu-title">Card Density</div>
-              <div class="density-picker__list">
-                <button class="density-picker__opt" data-view="tight"><span class="density-picker__opt-name">Tight</span><span class="density-picker__opt-desc">Title Only</span></button>
-                <button class="density-picker__opt" data-view="compact"><span class="density-picker__opt-name">Compact</span><span class="density-picker__opt-desc">Title · Desc · Latest Update</span></button>
-                <button class="density-picker__opt" data-view="cozy"><span class="density-picker__opt-name">Cozy</span><span class="density-picker__opt-desc">Title · Desc · Options · Latest Update</span></button>
-                <button class="density-picker__opt" data-view="roomy"><span class="density-picker__opt-name">Roomy</span><span class="density-picker__opt-desc">Title · Desc · Options · All Updates</span></button>
-              </div>
-            </div>
-          </div>
           <button class="topbar-icon-btn" id="calendarBtn" title="Calendar"><i class="fas fa-calendar-alt"></i></button>
-          <button class="topbar-icon-btn" id="groupByTagBtn" title="Group by Tag"><i class="fas fa-th-list"></i></button>
           <button class="topbar-icon-btn" id="autoResizeColsBtn" title="Auto-fit columns"><i class="fas fa-arrows-alt-h"></i></button>
                     <div class="project-participants" id="projectParticipants">
             <button class="topbar-icon-btn" id="addParticipantBtn" title="Manage team">
               <i class="fas fa-users"></i>
             </button>
+            <div class="topbar-divider"></div>
+            <button class="topbar-icon-btn topbar-icon-btn--add" id="filterToggle" title="Filters &amp; Tools"><i class="fas fa-sliders-h"></i></button>
             <div class="topbar-divider"></div>
             <button class="topbar-icon-btn topbar-icon-btn--add" id="fabBtn" title="Add card (Enter)"><i class="fas fa-plus"></i></button>
             <div class="team-panel" id="teamPanel">
@@ -224,7 +202,6 @@
           <div class="topbar-search" id="topbarSearch">
             <button class="topbar-search__icon-btn" id="searchToggle" title="Search"><i class="fas fa-search"></i></button>
             <input type="text" id="boardSearch" placeholder="Search cards&hellip;" autocomplete="off">
-            <button class="topbar-search__filter" id="filterToggle" title="Filter &amp; Sort"><i class="fas fa-filter"></i></button>
             <button class="topbar-search__clear" id="searchClear" title="Clear"><i class="fas fa-times"></i></button>
           </div>
           <!-- User dropdown -->
@@ -254,40 +231,60 @@
         </div>
       </div>
 
-      <!-- Bulk selection action bar -->
-      <div class="bulk-bar" id="bulkBar">
-        <div class="bulk-bar__inner">
-          <button class="bulk-bar__deselect" id="bulkDeselect" title="Clear selection"><i class="fas fa-times"></i></button>
-          <span class="bulk-bar__count" id="bulkCount">0 cards selected</span>
-          <div class="bulk-bar__actions">
+      <!-- Unified toolbar: filter · sort · tags · view · bulk selection -->
+      <!-- Single row, hidden by default, toggled by the floating FAB -->
+      <div class="tbar" id="filterBar">
+
+        <!-- ① Selection strip – slides in when ≥1 card is checked -->
+        <div class="tbar__sel" id="bulkBar">
+          <button class="tbar__x" id="bulkDeselect" title="Deselect all"><i class="fas fa-times"></i></button>
+          <span class="tbar__count" id="bulkCount">0 selected</span>
+          <div class="tbar__bulk-actions">
             <div class="bulk-action-wrap">
-              <button class="bulk-bar__btn" id="bulkTagBtn"><i class="fas fa-tag"></i> Tag</button>
+              <button class="tbar__btn" id="bulkTagBtn"><i class="fas fa-tag"></i> Tag</button>
               <div class="bulk-popup" id="bulkTagPopup"></div>
             </div>
             <div class="bulk-action-wrap">
-              <button class="bulk-bar__btn" id="bulkPrioBtn"><i class="fas fa-flag"></i> Priority</button>
+              <button class="tbar__btn" id="bulkPrioBtn"><i class="fas fa-flag"></i> Priority</button>
               <div class="bulk-popup" id="bulkPrioPopup"></div>
             </div>
             <div class="bulk-action-wrap">
-              <button class="bulk-bar__btn" id="bulkMoveBtn"><i class="fas fa-exchange-alt"></i> Move to</button>
+              <button class="tbar__btn" id="bulkMoveBtn"><i class="fas fa-exchange-alt"></i> Move</button>
               <div class="bulk-popup" id="bulkMovePopup"></div>
             </div>
-            <button class="bulk-bar__btn bulk-bar__btn--danger" id="bulkDeleteBtn"><i class="fas fa-trash-alt"></i> Delete</button>
+            <button class="tbar__btn tbar__btn--danger" id="bulkDeleteBtn"><i class="fas fa-trash-alt"></i> Delete</button>
           </div>
+          <div class="tbar__sep"></div>
         </div>
-      </div>
 
-      <!-- Filter & Sort bar -->
-      <div class="filter-bar" id="filterBar">
-        <div class="filter-bar__inner">
-          <i class="fas fa-filter filter-bar__icon"></i>
-          <span class="filter-bar__label">Filter:</span>
+        <!-- Clear filters — LEFT -->
+        <button class="tbar__clear" id="filterClear" title="Clear all filters"><i class="fas fa-times"></i> Clear</button>
 
-          <div class="filter-chip-wrap" id="filterTagWrap">
-            <button class="filter-chip" id="filterTagBtn"><i class="fas fa-tag"></i> Tag <i class="fas fa-chevron-down filter-chip__caret"></i></button>
-            <div class="filter-chip__menu" id="filterTagMenu"></div>
+        <!-- ② View tools — LEFT (Group only) -->
+        <div class="tbar__view">
+          <button class="tbar__tool" id="groupByTagBtn" title="Group by Tag"><i class="fas fa-th-list"></i> Group</button>
+        </div>
+
+        <!-- ③ Tag pills (grows to fill space) -->
+        <div class="tbar__sep"></div>
+        <div class="tbar-tags-wrap" id="tbarTagsWrap">
+          <button class="tbar-tags-scroll tbar-tags-scroll--left" id="tbarTagsScrollLeft" tabindex="-1"><i class="fas fa-chevron-left"></i></button>
+          <div class="tbar__tags" id="filterTagPills"><!-- injected by filter.js --></div>
+          <button class="tbar-tags-scroll tbar-tags-scroll--right" id="tbarTagsScrollRight" tabindex="-1"><i class="fas fa-chevron-right"></i></button>
+        </div>
+
+        <!-- ④ Filter chips — RIGHT -->
+        <div class="tbar__grp">
+          <div class="filter-chip-wrap" id="filterSortWrap">
+            <button class="filter-chip" id="filterSortBtn"><i class="fas fa-sort"></i> Default <i class="fas fa-chevron-down filter-chip__caret"></i></button>
+            <div class="filter-chip__menu" id="filterSortMenu">
+              <button class="filter-chip__opt filter-chip__opt--active" data-value="default">Default (manual)</button>
+              <button class="filter-chip__opt" data-value="priority">Priority (high → low)</button>
+              <button class="filter-chip__opt" data-value="deadline">Deadline (soonest first)</button>
+              <button class="filter-chip__opt" data-value="created">Created (newest first)</button>
+              <button class="filter-chip__opt" data-value="title">Title (A → Z)</button>
+            </div>
           </div>
-
           <div class="filter-chip-wrap" id="filterPrioWrap">
             <button class="filter-chip" id="filterPrioBtn"><i class="fas fa-flag"></i> Priority <i class="fas fa-chevron-down filter-chip__caret"></i></button>
             <div class="filter-chip__menu" id="filterPrioMenu">
@@ -299,28 +296,34 @@
               <button class="filter-chip__opt" data-value="none">None</button>
             </div>
           </div>
-
           <div class="filter-chip-wrap" id="filterAssigneeWrap">
             <button class="filter-chip" id="filterAssigneeBtn"><i class="fas fa-user"></i> Assignee <i class="fas fa-chevron-down filter-chip__caret"></i></button>
             <div class="filter-chip__menu" id="filterAssigneeMenu"></div>
           </div>
-
-          <div class="filter-bar__divider"></div>
-          <span class="filter-bar__label">Sort:</span>
-
-          <div class="filter-chip-wrap" id="filterSortWrap">
-            <button class="filter-chip" id="filterSortBtn"><i class="fas fa-sort"></i> Default <i class="fas fa-chevron-down filter-chip__caret"></i></button>
-            <div class="filter-chip__menu" id="filterSortMenu">
-              <button class="filter-chip__opt filter-chip__opt--active" data-value="default">Default (manual)</button>
-              <button class="filter-chip__opt" data-value="priority">Priority (high → low)</button>
-              <button class="filter-chip__opt" data-value="deadline">Deadline (soonest first)</button>
-              <button class="filter-chip__opt" data-value="created">Created (newest first)</button>
-              <button class="filter-chip__opt" data-value="title">Title (A → Z)</button>
+          <div class="tbar__sep"></div>
+          <div class="density-picker" id="densityPicker">
+            <button class="tbar__tool density-picker__trigger" title="Card density"><i class="fas fa-th-large"></i> Density</button>
+            <div class="density-picker__menu" id="densityMenu">
+              <div class="density-picker__menu-title">Card Density</div>
+              <div class="density-picker__list">
+                <button class="density-picker__opt" data-view="tight"><span class="density-picker__opt-name">Tight</span><span class="density-picker__opt-desc">Title Only</span></button>
+                <button class="density-picker__opt" data-view="compact"><span class="density-picker__opt-name">Compact</span><span class="density-picker__opt-desc">Title · Desc · Latest Update</span></button>
+                <button class="density-picker__opt" data-view="cozy"><span class="density-picker__opt-name">Cozy</span><span class="density-picker__opt-desc">Title · Desc · Options · Latest Update</span></button>
+                <button class="density-picker__opt" data-view="roomy"><span class="density-picker__opt-name">Roomy</span><span class="density-picker__opt-desc">Title · Desc · Options · All Updates</span></button>
+              </div>
             </div>
           </div>
-
-          <button class="filter-bar__clear" id="filterClear" title="Clear all filters"><i class="fas fa-times"></i> Clear</button>
+          <div class="tags-wrap" id="tplWrap">
+            <button class="tbar__tool" id="tplBtn" title="Templates"><i class="fas fa-layer-group"></i> Templates</button>
+            <div class="tags-popup" id="tplPopup">
+              <div class="tags-popup__title">Templates</div>
+              <div class="tags-list" id="tplPopupList">
+                <p class="template-combo__empty">No saved templates yet.</p>
+              </div>
+            </div>
+          </div>
         </div>
+
       </div>
 
       <div class="app">
