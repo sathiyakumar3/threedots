@@ -83,8 +83,16 @@
 
     // Show/hide clear button
     const hasFilter = _activeTag || _activePriority || _activeAssignee || _activeSort !== 'default';
+    const bar = document.getElementById('filterBar');
+    const wasActive = bar?.classList.contains('filter-bar--active');
     document.getElementById('filterClear')?.classList.toggle('filter-bar__clear--visible', hasFilter);
-    document.getElementById('filterBar')?.classList.toggle('filter-bar--active', hasFilter);
+    bar?.classList.toggle('filter-bar--active', hasFilter);
+
+    // When a filter is first turned on: scroll to top then open the toolbar
+    if (hasFilter && !wasActive) {
+      scrollToTop();
+      openFilterBar();
+    }
 
     // Hide "Group by Tag" when a tag filter is active (grouping by tag while filtering by tag is redundant)
     const groupByBtn = document.getElementById('groupByTagBtn');
@@ -475,6 +483,13 @@
     btn?.classList.add('active');
     if (btn) btn.title = 'Hide toolbar';
   }
+
+  function scrollToTop() {
+    document.documentElement.scrollTop = 0;
+    document.body.scrollTop = 0;
+    const tasks = document.querySelector('.project-tasks');
+    if (tasks) { tasks.scrollTop = 0; tasks.scrollLeft = 0; }
+  }
   function closeFilterBar() {
     const bar = document.getElementById('filterBar');
     const btn = document.getElementById('filterToggle');
@@ -497,7 +512,13 @@
     // Topbar toggle button
     document.getElementById('filterToggle')?.addEventListener('click', () => {
       const bar = document.getElementById('filterBar');
-      bar?.classList.contains('filter-bar--open') ? closeFilterBar() : openFilterBar();
+      if (bar?.classList.contains('filter-bar--open')) {
+        // Only close if no active filters
+        if (!bar.classList.contains('filter-bar--active')) closeFilterBar();
+      } else {
+        scrollToTop();
+        openFilterBar();
+      }
     });
 
     // Click on blank board space (not on a column) → toggle toolbar

@@ -3757,6 +3757,7 @@ document.addEventListener('DOMContentLoaded', () => {
       '.topbar-user__trigger',
       '#boardOptionsBtn',
       '.collapsed-bar .project-column--collapsed',
+      '.topbar-divider',
     ].join(',');
 
     let _rafId = null;
