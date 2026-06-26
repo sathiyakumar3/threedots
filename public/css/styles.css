@@ -914,7 +914,7 @@ body.dark .tags-theme-row__name { color:var(--text); }
 .topbar-icon-btn--add { background: #fff !important; }
 .topbar-icon-btn--add:hover { background: #f5f6fa !important; }
 /* Filter toggle active = purple fill */
-#filterToggle.active { background: var(--purple) !important; color: #fff !important; }
+#filterToggle.active { background: var(--purple-gradient) !important; color: #fff !important; }
 #filterToggle.active:hover { background: var(--purple-dark, #5a3fc0) !important; }
 body.dark .topbar-icon-btn--add { background: rgba(255,255,255,0.12) !important; }
 body.dark .topbar-icon-btn--add:hover { background: #2a2d45 !important; }

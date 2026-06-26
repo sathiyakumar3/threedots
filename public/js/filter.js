@@ -531,6 +531,7 @@
           // Only close if no active filters
           if (!bar.classList.contains('filter-bar--active')) closeFilterBar();
         } else {
+          scrollToTop();
           openFilterBar();
         }
       }
