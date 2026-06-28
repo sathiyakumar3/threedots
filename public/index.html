@@ -100,12 +100,11 @@
           <div class="board-options-wrap">
             <button class="project-column-heading__options" id="boardOptionsBtn" title="Board options"><i class="fas fa-ellipsis-h"></i></button>
             <div class="board-dropdown" id="boardDropdown">
-              <button id="boardOptFavourite"><i class="fas fa-star"></i> <span id="boardOptFavouriteLabel">Make favourite</span></button>
-              <div class="board-dropdown__divider"></div>
-              <button id="insightsBtn"><i class="fas fa-lightbulb"></i> Insights</button>
-              <button id="activityToggle"><i class="fas fa-stream"></i> Activity</button>
-              <button id="summaryReportBtn"><i class="fas fa-clipboard-list"></i> Summary</button>
               <button id="themeToggleBtn"><i class="fas fa-moon" id="themeToggleIcon"></i> <span id="themeToggleLabel">Dark mode</span></button>
+              <!-- kept hidden: JS in ai-insights.js and app.js binds directly to these IDs -->
+              <button id="insightsBtn"    style="display:none" aria-hidden="true"></button>
+              <button id="activityToggle" style="display:none" aria-hidden="true"></button>
+              <button id="summaryReportBtn" style="display:none" aria-hidden="true"></button>
               <div class="board-dropdown__divider"></div>
               <button id="boardOptBackground"><i class="fas fa-image"></i> Background</button>
               <button id="boardOptRename"><i class="fas fa-pen"></i> Rename board</button>
@@ -113,6 +112,8 @@
               <button id="boardOptRestore"><i class="fas fa-upload"></i> Restore board</button>
               <input type="file" id="boardRestoreInput" accept=".json" style="display:none">
               <button id="boardOptRestoreCards"><i class="fas fa-life-ring"></i> Recover lost cards</button>
+              <div class="board-dropdown__divider"></div>
+              <button id="boardOptFavourite"><i class="fas fa-star"></i> <span id="boardOptFavouriteLabel">Make favourite</span></button>
               <button id="boardOptDelete" class="danger"><i class="fas fa-trash-alt"></i> Delete board</button>
               <div class="board-dropdown__divider" id="boardOptLeaveDivider"></div>
               <button id="boardOptLeave" class="danger"><i class="fas fa-sign-out-alt"></i> Leave board</button>
@@ -197,8 +198,17 @@
         <!-- Right group -->
         <div class="topbar-right">
           <div class="topbar-divider"></div>
-          <button class="topbar-icon-btn topbar-icon-btn--add" id="filterToggle" title="Filters &amp; Tools"><i class="fas fa-sliders-h"></i></button>
-          <button class="topbar-icon-btn topbar-icon-btn--add" id="fabBtn" title="Add card (Enter)"><i class="fas fa-plus"></i></button>
+          <!-- Insights / Activity / Summary quick-access dropdown -->
+          <div class="topbar-insights-wrap" id="insightsDropdownWrap">
+            <button class="topbar-icon-btn" id="insightsDropdownTrigger" title="Insights &amp; Reports"><i class="fas fa-chart-bar"></i></button>
+            <div class="topbar-insights-menu" id="insightsDropdownMenu">
+              <button id="topbarInsightsTrigger"><i class="fas fa-lightbulb"></i> Insights</button>
+              <button id="topbarActivityTrigger"><i class="fas fa-stream"></i> Activity</button>
+              <button id="topbarSummaryTrigger"><i class="fas fa-clipboard-list"></i> Summary</button>
+            </div>
+          </div>
+          <button class="topbar-icon-btn" id="filterToggle" title="Filters &amp; Tools"><i class="fas fa-sliders-h"></i></button>
+          <button class="topbar-icon-btn" id="fabBtn" title="Add card (Enter)"><i class="fas fa-plus"></i></button>
           <div class="topbar-divider"></div>
           <div class="topbar-search" id="topbarSearch">
             <button class="topbar-search__icon-btn" id="searchToggle" title="Search"><i class="fas fa-search"></i></button>
@@ -366,6 +376,11 @@
     </div>
 
     <div class="save-toast" id="saveToast"></div>
+
+    <!-- Floating column-name strip (shown when scrolled down) -->
+    <div id="colGhostBar" class="col-ghost-bar" aria-hidden="true">
+      <div id="colGhostLabels" class="col-ghost-labels"></div>
+    </div>
 
     <!-- Summary Report panel -->
     <div class="insights-panel" id="summaryPanel">
@@ -730,5 +745,6 @@
   <script defer src="js/calendar.js"></script>
   <script defer src="js/init.js"></script>
 
+  <script defer src="js/col-ghost.js"></script>
 </body>
 </html>

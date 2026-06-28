@@ -1,6 +1,6 @@
 // ── Board filter & sort ───────────────────────────────────────────────────
 (function () {
-  let _activeTag      = '';   // tag key or ''
+  let _activeTags     = new Set(); // set of active tag keys
   let _activePriority = '';   // 'low' | 'medium' | 'high' | 'critical' | 'none' | ''
   let _activeAssignee = '';   // display-name fragment or ''
   let _activeSort     = 'default';
@@ -18,7 +18,7 @@
       // 1. Visibility filter
       cards.forEach(card => {
         // Use DOM class check — more reliable than searching the text index
-        const tagMatch  = !_activeTag      || !!card.querySelector(`.task__tag--${_activeTag}`);
+        const tagMatch  = !_activeTags.size || [..._activeTags].some(t => !!card.querySelector(`.task__tag--${t}`));
         const prioVal   = card.dataset.priority || '';
         const prioMatch = !_activePriority
           || (_activePriority === 'none' && !prioVal)
@@ -82,7 +82,7 @@
     });
 
     // Show/hide clear button
-    const hasFilter = _activeTag || _activePriority || _activeAssignee || _activeSort !== 'default';
+    const hasFilter = !!(_activeTags.size || _activePriority || _activeAssignee || _activeSort !== 'default');
     const bar = document.getElementById('filterBar');
     const wasActive = bar?.classList.contains('filter-bar--active');
     document.getElementById('filterClear')?.classList.toggle('filter-bar__clear--visible', hasFilter);
@@ -97,7 +97,7 @@
     // Hide "Group by Tag" when a tag filter is active (grouping by tag while filtering by tag is redundant)
     const groupByBtn = document.getElementById('groupByTagBtn');
     if (groupByBtn) {
-      const tagFiltered = !!_activeTag;
+      const tagFiltered = _activeTags.size > 0;
       groupByBtn.style.display = tagFiltered ? 'none' : '';
       if (tagFiltered && _groupByTag) {
         _groupByTag = false;
@@ -113,15 +113,26 @@
     if (!wrap) return;
     const labels = (typeof tagLabels !== 'undefined') ? tagLabels : {};
     wrap.innerHTML =
-      `<button class="filter-tag-pill${!_activeTag ? ' filter-tag-pill--active' : ''}" data-value="">All</button>` +
+      `<button class="filter-tag-pill${_activeTags.size === 0 ? ' filter-tag-pill--active' : ''}" data-value="">All</button>` +
       Object.entries(labels).map(([k, v]) =>
-        `<button class="filter-tag-pill${_activeTag === k ? ' filter-tag-pill--active' : ''}" data-value="${k}"><span class="filter-tag-pill__dot tag-dot--${k}"></span>${v}</button>`
+        `<button class="filter-tag-pill${_activeTags.has(k) ? ' filter-tag-pill--active' : ''}" data-value="${k}"><span class="filter-tag-pill__dot tag-dot--${k}"></span>${v}</button>`
       ).join('');
     wrap.querySelectorAll('.filter-tag-pill').forEach(btn => {
       btn.addEventListener('click', () => {
-        _activeTag = btn.dataset.value;
-        wrap.querySelectorAll('.filter-tag-pill').forEach(b => b.classList.remove('filter-tag-pill--active'));
-        btn.classList.add('filter-tag-pill--active');
+        const val = btn.dataset.value;
+        if (val === '') {
+          // "All" clears every active tag
+          _activeTags.clear();
+        } else {
+          // Toggle this tag; deactivate "All"
+          if (_activeTags.has(val)) _activeTags.delete(val);
+          else _activeTags.add(val);
+        }
+        // Sync active class on every pill
+        wrap.querySelectorAll('.filter-tag-pill').forEach(b => {
+          const v = b.dataset.value;
+          b.classList.toggle('filter-tag-pill--active', v === '' ? _activeTags.size === 0 : _activeTags.has(v));
+        });
         applyFilters();
       });
     });
@@ -446,7 +457,7 @@
 
   // ── Clear all filters ────────────────────────────────────────────────────
   function clearFilters() {
-    _activeTag      = '';
+    _activeTags.clear();
     _activePriority = '';
     _activeAssignee = '';
     _activeSort     = 'default';
@@ -456,7 +467,7 @@
     // Reset tag pills
     const tagPills = document.getElementById('filterTagPills');
     if (tagPills) {
-      tagPills.querySelectorAll('.filter-tag-pill').forEach(b => b.classList.toggle('filter-tag-pill--active', b.dataset.value === ''));
+      tagPills.querySelectorAll('.filter-tag-pill').forEach(b => b.classList.toggle('filter-tag-pill--active', b.dataset.value === '' /* "All" pill */));
     }
     // Reset chip labels
     updateChipLabel('filterPrioBtn',     'fas fa-flag', 'Priority', false);
@@ -513,8 +524,11 @@
     document.getElementById('filterToggle')?.addEventListener('click', () => {
       const bar = document.getElementById('filterBar');
       if (bar?.classList.contains('filter-bar--open')) {
-        // Only close if no active filters
-        if (!bar.classList.contains('filter-bar--active')) closeFilterBar();
+        if (bar.classList.contains('filter-bar--active')) {
+          showToast('Clear the filter to close the toolbar', true);
+        } else {
+          closeFilterBar();
+        }
       } else {
         scrollToTop();
         openFilterBar();
@@ -522,14 +536,18 @@
     });
 
     // Click on blank board space (not on a column) → toggle toolbar
+    // Uses .project-body so clicks below the columns (outside the grid height) are also caught
     // Does NOT close the bar while any filter is active
-    document.querySelector('.project-tasks')?.addEventListener('click', e => {
+    document.querySelector('.project-body')?.addEventListener('click', e => {
       const bar = document.getElementById('filterBar');
       if (!bar) return;
       if (!e.target.closest('.project-column') && !e.target.closest('.tbar')) {
         if (bar.classList.contains('filter-bar--open')) {
-          // Only close if no active filters
-          if (!bar.classList.contains('filter-bar--active')) closeFilterBar();
+          if (bar.classList.contains('filter-bar--active')) {
+            showToast('Clear the filter to close the toolbar', true);
+          } else {
+            closeFilterBar();
+          }
         } else {
           scrollToTop();
           openFilterBar();

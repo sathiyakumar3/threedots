@@ -733,6 +733,29 @@ document.addEventListener('DOMContentLoaded', () => {
   });
   document.getElementById('activityPanelClose')?.addEventListener('click', () => closeActivityPanel());
 
+  // ── Topbar insights / activity / summary dropdown ────────────────────────
+  (() => {
+    const trigger = document.getElementById('insightsDropdownTrigger');
+    const menu    = document.getElementById('insightsDropdownMenu');
+    trigger?.addEventListener('click', e => {
+      e.stopPropagation();
+      menu?.classList.toggle('open');
+    });
+    document.getElementById('topbarInsightsTrigger')?.addEventListener('click', () => {
+      menu?.classList.remove('open');
+      document.getElementById('insightsBtn')?.click();
+    });
+    document.getElementById('topbarActivityTrigger')?.addEventListener('click', () => {
+      menu?.classList.remove('open');
+      activityToggle?.click();
+    });
+    document.getElementById('topbarSummaryTrigger')?.addEventListener('click', () => {
+      menu?.classList.remove('open');
+      document.getElementById('summaryReportBtn')?.click();
+    });
+    document.addEventListener('click', () => menu?.classList.remove('open'));
+  })();
+
   // ── Clear activity logs ──────────────────────────────────────────────────
   document.getElementById('activityClearBtn').addEventListener('click', () => {
     if (!BOARD_ID) return;
@@ -3767,9 +3790,16 @@ document.addEventListener('DOMContentLoaded', () => {
         _rafId = null;
         navBar.querySelectorAll(ICON_SEL).forEach(btn => {
           const lum    = luminanceBehind(btn);
-          const isDark = lum < 0.35;   // background is dark → use light icons
+          const isDark = lum < 0.35;
           btn.classList.toggle('icon--on-dark',  isDark);
           btn.classList.toggle('icon--on-light', !isDark);
+        });
+        // Also adapt ghost column-name pills
+        document.querySelectorAll('.col-ghost-label').forEach(pill => {
+          const lum    = luminanceBehind(pill);
+          const isDark = lum < 0.35;
+          pill.classList.toggle('icon--on-dark',  isDark);
+          pill.classList.toggle('icon--on-light', !isDark);
         });
       });
     }
