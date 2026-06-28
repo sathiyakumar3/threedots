@@ -2112,9 +2112,11 @@ document.addEventListener('DOMContentLoaded', () => {
   const bgPresetsEl  = document.getElementById('boardBgPresets');
   const bgUrlInput   = document.getElementById('boardBgUrlInput');
   const bgUrlApply   = document.getElementById('boardBgUrlApply');
+  const bgBlurSlider = document.getElementById('boardBgBlurSlider');
+  const bgBlurValEl  = document.getElementById('boardBgBlurVal');
   const bgClearBtn   = document.getElementById('boardBgClear');
   const appContent   = document.querySelector('.app-content');
-  let _currentBg     = null; // { type, value }
+  let _currentBg     = null; // { type, value, dark, blur }
 
   // Build preset swatches
   BG_PRESETS.forEach(p => {
@@ -2174,6 +2176,129 @@ document.addEventListener('DOMContentLoaded', () => {
         { color:'#23d5ab', w:42, h:42, top:65, left:20,  dur:17 },
         { color:'#f97316', w:36, h:36, top:35, left:40,  dur: 9 },
       ], dark: true },
+
+    // ── 11 new presets ──────────────────────────────────────────────────────
+
+    // dark — deep cosmic blues/purples/magenta
+    { label: 'Galaxy',   id: 'galaxy',
+      base: '#04071a',
+      blobs: [
+        { color:'#1a0e8c', w:58, h:58, top:5,  left:5,  dur:14 },
+        { color:'#6b21a8', w:50, h:50, top:55, left:55, dur:16 },
+        { color:'#c026d3', w:46, h:46, top:15, left:70, dur:12 },
+        { color:'#0e7490', w:42, h:42, top:70, left:15, dur:18 },
+        { color:'#7c3aed', w:38, h:38, top:35, left:40, dur:10 },
+      ], dark: true },
+
+    // dark — blood red / rose / deep plum
+    { label: 'Crimson',  id: 'crimson',
+      base: '#12020a',
+      blobs: [
+        { color:'#9f1239', w:56, h:56, top:8,  left:8,  dur:13 },
+        { color:'#be185d', w:48, h:48, top:52, left:58, dur:15 },
+        { color:'#7e22ce', w:46, h:46, top:12, left:68, dur:11 },
+        { color:'#b91c1c', w:40, h:40, top:68, left:22, dur:17 },
+        { color:'#e11d48', w:36, h:36, top:35, left:42, dur: 9 },
+      ], dark: true },
+
+    // dark — lush tropical forest greens
+    { label: 'Jungle',   id: 'jungle',
+      base: '#021a0a',
+      blobs: [
+        { color:'#14532d', w:60, h:60, top:5,  left:3,  dur:15 },
+        { color:'#065f46', w:50, h:50, top:50, left:55, dur:13 },
+        { color:'#166534', w:48, h:48, top:15, left:70, dur:11 },
+        { color:'#15803d', w:42, h:42, top:68, left:18, dur:17 },
+        { color:'#16a34a', w:36, h:36, top:30, left:40, dur: 9 },
+      ], dark: true },
+
+    // dark — electric teal/cyan/lime/amber tech
+    { label: 'Plasma',   id: 'plasma',
+      base: '#020d1a',
+      blobs: [
+        { color:'#0c4a6e', w:55, h:55, top:8,  left:5,  dur:13 },
+        { color:'#0891b2', w:50, h:50, top:52, left:58, dur:15 },
+        { color:'#166534', w:44, h:44, top:12, left:68, dur:11 },
+        { color:'#ca8a04', w:40, h:40, top:65, left:20, dur:17 },
+        { color:'#0369a1', w:38, h:38, top:35, left:40, dur:10 },
+      ], dark: true },
+
+    // light — purple/orchid/periwinkle/pink
+    { label: 'Lavender', id: 'lavender',
+      base: '#f8f5ff',
+      blobs: [
+        { color:'#a855f7', w:55, h:55, top:8,  left:5,  dur:14 },
+        { color:'#d946ef', w:48, h:48, top:55, left:58, dur:16 },
+        { color:'#6366f1', w:44, h:44, top:12, left:70, dur:12 },
+        { color:'#ec4899', w:40, h:40, top:68, left:20, dur:18 },
+        { color:'#8b5cf6', w:36, h:36, top:35, left:40, dur:10 },
+      ], dark: false },
+
+    // light — emerald/teal/cyan/sky
+    { label: 'Mint',     id: 'mint',
+      base: '#f0fdf9',
+      blobs: [
+        { color:'#10b981', w:55, h:55, top:8,  left:5,  dur:13 },
+        { color:'#06b6d4', w:50, h:50, top:50, left:58, dur:15 },
+        { color:'#22c55e', w:44, h:44, top:15, left:68, dur:11 },
+        { color:'#14b8a6', w:40, h:40, top:65, left:20, dur:17 },
+        { color:'#0ea5e9', w:36, h:36, top:35, left:40, dur: 9 },
+      ], dark: false },
+
+    // light — warm orange/amber/burnt sienna
+    { label: 'Marmalade', id: 'marmalade',
+      base: '#fff7f0',
+      blobs: [
+        { color:'#ea580c', w:55, h:55, top:8,  left:5,  dur:12 },
+        { color:'#d97706', w:50, h:50, top:52, left:58, dur:14 },
+        { color:'#dc2626', w:44, h:44, top:12, left:68, dur:10 },
+        { color:'#f97316', w:40, h:40, top:65, left:20, dur:16 },
+        { color:'#b45309', w:36, h:36, top:35, left:40, dur: 9 },
+      ], dark: false },
+
+    // light — icy sky blue/indigo/violet
+    { label: 'Arctic',   id: 'arctic',
+      base: '#f0f9ff',
+      blobs: [
+        { color:'#0ea5e9', w:55, h:55, top:8,  left:5,  dur:14 },
+        { color:'#6366f1', w:48, h:48, top:55, left:58, dur:16 },
+        { color:'#7c3aed', w:44, h:44, top:12, left:70, dur:12 },
+        { color:'#0891b2', w:40, h:40, top:68, left:18, dur:18 },
+        { color:'#818cf8', w:36, h:36, top:32, left:40, dur:10 },
+      ], dark: false },
+
+    // light — rainbow candy: pink/violet/mint/yellow/coral
+    { label: 'Cotton',   id: 'cotton',
+      base: '#fff9ff',
+      blobs: [
+        { color:'#f472b6', w:55, h:55, top:8,  left:5,  dur:13 },
+        { color:'#818cf8', w:48, h:48, top:52, left:60, dur:15 },
+        { color:'#34d399', w:44, h:44, top:12, left:68, dur:11 },
+        { color:'#fbbf24', w:40, h:40, top:65, left:20, dur:17 },
+        { color:'#fb7185', w:36, h:36, top:35, left:40, dur: 9 },
+      ], dark: false },
+
+    // light — golden amber/honey/saffron
+    { label: 'Solar',    id: 'solar',
+      base: '#fffbf0',
+      blobs: [
+        { color:'#f59e0b', w:58, h:58, top:5,  left:5,  dur:12 },
+        { color:'#d97706', w:50, h:50, top:52, left:55, dur:14 },
+        { color:'#ea580c', w:46, h:46, top:12, left:70, dur:10 },
+        { color:'#ca8a04', w:40, h:40, top:65, left:20, dur:16 },
+        { color:'#b45309', w:36, h:36, top:35, left:42, dur: 9 },
+      ], dark: false },
+
+    // light — spring blossom: cherry pink/coral/sage/mint/lilac
+    { label: 'Blossom',  id: 'blossom',
+      base: '#fff5f8',
+      blobs: [
+        { color:'#f472b6', w:55, h:55, top:8,  left:5,  dur:14 },
+        { color:'#fb7185', w:48, h:48, top:52, left:58, dur:16 },
+        { color:'#4ade80', w:44, h:44, top:12, left:70, dur:12 },
+        { color:'#6ee7b7', w:40, h:40, top:65, left:20, dur:18 },
+        { color:'#c084fc', w:36, h:36, top:35, left:40, dur:10 },
+      ], dark: false },
   ];
 
   function _buildAnimLayer(preset) {
@@ -2201,6 +2326,17 @@ document.addEventListener('DOMContentLoaded', () => {
   function _removeAnimLayer() {
     document.getElementById('animBgLayer')?.remove();
   }
+  function _buildUrlLayer(url, blur) {
+    _removeUrlLayer();
+    const layer = document.createElement('div');
+    layer.id = 'urlBgLayer';
+    layer.style.backgroundImage = url;
+    if (blur > 0) layer.style.filter = `blur(${blur}px)`;
+    document.body.insertBefore(layer, document.body.firstChild);
+  }
+  function _removeUrlLayer() {
+    document.getElementById('urlBgLayer')?.remove();
+  }
 
   // Section label
   const animatedLabel = document.createElement('div');
@@ -2212,21 +2348,26 @@ document.addEventListener('DOMContentLoaded', () => {
     const btn = document.createElement('button');
     btn.className = 'board-bg-preset board-bg-preset--animated';
     btn.title = p.label + ' (animated)';
-    // Swatch thumbnail: show the blob colours as a quick gradient
-    btn.style.background = `linear-gradient(135deg, ${p.blobs.slice(0,3).map(b=>b.color).join(',')})`;
+    // Swatch: blend base → blobs so dark/light is immediately obvious
+    btn.style.background = `linear-gradient(135deg, ${p.base} 0%, ${p.blobs[0].color} 45%, ${p.blobs[1].color} 75%, ${p.blobs[2].color} 100%)`;
     btn.dataset.bgAnimated = p.id;
+    btn.dataset.dark = p.dark ? '1' : '0';
     btn.addEventListener('click', () => applyBackground(p.id, 'animated', p.dark));
     bgPresetsEl.appendChild(btn);
   });
 
-  function applyBackground(value, type, isDark = true) {
+  function applyBackground(value, type, isDark = true, blur = 0) {
     // Clear any existing animated bg classes/layer
     [...document.body.classList].filter(c => c.startsWith('bg-animated--')).forEach(c => document.body.classList.remove(c));
     _removeAnimLayer();
-    _currentBg = value ? { type, value, dark: isDark } : null;
+    _removeUrlLayer();
+    _currentBg = value ? { type, value, dark: isDark, blur } : null;
     if (type === 'animated' && value) {
       const preset = ANIMATED_BG_PRESETS.find(p => p.id === value);
       if (preset) _buildAnimLayer(preset);
+      document.body.style.backgroundImage = '';
+    } else if (type === 'url' && value) {
+      _buildUrlLayer(value, blur);
       document.body.style.backgroundImage = '';
     } else {
       document.body.style.backgroundImage = value || '';
@@ -2244,7 +2385,7 @@ document.addEventListener('DOMContentLoaded', () => {
     });
     if (BOARD_ID) {
       db.doc(`boards/${BOARD_ID}`).update({
-        background: value ? { type, value, dark: isDark } : firebase.firestore.FieldValue.delete()
+        background: value ? { type, value, dark: isDark, blur } : firebase.firestore.FieldValue.delete()
       }).catch(() => showToast('Could not save background', true));
     }
     bgPanel.classList.remove('open');
@@ -2252,19 +2393,25 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   window._applyBoardBackground = function(bg) {
-    // Clear any existing animated bg layer
     _removeAnimLayer();
+    _removeUrlLayer();
     _currentBg = bg || null;
     const type  = bg?.type || 'gradient';
     const value = bg?.value || '';
     const isDark = bg ? (bg.dark !== false) : false;
+    const blur  = bg?.blur || 0;
     if (type === 'animated' && value) {
       const preset = ANIMATED_BG_PRESETS.find(p => p.id === value);
       if (preset) _buildAnimLayer(preset);
       document.body.style.backgroundImage = '';
+    } else if (type === 'url' && value) {
+      _buildUrlLayer(value, blur);
+      document.body.style.backgroundImage = '';
     } else {
       document.body.style.backgroundImage = value;
     }
+    bgBlurSlider.value = blur;
+    bgBlurValEl.textContent = blur + 'px';
     document.body.classList.toggle('has-bg', !!value);
     document.body.classList.toggle('bg-is-dark', !!value && isDark);
     appContent.classList.toggle('has-bg', !!value);
@@ -2284,6 +2431,9 @@ document.addEventListener('DOMContentLoaded', () => {
     bgUrlInput.value = (_currentBg?.type === 'url' && _currentBg.value)
       ? _currentBg.value.replace(/^url\(["']?/, '').replace(/["']?\)$/, '')
       : '';
+    const _bl = _currentBg?.blur || 0;
+    bgBlurSlider.value = _bl;
+    bgBlurValEl.textContent = _bl + 'px';
   });
 
   document.getElementById('boardBgPanelBack').addEventListener('click', () => bgPanel.classList.remove('open'));
@@ -2291,9 +2441,30 @@ document.addEventListener('DOMContentLoaded', () => {
   bgUrlApply.addEventListener('click', () => {
     const raw = bgUrlInput.value.trim();
     if (!raw) return;
-    applyBackground(`url(${JSON.stringify(raw)})`, 'url', true); // image URLs default to dark treatment
+    const blur = parseInt(bgBlurSlider.value) || 0;
+    applyBackground(`url(${JSON.stringify(raw)})`, 'url', true, blur);
   });
   bgUrlInput.addEventListener('keydown', e => { if (e.key === 'Enter') bgUrlApply.click(); });
+  bgBlurSlider.addEventListener('input', () => {
+    const blur = parseInt(bgBlurSlider.value);
+    bgBlurValEl.textContent = blur + 'px';
+    // Live preview: update filter without re-saving
+    const layer = document.getElementById('urlBgLayer');
+    if (layer) layer.style.filter = blur > 0 ? `blur(${blur}px)` : '';
+  });
+  bgBlurSlider.addEventListener('change', () => {
+    // Auto-save blur when slider is released, if a URL background is active
+    if (_currentBg?.type === 'url' && _currentBg.value) {
+      const blur = parseInt(bgBlurSlider.value) || 0;
+      _currentBg = { ..._currentBg, blur };
+      _buildUrlLayer(_currentBg.value, blur);
+      if (BOARD_ID) {
+        db.doc(`boards/${BOARD_ID}`).update({
+          background: { type: _currentBg.type, value: _currentBg.value, dark: _currentBg.dark !== false, blur }
+        }).catch(() => showToast('Could not save background', true));
+      }
+    }
+  });
 
   bgClearBtn.addEventListener('click', () => applyBackground('', null));
 

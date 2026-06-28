@@ -951,7 +951,7 @@ body.dark .topbar-insights-menu button:hover { background:#2a2d45; }
   top:0;
   left:0;
   right:0;
-  height:36px;
+  height:42px;
   z-index:9998;
   pointer-events:none;
   opacity:0;
@@ -965,16 +965,16 @@ body.dark .topbar-insights-menu button:hover { background:#2a2d45; }
 }
 .col-ghost-label {
   position:absolute;
-  top:5px;
-  height:26px;
+  top:6px;
+  height:30px;
   display:flex;
   align-items:center;
-  padding:0 14px;
-  border-radius:13px;
+  padding:0 16px;
+  border-radius:15px;
   background:rgba(255,255,255,.18);
   backdrop-filter:blur(16px) saturate(1.5);
   -webkit-backdrop-filter:blur(16px) saturate(1.5);
-  font-size:12px;
+  font-size:13px;
   font-weight:700;
   letter-spacing:.3px;
   color:rgba(0,0,0,.7);
@@ -7657,6 +7657,30 @@ body.dark .board-dropdown__section-hdr { color: #64748b; }
   min-width: 0;
 }
 .board-bg-panel__url-row input:focus { border-color: var(--purple); }
+.board-bg-panel__blur-row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 0 10px 8px;
+  font-size: 11px;
+  color: #9ca3af;
+}
+.board-bg-panel__blur-row i { font-size: 10px; flex-shrink: 0; }
+.board-bg-panel__blur-row input[type="range"] {
+  flex: 1;
+  accent-color: var(--purple);
+  cursor: pointer;
+  height: 3px;
+}
+.board-bg-panel__blur-row span {
+  min-width: 26px;
+  text-align: right;
+  font-variant-numeric: tabular-nums;
+  color: var(--text);
+  font-size: 10px;
+}
+body.dark .board-bg-panel__blur-row { color: #6b7280; }
+body.dark .board-bg-panel__blur-row span { color: #9ca3af; }
 
 /* ── Template combo (modal) ─────────────────────────────────────────────── */
 #modalTemplateRow { margin-bottom:2px; display:none; }
@@ -7800,6 +7824,15 @@ body.dark .board-bg-preset.active { box-shadow: 0 0 0 2px var(--surface), 0 0 0 
   overflow: hidden;
   pointer-events: none;
 }
+#urlBgLayer {
+  position: fixed;
+  inset: -30px; /* extends past edges so blur soft-fringe is hidden */
+  z-index: -1;
+  background-size: cover;
+  background-position: center;
+  pointer-events: none;
+  transition: filter .25s;
+}
 #animBgLayer .anim-blob {
   position: absolute;
   border-radius: 50%;
@@ -7829,6 +7862,11 @@ body.dark .board-bg-preset.active { box-shadow: 0 0 0 2px var(--surface), 0 0 0 
   animation: animated-swatch-shimmer 2s linear infinite;
   pointer-events: none;
 }
+/* light-base animated swatches: darken shimmer so it's visible */
+.board-bg-preset--animated[data-dark="0"]::before {
+  background: linear-gradient(90deg, transparent 0%, rgba(0,0,0,.12) 50%, transparent 100%);
+  background-size: 200% 100%;
+}
 .board-bg-preset--animated::after {
   content: '';
   position: absolute;
@@ -7841,6 +7879,11 @@ body.dark .board-bg-preset.active { box-shadow: 0 0 0 2px var(--surface), 0 0 0 
   box-shadow: 0 0 3px rgba(0,0,0,.35);
   animation: bg-live-dot 1.5s ease infinite;
   pointer-events: none;
+}
+/* light-base animated swatches: dark dot so it reads against pale colours */
+.board-bg-preset--animated[data-dark="0"]::after {
+  background: rgba(0,0,0,.65);
+  box-shadow: 0 0 3px rgba(255,255,255,.4);
 }
 
 /* Animated section label inside presets grid */

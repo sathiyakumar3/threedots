@@ -130,6 +130,11 @@
                 <input type="url" id="boardBgUrlInput" placeholder="Paste image URL…" autocomplete="off">
                 <button id="boardBgUrlApply" title="Apply"><i class="fas fa-check"></i></button>
               </div>
+              <div class="board-bg-panel__blur-row">
+                <i class="fas fa-circle-notch"></i>
+                <input type="range" id="boardBgBlurSlider" min="0" max="20" step="1" value="0">
+                <span id="boardBgBlurVal">0px</span>
+              </div>
               <button class="board-bg-panel__clear" id="boardBgClear"><i class="fas fa-times-circle"></i> Remove background</button>
             </div>
           </div>
@@ -567,7 +572,7 @@
           <img class="logo-mode-light" src="images/logo-light.svg" width="140" height="38" alt="Taskbz">
           <img class="logo-mode-dark"  src="images/logo-dark.svg"  width="140" height="38" alt="Taskbz">
         </div>
-        <h1 class="login-hero__headline">Your team's work,<br>organised.</h1>
+        <h1 class="login-hero__headline">Manage your workflow</h1>
         <p class="login-hero__sub">Visual Kanban boards — real-time, collaborative, free.</p>
         <ul class="login-hero__features">
           <li><i class="fas fa-bolt"></i><span>Real-time collaboration</span></li>
