@@ -302,12 +302,14 @@
     document.getElementById('insightsPanel').classList.add('open');
     document.getElementById('insightsBtn').classList.add('active');
     isOpen = true;
+    window._syncInsightsTrigger?.();
   }
 
   function closePanel() {
     document.getElementById('insightsPanel').classList.remove('open');
     document.getElementById('insightsBtn').classList.remove('active');
     isOpen = false;
+    window._syncInsightsTrigger?.();
   }
 
   // ── Build and inject dashboard ────────────────────────────────────────────

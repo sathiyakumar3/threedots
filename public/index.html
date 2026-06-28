@@ -101,12 +101,12 @@
             <button class="project-column-heading__options" id="boardOptionsBtn" title="Board options"><i class="fas fa-ellipsis-h"></i></button>
             <div class="board-dropdown" id="boardDropdown">
               <button id="themeToggleBtn"><i class="fas fa-moon" id="themeToggleIcon"></i> <span id="themeToggleLabel">Dark mode</span></button>
+              <button id="boardOptBackground"><i class="fas fa-image"></i> Background</button>
               <!-- kept hidden: JS in ai-insights.js and app.js binds directly to these IDs -->
               <button id="insightsBtn"    style="display:none" aria-hidden="true"></button>
               <button id="activityToggle" style="display:none" aria-hidden="true"></button>
               <button id="summaryReportBtn" style="display:none" aria-hidden="true"></button>
               <div class="board-dropdown__divider"></div>
-              <button id="boardOptBackground"><i class="fas fa-image"></i> Background</button>
               <button id="boardOptRename"><i class="fas fa-pen"></i> Rename board</button>
               <button id="boardOptBackup"><i class="fas fa-download"></i> Backup board</button>
               <button id="boardOptRestore"><i class="fas fa-upload"></i> Restore board</button>
@@ -163,7 +163,6 @@
             <button class="topbar-icon-btn" id="addParticipantBtn" title="Manage team">
               <i class="fas fa-users"></i>
             </button>
-            <div class="topbar-divider"></div>
             <div class="team-panel" id="teamPanel">
               <div class="team-panel__hdr">
                 <span class="team-panel__title"><i class="fas fa-users"></i> Team <span class="team-panel__count" id="teamPanelCount"></span></span>
@@ -185,6 +184,7 @@
               </div>
             </div>
           </div>
+          <div class="topbar-divider"></div>
   
         </div>
 
@@ -209,7 +209,6 @@
           </div>
           <button class="topbar-icon-btn" id="filterToggle" title="Filters &amp; Tools"><i class="fas fa-sliders-h"></i></button>
           <button class="topbar-icon-btn" id="fabBtn" title="Add card (Enter)"><i class="fas fa-plus"></i></button>
-          <div class="topbar-divider"></div>
           <div class="topbar-search" id="topbarSearch">
             <button class="topbar-search__icon-btn" id="searchToggle" title="Search"><i class="fas fa-search"></i></button>
             <input type="text" id="boardSearch" placeholder="Search cards&hellip;" autocomplete="off">
@@ -233,7 +232,6 @@
                 </div>
               </div>
               <button class="topbar-user__item" id="fullscreenBtn"><i class="fas fa-expand" id="fullscreenIcon"></i> <span id="fullscreenLabel">Full screen</span></button>
-              <button class="topbar-user__item" id="shortcutsBtn"><i class="fas fa-keyboard"></i> Keyboard shortcuts</button>
               <div class="topbar-user__divider"></div>
               <button class="topbar-user__item danger" id="deleteAccountBtn"><i class="fas fa-user-times"></i> Delete Account</button>
               <button class="topbar-user__item danger" id="logoutBtn"><i class="fas fa-sign-out-alt"></i> Sign Out</button>
@@ -739,7 +737,6 @@
   <script defer src="js/ai-insights.js"></script>
   <script defer src="js/bulk.js"></script>
   <script defer src="js/filter.js"></script>
-  <script defer src="js/keyboard.js"></script>
   <script defer src="js/templates-popup.js"></script>
   <script defer src="js/confetti.js"></script>
   <script defer src="js/calendar.js"></script>

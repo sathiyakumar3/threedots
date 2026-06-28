@@ -304,20 +304,7 @@ h1 {
   z-index: 1;
   opacity: 0;
   transition: opacity 0.2s;
-}
-.collapsed-bar-wrap::before {
-  left: 28px;
-  background: linear-gradient(to right, rgba(255,255,255,0.9), transparent);
-}
-.collapsed-bar-wrap::after {
-  right: 28px;
-  background: linear-gradient(to left, rgba(255,255,255,0.9), transparent);
-}
-body.dark .collapsed-bar-wrap::before {
-  background: linear-gradient(to right, rgba(30,32,52,0.92), transparent);
-}
-body.dark .collapsed-bar-wrap::after {
-  background: linear-gradient(to left, rgba(30,32,52,0.92), transparent);
+  background: transparent;
 }
 .collapsed-bar-wrap.can-scroll-left::before  { opacity: 1; }
 .collapsed-bar-wrap.can-scroll-right::after  { opacity: 1; }
@@ -354,7 +341,7 @@ body.dark .collapsed-bar-scroll:hover { color: #a5b4fc; }
   width:auto;
   align-items:center;
   justify-content:space-between;
-  gap:1rem;
+  gap:0.5rem;
   padding:0 1.25rem;
   height:48px;
   min-height:48px;
@@ -916,6 +903,8 @@ body.dark .tags-theme-row__name { color:var(--text); }
 /* Filter toggle active = purple fill */
 #filterToggle.active { background: var(--purple-gradient) !important; color: #fff !important; }
 #filterToggle.active:hover { background: var(--purple-dark, #5a3fc0) !important; }
+#insightsDropdownTrigger.active { background: var(--purple-gradient) !important; color: #fff !important; }
+#insightsDropdownTrigger.active:hover { background: var(--purple-dark, #5a3fc0) !important; }
 body.dark .topbar-icon-btn--add { background: rgba(255,255,255,0.12) !important; }
 body.dark .topbar-icon-btn--add:hover { background: #2a2d45 !important; }
 
@@ -7373,21 +7362,6 @@ body.dark .swimlane-col-header { background: var(--surface); border-color: var(-
 .swimlane-divider__label { font-size:10px; font-weight:700; letter-spacing:.4px; text-transform:uppercase; color:#6b7280; }
 .swimlane-divider__line  { flex:1; height:1px; background:#e5e7eb; min-width:10px; }
 .swimlane-divider__count { font-size:10px; font-weight:600; color:#9ca3af; background:#f3f4f6; border-radius:10px; padding:0 6px; line-height:16px; }
-
-/* Keyboard shortcut popup table */
-.kbd-table { width: 100%; border-collapse: collapse; text-align: left; font-size: 13px; }
-.kbd-table td { padding: 5px 8px; vertical-align: middle; }
-.kbd-table td:first-child { white-space: nowrap; }
-kbd {
-  display: inline-block;
-  padding: 2px 6px;
-  border-radius: 4px;
-  border: 1px solid var(--border, #ccc);
-  background: var(--surface, #f5f5f5);
-  font-size: 11px;
-  font-family: monospace;
-  color: var(--text);
-}
 
 /* ═══════════════════════════════════════════════════════════════════════════
    MOBILE RESPONSIVE

@@ -484,10 +484,12 @@ document.addEventListener('DOMContentLoaded', () => {
   document.getElementById('summaryReportBtn').addEventListener('click', () => {
     boardDropdown.classList.remove('open');
     buildAndOpenSummaryReport();
+    window._syncInsightsTrigger?.();
   });
 
   document.getElementById('summaryPanelClose').addEventListener('click', () => {
     document.getElementById('summaryPanel').classList.remove('open');
+    window._syncInsightsTrigger?.();
   });
 
   document.getElementById('summaryPanelCopy').addEventListener('click', () => {
@@ -566,8 +568,10 @@ document.addEventListener('DOMContentLoaded', () => {
   document.addEventListener('click', e => {
     const panel = document.getElementById('summaryPanel');
     if (!panel?.classList.contains('open')) return;
-    const btn = document.getElementById('summaryReportBtn');
-    if (!panel.contains(e.target) && e.target !== btn && !btn?.contains(e.target)) {
+    const btn     = document.getElementById('summaryReportBtn');
+    const trigger = document.getElementById('insightsDropdownTrigger');
+    if (!panel.contains(e.target) && e.target !== btn && !btn?.contains(e.target)
+        && e.target !== trigger && !trigger?.contains(e.target)) {
       panel.classList.remove('open');
     }
   }, true);
@@ -725,8 +729,8 @@ document.addEventListener('DOMContentLoaded', () => {
   // ── Activity panel toggle ────────────────────────────────────────────────
   const activityPanel  = document.getElementById('activityPanel');
   const activityToggle = document.getElementById('activityToggle');
-  function openActivityPanel()  { activityPanel.classList.remove('collapsed'); activityToggle.classList.add('active');    activityToggle.title = 'Hide activity'; }
-  function closeActivityPanel() { activityPanel.classList.add('collapsed');    activityToggle.classList.remove('active'); activityToggle.title = 'Show activity'; }
+  function openActivityPanel()  { activityPanel.classList.remove('collapsed'); activityToggle.classList.add('active');    activityToggle.title = 'Hide activity'; window._syncInsightsTrigger?.(); }
+  function closeActivityPanel() { activityPanel.classList.add('collapsed');    activityToggle.classList.remove('active'); activityToggle.title = 'Show activity'; window._syncInsightsTrigger?.(); }
   activityToggle.addEventListener('click', () => {
     document.getElementById('boardDropdown')?.classList.remove('open');
     activityPanel.classList.contains('collapsed') ? openActivityPanel() : closeActivityPanel();
@@ -737,11 +741,42 @@ document.addEventListener('DOMContentLoaded', () => {
   (() => {
     const trigger = document.getElementById('insightsDropdownTrigger');
     const menu    = document.getElementById('insightsDropdownMenu');
+
+    function syncTrigger() {
+      const insightsOpen = document.getElementById('insightsPanel')?.classList.contains('open');
+      const activityOpen = !activityPanel?.classList.contains('collapsed');
+      const summaryOpen  = document.getElementById('summaryPanel')?.classList.contains('open');
+      trigger?.classList.toggle('active', !!(insightsOpen || activityOpen || summaryOpen));
+    }
+    window._syncInsightsTrigger = syncTrigger;
+
+    // MutationObserver is the reliable source of truth — watches all three
+    // panels directly instead of relying on call-chain hooks.
+    const panelIds = ['insightsPanel', 'activityPanel', 'summaryPanel'];
+    panelIds.forEach(id => {
+      const el = document.getElementById(id);
+      if (el) new MutationObserver(syncTrigger).observe(el, { attributeFilter: ['class'] });
+    });
+
     trigger?.addEventListener('click', e => {
       e.stopPropagation();
-      menu?.classList.toggle('open');
+      // Check panel states directly — more reliable than trusting the active class
+      const insightsOpen = document.getElementById('insightsPanel')?.classList.contains('open');
+      const activityOpen = !activityPanel?.classList.contains('collapsed');
+      const summaryOpen  = document.getElementById('summaryPanel')?.classList.contains('open');
+      const anyOpen = insightsOpen || activityOpen || summaryOpen;
+
+      if (anyOpen) {
+        if (insightsOpen)      document.getElementById('insightsBtn')?.click();
+        else if (activityOpen) closeActivityPanel();
+        else if (summaryOpen)  document.getElementById('summaryPanel').classList.remove('open');
+        menu?.classList.remove('open');
+      } else {
+        menu?.classList.toggle('open');
+      }
     });
-    document.getElementById('topbarInsightsTrigger')?.addEventListener('click', () => {
+    document.getElementById('topbarInsightsTrigger')?.addEventListener('click', e => {
+      e.stopPropagation();
       menu?.classList.remove('open');
       document.getElementById('insightsBtn')?.click();
     });
