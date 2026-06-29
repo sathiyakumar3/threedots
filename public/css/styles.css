@@ -2125,6 +2125,22 @@ body.dark .task__assignees .tl-avatar--initial {
 }
 .task__options:hover { background:#f1f5f9; color:#374151; }
 
+.task__inline-edit {
+  background:transparent;
+  border:0;
+  color:#94a3b8;
+  font-size:11px;
+  cursor:pointer;
+  border-radius:5px;
+  padding:1px 5px;
+  transition:background .13s, color .13s, opacity .13s;
+  opacity:0;
+  flex-shrink:0;
+}
+.task:hover .task__inline-edit { opacity:1; }
+.task__inline-edit:hover { background:#f1f5f9; color:#374151; }
+body.dark .task__inline-edit:hover { background:rgba(255,255,255,0.08); color:#e2e8f0; }
+
 .task__stats {
   position:relative;
   width:100%;

@@ -3069,6 +3069,16 @@ document.addEventListener('DOMContentLoaded', () => {
     setTimeout(checkColumnOverflow, 80);
   }
 
+  // ── Force backdrop-filter re-render on the bottom bar ────────────────────
+  // Chrome caches the backdrop snapshot and only refreshes it on scroll.
+  // Nudging the bar's transform by a sub-pixel amount forces a re-composite.
+  function refreshBackdrops() {
+    const bar = document.querySelector('.project-info');
+    if (!bar) return;
+    bar.style.transform = 'translateY(0.01px)';
+    requestAnimationFrame(() => { bar.style.transform = ''; });
+  }
+
   // ── Card expand / collapse animation helper ──────────────────────────────
   function setCardExpanded(task, expanded) {
     if (task.classList.contains('task--expanded') === expanded) return;
@@ -3076,19 +3086,22 @@ document.addEventListener('DOMContentLoaded', () => {
     if (expanded) task.classList.add('task--expanded');
     else          task.classList.remove('task--expanded');
     refreshExpandBtn(task);
+    refreshBackdrops(); // sync backdrop with expanded content immediately
     const endH = task.offsetHeight;
     if (startH === endH) return;
     task.style.height   = startH + 'px';
     task.style.overflow = 'hidden';
-    task.getBoundingClientRect(); // force reflow
-    task.style.transition = 'height 0.28s cubic-bezier(0.4,0,.2,1)';
-    task.style.height = endH + 'px';
-    function finish(e) {
-      if (e.propertyName !== 'height') return;
-      task.removeEventListener('transitionend', finish);
-      task.style.height = task.style.overflow = task.style.transition = '';
-    }
-    task.addEventListener('transitionend', finish);
+    requestAnimationFrame(() => {
+      task.style.transition = 'height 0.28s cubic-bezier(0.4,0,.2,1), box-shadow .22s, border-color .22s, transform .22s, background .22s';
+      task.style.height = endH + 'px';
+      function finish(e) {
+        if (e.propertyName !== 'height') return;
+        task.removeEventListener('transitionend', finish);
+        task.style.height = task.style.overflow = task.style.transition = '';
+        refreshBackdrops(); // capture final expanded state once animation settles
+      }
+      task.addEventListener('transitionend', finish);
+    });
   }
 
   // ── Auto-fit columns: clear all fixed widths so the grid redistributes evenly ──
@@ -3248,6 +3261,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.task__cc-submit'))        return;
     if (e.target.closest('.task__options'))          return;
     if (e.target.closest('.task__dropdown'))         return;
+    if (e.target.closest('.task__opt-edit'))          return;
     if (e.target.closest('.task__edit-actions'))     return;
     if (e.target.closest('.task__comment-box'))      return;
     if (e.target.closest('.task__tl-edit-actions'))  return;
@@ -4030,6 +4044,27 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Expose so other modules (e.g. board load) can trigger a refresh.
     window._updateIconContrast = updateContrast;
+  })();
+
+  // ── Backdrop repaint: MutationObserver for non-scroll board changes ──────
+  // Covers column collapse/expand, card add/delete, and any other class or
+  // DOM-tree changes that alter what's visible behind the fixed bottom bar.
+  (() => {
+    if (!board) return;
+    let _bdfRaf = null;
+    const bdfObs = new MutationObserver(() => {
+      if (_bdfRaf) return;
+      _bdfRaf = requestAnimationFrame(() => {
+        _bdfRaf = null;
+        refreshBackdrops();
+      });
+    });
+    bdfObs.observe(board, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['class']
+    });
   })();
 
 }); // end DOMContentLoaded

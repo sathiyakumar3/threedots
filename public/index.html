@@ -274,13 +274,7 @@
         <!-- Clear filters — LEFT -->
         <button class="tbar__clear" id="filterClear" title="Clear all filters"><i class="fas fa-times"></i> Clear</button>
 
-        <!-- ② View tools — LEFT (Group only) -->
-        <div class="tbar__view">
-          <button class="tbar__tool" id="groupByTagBtn" title="Group by Tag"><i class="fas fa-th-list"></i> Group</button>
-        </div>
-
         <!-- ③ Tag pills (grows to fill space) -->
-        <div class="tbar__sep"></div>
         <div class="tbar-tags-wrap" id="tbarTagsWrap">
           <button class="tbar-tags-scroll tbar-tags-scroll--left" id="tbarTagsScrollLeft" tabindex="-1"><i class="fas fa-chevron-left"></i></button>
           <div class="tbar__tags" id="filterTagPills"><!-- injected by filter.js --></div>
@@ -315,6 +309,7 @@
             <div class="filter-chip__menu" id="filterAssigneeMenu"></div>
           </div>
           <div class="tbar__sep"></div>
+          <button class="tbar__tool" id="groupByTagBtn" title="Group by Tag"><i class="fas fa-th-list"></i> Group</button>
           <div class="density-picker" id="densityPicker">
             <button class="tbar__tool density-picker__trigger" title="Card density"><i class="fas fa-th-large"></i> Density</button>
             <div class="density-picker__menu" id="densityMenu">

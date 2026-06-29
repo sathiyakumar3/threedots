@@ -214,7 +214,7 @@
   }
 
   function refreshColCombo(selectIdx) {
-    const cols = [...document.querySelectorAll('.project-column:not(.project-column--trash)')];
+    const cols = [...document.querySelectorAll('.project-column:not(.project-column--trash):not(.project-column--archive)')];
     colList.innerHTML = '';
     cols.forEach((col, i) => {
       const title     = col.querySelector('.project-column-heading__title')?.textContent || `Column ${i + 1}`;
@@ -943,7 +943,7 @@
     _editingCard = cardEl;
     initDeadlinePicker();
     initStartDatePicker();
-    const cols   = [...document.querySelectorAll('.project-column:not(.project-column--trash)')];
+    const cols   = [...document.querySelectorAll('.project-column:not(.project-column--trash):not(.project-column--archive)')];
     const colIdx = cols.indexOf(cardEl.closest('.project-column'));
     refreshColCombo(colIdx >= 0 ? colIdx : 0);
     refreshAssigneeCombo();
@@ -1136,7 +1136,7 @@
         logActivity('edit', `<b>${_editAuthor}</b> edited "<em>${text.slice(0, 40)}</em>"`);
       }
       // Move card to a different column if the column selection changed
-      const _allEditCols = [...document.querySelectorAll('.project-column:not(.project-column--trash)')];
+      const _allEditCols = [...document.querySelectorAll('.project-column:not(.project-column--trash):not(.project-column--archive)')];
       const _newCol = _allEditCols[selectedColIdx];
       const _currentCol = card.closest('.project-column');
       if (_newCol && _newCol !== _currentCol) {
@@ -1153,7 +1153,7 @@
     }
 
     // ── Create new card ──
-    const colEl    = document.querySelectorAll('.project-column:not(.project-column--trash)')[selectedColIdx];
+    const colEl    = document.querySelectorAll('.project-column:not(.project-column--trash):not(.project-column--archive)')[selectedColIdx];
 
     const authorName  = currentUser?.displayName || currentUser?.email || 'You';
     const authorPhoto = currentUser?.photoURL    || '';

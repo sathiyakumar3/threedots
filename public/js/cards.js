@@ -233,6 +233,8 @@ function renderCard(taskData) {
 // ── Append the update widget (age badge, dropdown, footer, comment box) ──
 function addUpdateWidget(card) {
   const ageTxt = daysAgo(card.dataset.created);
+  card.querySelector('.task__options').insertAdjacentHTML('beforebegin',
+    `<button class='task__opt-edit task__inline-edit' title='Edit card'><i class='fas fa-pen'></i></button>`);
   if (ageTxt) {
     card.querySelector('.task__options').insertAdjacentHTML('beforebegin',
       `<span class='task__age'>${ageTxt}</span>`);
