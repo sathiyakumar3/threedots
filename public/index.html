@@ -429,6 +429,10 @@
                 <input type="text" id="cardTitle" placeholder="Short card title…" autocomplete="off">
               </div>
             </div>
+            <div class="modal-field">
+              <label>Tag</label>
+              <div id="cardTag"></div>
+            </div>
             <div class="modal-field modal-field--row">
               <div class="modal-field modal-field--half">
                 <label>Column</label>
@@ -447,8 +451,21 @@
                 </div>
               </div>
               <div class="modal-field modal-field--half">
-                <label>Tag</label>
-                <div id="cardTag"></div>
+                <label>Priority</label>
+                <div class="col-combo" id="prioCombo">
+                  <button type="button" class="col-combo__trigger" id="prioComboTrigger">
+                    <span class="prio-combo__trigger-dot" id="prioComboTriggerDot"></span>
+                    <span id="prioComboLabel">None</span>
+                    <i class="fas fa-chevron-down col-combo__chevron"></i>
+                  </button>
+                  <div class="col-combo__menu" id="prioComboMenu">
+                    <button type="button" class="prio-combo__item active" data-value=""><span class="prio-combo__dot prio-combo__dot--none"></span>None</button>
+                    <button type="button" class="prio-combo__item" data-value="low"><span class="prio-combo__dot prio-combo__dot--low"></span>Low</button>
+                    <button type="button" class="prio-combo__item" data-value="medium"><span class="prio-combo__dot prio-combo__dot--medium"></span>Medium</button>
+                    <button type="button" class="prio-combo__item" data-value="high"><span class="prio-combo__dot prio-combo__dot--high"></span>High</button>
+                    <button type="button" class="prio-combo__item" data-value="critical"><span class="prio-combo__dot prio-combo__dot--critical"></span>Critical</button>
+                  </div>
+                </div>
               </div>
             </div>
             <div class="modal-field">
@@ -462,40 +479,30 @@
                 <textarea id="cardText" placeholder="Description (optional)…"></textarea>
               </div>
             </div>
-            <div class="modal-field">
-              <label>Priority</label>
-              <div class="priority-selector" id="cardPriority">
-                <button type="button" class="priority-btn priority-btn--none active" data-value="">None</button>
-                <button type="button" class="priority-btn priority-btn--low" data-value="low">Low</button>
-                <button type="button" class="priority-btn priority-btn--medium" data-value="medium">Medium</button>
-                <button type="button" class="priority-btn priority-btn--high" data-value="high">High</button>
-                <button type="button" class="priority-btn priority-btn--critical" data-value="critical">Critical</button>
-              </div>
-            </div>
-            <div class="modal-field">
-              <label>Assignee</label>
-              <div class="col-combo" id="assigneeCombo">
-                <button type="button" class="col-combo__trigger" id="assigneeComboTrigger">
-                  <span id="assigneeComboLabel" class="assignee-placeholder">Unassigned</span>
-                  <i class="fas fa-chevron-down col-combo__chevron"></i>
-                </button>
-                <div class="col-combo__menu" id="assigneeComboMenu"></div>
-              </div>
-            </div>
-            <div class="modal-field modal-field--row">
-              <div class="modal-field modal-field--half">
-                <label for="cardStartDate"><i class="fas fa-play-circle" style="font-size:10px;opacity:.6;margin-right:3px"></i>Start Date</label>
-                <input type="text" id="cardStartDate" placeholder="Select start…" readonly autocomplete="off">
-              </div>
-              <div class="modal-field modal-field--half">
-                <label for="cardDeadline"><i class="fas fa-flag" style="font-size:10px;opacity:.6;margin-right:3px"></i>Deadline</label>
-                <input type="text" id="cardDeadline" placeholder="Select deadline…" readonly autocomplete="off">
-              </div>
-            </div>
             <button type="button" class="modal-more-toggle" id="modalMoreToggle">
               <i class="fas fa-chevron-down modal-more-toggle__icon"></i> More Options
             </button>
             <div class="modal-more-fields" id="modalMoreFields">
+              <div class="modal-field">
+                <label>Assignee</label>
+                <div class="col-combo" id="assigneeCombo">
+                  <button type="button" class="col-combo__trigger" id="assigneeComboTrigger">
+                    <span id="assigneeComboLabel" class="assignee-placeholder">Unassigned</span>
+                    <i class="fas fa-chevron-down col-combo__chevron"></i>
+                  </button>
+                  <div class="col-combo__menu" id="assigneeComboMenu"></div>
+                </div>
+              </div>
+              <div class="modal-field modal-field--row">
+                <div class="modal-field modal-field--half">
+                  <label for="cardStartDate"><i class="fas fa-play-circle" style="font-size:10px;opacity:.6;margin-right:3px"></i>Start Date</label>
+                  <input type="text" id="cardStartDate" placeholder="Select start…" readonly autocomplete="off">
+                </div>
+                <div class="modal-field modal-field--half">
+                  <label for="cardDeadline"><i class="fas fa-flag" style="font-size:10px;opacity:.6;margin-right:3px"></i>Deadline</label>
+                  <input type="text" id="cardDeadline" placeholder="Select deadline…" readonly autocomplete="off">
+                </div>
+              </div>
               <div class="modal-field modal-template-row" id="modalTemplateRow">
                 <label>From Template</label>
                 <div class="template-combo" id="templateCombo">
@@ -743,5 +750,6 @@
   <script defer src="js/init.js"></script>
 
   <script defer src="js/col-ghost.js"></script>
+  <script defer src="js/mobile.js"></script>
 </body>
 </html>

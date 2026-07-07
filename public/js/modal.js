@@ -26,20 +26,45 @@
   const assigneeComboLabel     = document.getElementById('assigneeComboLabel');
   let selectedAssignees = new Set();
 
-  const priorityEl = document.getElementById('cardPriority');
-  function getPriority() {
-    return priorityEl.querySelector('.priority-btn.active')?.dataset.value || '';
-  }
+  const prioComboTrigger = document.getElementById('prioComboTrigger');
+  const prioComboMenu    = document.getElementById('prioComboMenu');
+  const prioComboLabel   = document.getElementById('prioComboLabel');
+  const prioComboTrigDot = document.getElementById('prioComboTriggerDot');
+
+  const PRIO_META = {
+    '':         { label: 'None',     color: '' },
+    'low':      { label: 'Low',      color: '#3b82f6' },
+    'medium':   { label: 'Medium',   color: '#d97706' },
+    'high':     { label: 'High',     color: '#ef4444' },
+    'critical': { label: 'Critical', color: '#b91c1c' },
+  };
+  let _selectedPriority = '';
+  function getPriority() { return _selectedPriority; }
   function setPriority(val) {
-    priorityEl.querySelectorAll('.priority-btn').forEach(b => {
-      b.classList.toggle('active', b.dataset.value === (val || ''));
+    _selectedPriority = val || '';
+    const meta = PRIO_META[_selectedPriority] || PRIO_META[''];
+    prioComboLabel.textContent = meta.label;
+    prioComboTrigDot.style.background   = meta.color || 'transparent';
+    prioComboTrigDot.style.borderColor  = meta.color || '#cbd5e1';
+    prioComboMenu.querySelectorAll('.prio-combo__item').forEach(btn => {
+      btn.classList.toggle('active', btn.dataset.value === _selectedPriority);
     });
   }
-  priorityEl.addEventListener('click', e => {
-    const btn = e.target.closest('.priority-btn');
+  prioComboTrigger.addEventListener('click', e => {
+    e.stopPropagation();
+    const open = prioComboMenu.classList.toggle('open');
+    prioComboTrigger.classList.toggle('open', open);
+    colMenu.classList.remove('open');           colTrigger.classList.remove('open');
+    assigneeComboMenu.classList.remove('open'); assigneeComboTrigger.classList.remove('open');
+    templateComboMenu.classList.remove('open'); templateComboTrigger.classList.remove('open');
+  });
+  prioComboMenu.addEventListener('click', e => {
+    e.stopPropagation();
+    const btn = e.target.closest('.prio-combo__item');
     if (!btn) return;
-    priorityEl.querySelectorAll('.priority-btn').forEach(b => b.classList.remove('active'));
-    btn.classList.add('active');
+    setPriority(btn.dataset.value);
+    prioComboMenu.classList.remove('open');
+    prioComboTrigger.classList.remove('open');
   });
 
   // ── Vanilla Calendar Pro ──
@@ -177,10 +202,9 @@
     e.stopPropagation();
     const open = templateComboMenu.classList.toggle('open');
     templateComboTrigger.classList.toggle('open', open);
-    colMenu.classList.remove('open');
-    colTrigger.classList.remove('open');
-    assigneeComboMenu.classList.remove('open');
-    assigneeComboTrigger.classList.remove('open');
+    colMenu.classList.remove('open');           colTrigger.classList.remove('open');
+    assigneeComboMenu.classList.remove('open'); assigneeComboTrigger.classList.remove('open');
+    prioComboMenu.classList.remove('open');     prioComboTrigger.classList.remove('open');
   });
   templateComboMenu.addEventListener('click', e => e.stopPropagation());
 
@@ -296,19 +320,16 @@
     e.stopPropagation();
     const open = colMenu.classList.toggle('open');
     colTrigger.classList.toggle('open', open);
-    assigneeComboMenu.classList.remove('open');
-    assigneeComboTrigger.classList.remove('open');
-    templateComboMenu.classList.remove('open');
-    templateComboTrigger.classList.remove('open');
+    assigneeComboMenu.classList.remove('open'); assigneeComboTrigger.classList.remove('open');
+    templateComboMenu.classList.remove('open'); templateComboTrigger.classList.remove('open');
+    prioComboMenu.classList.remove('open');     prioComboTrigger.classList.remove('open');
   });
   colMenu.addEventListener('click', e => e.stopPropagation());
   document.addEventListener('click', () => {
-    colMenu.classList.remove('open');
-    colTrigger.classList.remove('open');
-    assigneeComboMenu.classList.remove('open');
-    assigneeComboTrigger.classList.remove('open');
-    templateComboMenu.classList.remove('open');
-    templateComboTrigger.classList.remove('open');
+    colMenu.classList.remove('open');           colTrigger.classList.remove('open');
+    assigneeComboMenu.classList.remove('open'); assigneeComboTrigger.classList.remove('open');
+    templateComboMenu.classList.remove('open'); templateComboTrigger.classList.remove('open');
+    prioComboMenu.classList.remove('open');     prioComboTrigger.classList.remove('open');
   });
 
   function updateAssigneeLabel() {
@@ -404,10 +425,9 @@
     e.stopPropagation();
     const open = assigneeComboMenu.classList.toggle('open');
     assigneeComboTrigger.classList.toggle('open', open);
-    colMenu.classList.remove('open');
-    colTrigger.classList.remove('open');
-    templateComboMenu.classList.remove('open');
-    templateComboTrigger.classList.remove('open');
+    colMenu.classList.remove('open');           colTrigger.classList.remove('open');
+    templateComboMenu.classList.remove('open'); templateComboTrigger.classList.remove('open');
+    prioComboMenu.classList.remove('open');     prioComboTrigger.classList.remove('open');
     if (open) refreshAssigneeCombo();
   });
   assigneeComboMenu.addEventListener('click', e => e.stopPropagation());
@@ -929,6 +949,8 @@
     todoList.innerHTML = '';
     if (todoCalBtn) todoCalBtn.style.display = 'none';
     setPriority('');
+    prioComboMenu.classList.remove('open');
+    prioComboTrigger.classList.remove('open');
     document.getElementById('calModalOverlay')?.classList.remove('open');
     // Reset template combo
     templateComboLabel.textContent = 'Select a template…';
@@ -1089,11 +1111,6 @@
         anchorEl.insertAdjacentHTML('afterend', newTodosHTML);
       }
       card.querySelector('.task__link')?.remove();
-      if (link) {
-        const anchor = card.querySelector('.task__todos') || card.querySelector('.task__desc') || card.querySelector('.task__title') || card.querySelector('.task__tags');
-        anchor.insertAdjacentHTML('afterend',
-          `<div class='task__link'><a href='${link}' target='_blank' rel='noopener'><i class='fas fa-link'></i>${shortLinkLabel(link)}</a></div>`);
-      }
       // Update start date + deadline spans
       card.querySelector('.task__startdate')?.remove();
       card.querySelector('.task__deadline, .task__no-value:not(.task__no-assignee)')?.remove();
@@ -1120,9 +1137,12 @@
       const asnHTML = newAssignee
         ? `<span class='task__assignees'>${newAssignee.split(', ').map(n => resolveAssigneeAvatar(n.trim())).join('')}</span>`
         : (newDeadline ? `<span class='task__no-value task__no-assignee'><i class='fas fa-user'></i>No Assignee</span>` : '');
-      if (sdHTML || dlHTML || asnHTML) {
+      const linkHTML = link
+        ? `<div class='task__link'><a href='${link}' target='_blank' rel='noopener'><i class='fas fa-link'></i>${shortLinkLabel(link)}</a></div>`
+        : '';
+      if (sdHTML || dlHTML || linkHTML || asnHTML) {
         stats.insertAdjacentHTML('afterbegin', sdHTML + dlHTML);
-        stats.insertAdjacentHTML('beforeend', asnHTML);
+        stats.insertAdjacentHTML('beforeend', linkHTML + asnHTML);
       } else {
         stats.remove();
       }

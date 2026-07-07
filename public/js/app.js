@@ -2625,9 +2625,22 @@ document.addEventListener('DOMContentLoaded', () => {
       if (isMulti) dragSrcEls.forEach(c => { if (c !== task) c.style.opacity = '0.4'; });
     }, 0);
     e.dataTransfer.effectAllowed = 'move';
+    // Inject a drop zone sentinel at the bottom of every column
+    board.querySelectorAll('.drop-sentinel').forEach(s => s.remove());
+    const cols = [...board.querySelectorAll('.project-column:not(.project-column--collapsed)')];
+    const maxColH = cols.length ? Math.max(80, ...cols.map(c => c.offsetHeight)) : 120;
+    cols.forEach(col => {
+      const s = document.createElement('div');
+      s.className = 'drop-sentinel';
+      s.style.height = Math.max(60, maxColH - col.offsetHeight) + 'px';
+      col.appendChild(s);
+    });
+    board.classList.add('board--dragging');
   });
 
   board.addEventListener('dragend', () => {
+    board.classList.remove('board--dragging');
+    board.querySelectorAll('.drop-sentinel').forEach(s => s.remove());
     if (dragSrcCol) {
       dragSrcCol.classList.remove('col-dragging');
       dragSrcCol = null;
@@ -3242,7 +3255,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (!colEl) return;
     if (colEl.classList.contains('project-column--archive')) return;
     if (colEl.classList.contains('project-column--trash')) return;
-    const cols   = [...document.querySelectorAll('.project-column:not(.project-column--trash)')];
+    const cols   = [...document.querySelectorAll('.project-column:not(.project-column--trash):not(.project-column--archive)')];
     const colIdx = cols.indexOf(colEl);
     // In group-by-tag (swimlane) mode, detect which tag group was clicked
     const swimlaneGroup   = e.target.closest('.swimlane-group');
@@ -3373,6 +3386,40 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
+    // Archive
+    if (e.target.closest('.task__opt-archive')) {
+      const task = e.target.closest('.task');
+      task.querySelector('.task__dropdown')?.classList.remove('open');
+      openDropdown = null;
+      const cardTitle = task.querySelector('.task__title')?.textContent?.trim() || task.querySelector('p')?.textContent?.slice(0, 40) || 'Card';
+      Swal.fire({
+        title: 'Archive this card?',
+        text: `"${cardTitle}" will be moved to the Archive column.`,
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Archive',
+        confirmButtonColor: '#6366f1',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+      }).then(result => {
+        if (!result.isConfirmed) return;
+        const archiveCol = document.querySelector('.project-column--archive');
+        if (!archiveCol) { showToast('No archive column found.', true); return; }
+        task.style.transition = 'opacity .2s';
+        task.style.opacity    = '0';
+        setTimeout(() => {
+          task.style.opacity    = '';
+          task.style.transition = '';
+          archiveCol.appendChild(task);
+          _addCardTlEntry(task, 'delete', 'Card Archived');
+          refreshAllColCounts();
+          saveTask(task, true);
+        }, 200);
+        logActivity('move', `<b>${_authorName()}</b> archived "${cardTitle}"`);
+      });
+      return;
+    }
+
     // Restore (from Trash)
     if (e.target.closest('.task__opt-restore')) {
       const task = e.target.closest('.task');
@@ -3428,47 +3475,59 @@ document.addEventListener('DOMContentLoaded', () => {
         return;
       }
 
-      // Move to Trash immediately — no confirmation dialog, undo available for 6 s
+      // Confirm before moving to Trash
       const trashCol   = document.querySelector('.project-column--trash');
       const originCol  = task.closest('.project-column');
       const originNext = task.nextElementSibling;
       task.querySelector('.task__dropdown')?.classList.remove('open');
       openDropdown = null;
-      if (trashCol) {
-        task.dataset.deletedAt = Date.now().toString();
-        task.style.transition = 'opacity .2s';
-        task.style.opacity    = '0';
-        setTimeout(() => {
-          task.style.opacity = '';
-          task.style.transition = '';
-          trashCol.appendChild(task);
-          _addCardTlEntry(task, 'delete', 'Card Deleted');
-          refreshAllColCounts();
-          saveTask(task, true);
-        }, 200);
-        logActivity('delete', `<b>${_authorName()}</b> deleted "${cardTitle}"`);
-        showUndoToast(`"${cardTitle}" moved to Trash`, () => {
-          delete task.dataset.deletedAt;
-          delete task.dataset.deletedLabel;
-          if (originCol) {
-            if (originNext && originCol.contains(originNext)) originCol.insertBefore(task, originNext);
-            else originCol.appendChild(task);
-          }
-          _addCardTlEntry(task, 'create', 'Card Recovered');
-          refreshAllColCounts();
-          saveTask(task, true);
-          logActivity('move', `<b>${_authorName()}</b> restored "${cardTitle}"`);
-        });
-      } else {
-        // Fallback: hard delete if no trash column exists
-        task.style.transition = 'opacity .2s';
-        task.style.opacity    = '0';
-        const deleteDoc = taskId
-          ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(() => {})
-          : Promise.resolve();
-        setTimeout(() => { task.remove(); deleteDoc.then(() => saveChanges(true)); }, 200);
-        logActivity('delete', `<b>${_authorName()}</b> deleted "${cardTitle}"`);
-      }
+      Swal.fire({
+        title: 'Move to Trash?',
+        text: `"${cardTitle}" will be moved to the Trash.`,
+        icon: 'warning',
+        showCancelButton: true,
+        confirmButtonText: 'Move to Trash',
+        confirmButtonColor: '#e05252',
+        cancelButtonText: 'Cancel',
+        reverseButtons: true
+      }).then(result => {
+        if (!result.isConfirmed) return;
+        if (trashCol) {
+          task.dataset.deletedAt = Date.now().toString();
+          task.style.transition = 'opacity .2s';
+          task.style.opacity    = '0';
+          setTimeout(() => {
+            task.style.opacity = '';
+            task.style.transition = '';
+            trashCol.appendChild(task);
+            _addCardTlEntry(task, 'delete', 'Card Deleted');
+            refreshAllColCounts();
+            saveTask(task, true);
+          }, 200);
+          logActivity('delete', `<b>${_authorName()}</b> deleted "${cardTitle}"`);
+          showUndoToast(`"${cardTitle}" moved to Trash`, () => {
+            delete task.dataset.deletedAt;
+            delete task.dataset.deletedLabel;
+            if (originCol) {
+              if (originNext && originCol.contains(originNext)) originCol.insertBefore(task, originNext);
+              else originCol.appendChild(task);
+            }
+            _addCardTlEntry(task, 'create', 'Card Recovered');
+            refreshAllColCounts();
+            saveTask(task, true);
+            logActivity('move', `<b>${_authorName()}</b> restored "${cardTitle}"`);
+          });
+        } else {
+          // Fallback: hard delete if no trash column exists
+          task.style.transition = 'opacity .2s';
+          task.style.opacity    = '0';
+          const deleteDoc = taskId
+            ? db.collection(`boards/${BOARD_ID}/tasks`).doc(taskId).delete().catch(() => {})
+            : Promise.resolve();
+          setTimeout(() => { task.remove(); deleteDoc.then(() => saveChanges(true)); }, 200);
+          logActivity('delete', `<b>${_authorName()}</b> deleted "${cardTitle}"`);
+        }
+      });
       return;
     }
   });

@@ -192,8 +192,8 @@ function renderCard(taskData) {
   const assigneeTagsHTML = hasAssignee
     ? `<span class='task__assignees'>${taskData.assignee.split(', ').map(n => resolveAssigneeAvatar(n.trim())).join('')}</span>`
     : (hasDeadline ? `<span class='task__no-value task__no-assignee'><i class='fas fa-user'></i>No Assignee</span>` : '');
-  const statsHTML = (sdSpanHTML || flagSpanHTML || assigneeTagsHTML)
-    ? `<div class='task__stats'>${sdSpanHTML}${flagSpanHTML}${assigneeTagsHTML}</div>`
+  const statsHTML = (sdSpanHTML || flagSpanHTML || linkHTML || assigneeTagsHTML)
+    ? `<div class='task__stats'>${sdSpanHTML}${flagSpanHTML}${linkHTML}${assigneeTagsHTML}</div>`
     : '';
   if (taskData.title) card.dataset.title = taskData.title;
   card.innerHTML   = `
@@ -205,7 +205,6 @@ function renderCard(taskData) {
     ${taskData.title ? `<h4 class='task__title'>${escapeHTML(taskData.title)}</h4>` : ''}
     <div class='task__desc' data-raw='${escapeHTML(taskData.text)}'>${_renderMarkdown(taskData.text)}</div>
     ${todosHTML}
-    ${linkHTML}
     ${statsHTML}`;
   // Cache searchable text to avoid per-keystroke child DOM queries
   card.dataset.search = `${taskData.title || ''} ${taskData.text} ${tagLabels[taskData.tag] || ''} ${taskData.priority || ''}`.toLowerCase();
@@ -244,6 +243,7 @@ function addUpdateWidget(card) {
        <button class='task__opt-edit'><i class='fas fa-pen'></i> Edit</button>
        <button class='task__opt-duplicate'><i class='fas fa-copy'></i> Duplicate</button>
        <button class='task__opt-save-template'><i class='fas fa-layer-group'></i> Save as Template</button>
+       <button class='task__opt-archive'><i class='fas fa-archive'></i> Archive</button>
        <button class='task__opt-restore'><i class='fas fa-trash-restore'></i> Restore</button>
        <button class='task__opt-delete danger'><i class='fas fa-trash-alt'></i> Delete</button>
      </div>`);
