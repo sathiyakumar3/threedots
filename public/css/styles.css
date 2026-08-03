@@ -79,9 +79,7 @@ body.dark .project-column-heading {
   border-color:var(--border);
 }
 body.dark .task {
-  background: rgba(15,18,38,0.72);
-  backdrop-filter: blur(18px) saturate(160%);
-  -webkit-backdrop-filter: blur(18px) saturate(160%);
+  background: var(--surface);
   border:1px solid rgba(255,255,255,0.07);
   box-shadow:
     0 2px 12px rgba(0,0,0,0.38),
@@ -897,15 +895,11 @@ body.dark .tags-theme-row__name { color:var(--text); }
 .topbar-icon-btn:hover { background:#f5f6fa; color:var(--purple); }
 .topbar-icon-btn.active { background:#eef1fd; color:var(--purple); }
 
-/* -- Add card button -- */
-.topbar-icon-btn--add { background: #fff !important; }
-.topbar-icon-btn--add:hover { background: #f5f6fa !important; }
 /* Filter toggle active = purple fill */
 #filterToggle.active { background: var(--purple-gradient) !important; color: #fff !important; }
 #filterToggle.active:hover { background: var(--purple-dark, #5a3fc0) !important; }
 #insightsDropdownTrigger.active { background: var(--purple-gradient) !important; color: #fff !important; }
 #insightsDropdownTrigger.active:hover { background: var(--purple-dark, #5a3fc0) !important; }
-body.dark .topbar-icon-btn--add { background: rgba(255,255,255,0.12) !important; }
 body.dark .topbar-icon-btn--add:hover { background: #2a2d45 !important; }
 
 /* ── Topbar insights/activity/summary dropdown ──────────────────────────── */
@@ -1821,9 +1815,8 @@ body.dark .col-collapse-btn:hover {
 
 .task {
   cursor:move;
-  background: rgba(255,255,255,0.68);
-  backdrop-filter: blur(18px) saturate(180%);
-  -webkit-backdrop-filter: blur(18px) saturate(180%);
+  background: #ffffff;
+  will-change: transform;
   padding:0.6rem 0.75rem;
   border-radius:12px;
   width:100%;
@@ -2037,6 +2030,15 @@ body.dark .task__priority--low      { background:rgba(59,130,246,.20);  color:#6
 body.dark .task__priority--medium   { background:rgba(245,158,11,.20);  color:#fbbf24; }
 body.dark .task__priority--high     { background:rgba(239,68,68,.20);   color:#f87171; }
 body.dark .task__priority--critical { background:rgba(220,38,38,.25);   color:#fca5a5; }
+/* ── Priority left-border stripe on cards ── */
+.task[data-priority="low"]      { border-left: 3px solid #3b82f6; }
+.task[data-priority="medium"]   { border-left: 3px solid #d97706; }
+.task[data-priority="high"]     { border-left: 3px solid #ef4444; }
+.task[data-priority="critical"] { border-left: 3px solid #b91c1c; }
+body.dark .task[data-priority="low"]      { border-left-color: #60a5fa; }
+body.dark .task[data-priority="medium"]   { border-left-color: #fbbf24; }
+body.dark .task[data-priority="high"]     { border-left-color: #f87171; }
+body.dark .task[data-priority="critical"] { border-left-color: #fca5a5; }
 /* ── Priority selector (modal) ── */
 /* Priority combo-box — replaces the old button-group picker */
 .prio-combo__item {
@@ -2172,17 +2174,8 @@ body.dark .task__inline-edit:hover { background:rgba(255,255,255,0.08); color:#e
   margin-right:0;
 }
 
-/* Missing-value placeholders */
-.task__no-value {
-  font-size:10.5px;
-  color:#cbd5e1;
-  display:inline-flex;
-  align-items:center;
-  gap:3px;
-  font-style:italic;
-}
-.task__no-value i { font-size:9px; opacity:.6; }
-.task__no-assignee { margin-left:auto; }
+/* Missing-value placeholders — hidden to reduce stats-row noise */
+.task__no-value { display:none; }
 
 /* Assignee combo dropdown avatar */
 .assignee-item__avatar {
@@ -2261,6 +2254,7 @@ body.dark .task__inline-edit:hover { background:rgba(255,255,255,0.08); color:#e
   border-radius:12px;
   padding:.5rem .5rem 1.25rem;
   position: relative;
+  contain: layout style;
 }
 
 /* ── Column resize handle ── */
@@ -2864,6 +2858,10 @@ body.dark .density-picker__opt-name { color:var(--text); }
 body.dark .density-picker__opt.active .density-picker__opt-name { color:#a78bfa; }
 body.dark .density-picker__opt-desc { color:#64748b; }
 body.dark .density-picker__opt.active .density-picker__opt-desc { color:#a78bfa; }
+.density-picker__menu-title--mt { margin-top:8px; padding-top:8px; border-top:1px solid var(--border); }
+.density-picker__group-icon { color:var(--light-grey); font-size:12px; width:14px; text-align:center; }
+.density-picker__opt--group.active .density-picker__group-icon { color:var(--purple); }
+body.dark .density-picker__menu-title--mt { border-color:var(--border); }
 
 
 /* -- Modal -- */
@@ -6296,14 +6294,11 @@ body.dark .project-info {
 
 /* ── Cards ── */
 .task {
-  background: var(--glass-bg-strong) !important;
-  backdrop-filter: blur(10px) saturate(160%);
-  -webkit-backdrop-filter: blur(10px) saturate(160%);
   border: 1.5px solid var(--glass-border) !important;
   box-shadow: 0 2px 10px rgba(99,102,241,0.07), 0 1px 3px rgba(0,0,0,0.04) !important;
 }
 .task:hover {
-  background: rgba(255,255,255,0.88) !important;
+  background: #ffffff !important;
   border-color: rgba(255,255,255,1) !important;
   box-shadow: 0 8px 28px rgba(99,102,241,0.16), 0 2px 8px rgba(0,0,0,0.06) !important;
 }

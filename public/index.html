@@ -102,10 +102,11 @@
             <div class="board-dropdown" id="boardDropdown">
               <button id="themeToggleBtn"><i class="fas fa-moon" id="themeToggleIcon"></i> <span id="themeToggleLabel">Dark mode</span></button>
               <button id="boardOptBackground"><i class="fas fa-image"></i> Background</button>
+              <button id="autoResizeColsBtn"><i class="fas fa-arrows-alt-h"></i> Auto-fit columns</button>
               <!-- kept hidden: JS in ai-insights.js and app.js binds directly to these IDs -->
-              <button id="insightsBtn"    style="display:none" aria-hidden="true"></button>
-              <button id="activityToggle" style="display:none" aria-hidden="true"></button>
-              <button id="summaryReportBtn" style="display:none" aria-hidden="true"></button>
+              <div id="insightsBtn"    style="display:none" aria-hidden="true"></div>
+              <div id="activityToggle" style="display:none" aria-hidden="true"></div>
+              <div id="summaryReportBtn" style="display:none" aria-hidden="true"></div>
               <div class="board-dropdown__divider"></div>
               <button id="boardOptRename"><i class="fas fa-pen"></i> Rename board</button>
               <button id="boardOptBackup"><i class="fas fa-download"></i> Backup board</button>
@@ -163,8 +164,7 @@
           </div>
 
           <button class="topbar-icon-btn" id="calendarBtn" title="Calendar"><i class="fas fa-calendar-alt"></i></button>
-          <button class="topbar-icon-btn" id="autoResizeColsBtn" title="Auto-fit columns"><i class="fas fa-arrows-alt-h"></i></button>
-                    <div class="project-participants" id="projectParticipants">
+          <div class="project-participants" id="projectParticipants">
             <button class="topbar-icon-btn" id="addParticipantBtn" title="Manage team">
               <i class="fas fa-users"></i>
             </button>
@@ -309,11 +309,14 @@
             <div class="filter-chip__menu" id="filterAssigneeMenu"></div>
           </div>
           <div class="tbar__sep"></div>
-          <button class="tbar__tool" id="groupByTagBtn" title="Group by Tag"><i class="fas fa-th-list"></i> Group</button>
           <div class="density-picker" id="densityPicker">
-            <button class="tbar__tool density-picker__trigger" title="Card density"><i class="fas fa-th-large"></i> Density</button>
+            <button class="tbar__tool density-picker__trigger" title="View options"><i class="fas fa-sliders-h"></i> View</button>
             <div class="density-picker__menu" id="densityMenu">
-              <div class="density-picker__menu-title">Card Density</div>
+              <div class="density-picker__menu-title">Group</div>
+              <div class="density-picker__list">
+                <button class="density-picker__opt density-picker__opt--group" id="groupByTagBtn"><i class="fas fa-th-list density-picker__group-icon"></i><span class="density-picker__opt-name">Group by Tag</span></button>
+              </div>
+              <div class="density-picker__menu-title density-picker__menu-title--mt">Density</div>
               <div class="density-picker__list">
                 <button class="density-picker__opt" data-view="tight"><span class="density-picker__opt-name">Tight</span><span class="density-picker__opt-desc">Title Only</span></button>
                 <button class="density-picker__opt" data-view="compact"><span class="density-picker__opt-name">Compact</span><span class="density-picker__opt-desc">Title · Desc · Latest Update</span></button>
@@ -748,6 +751,7 @@
   <script defer src="js/confetti.js"></script>
   <script defer src="js/calendar.js"></script>
   <script defer src="js/init.js"></script>
+  <script defer src="js/keyboard.js"></script>
 
   <script defer src="js/col-ghost.js"></script>
   <script defer src="js/mobile.js"></script>

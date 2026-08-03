@@ -369,9 +369,6 @@
     _cardOrigOrder.clear();
   }
 
-  // Expose toggle for keyboard shortcut
-  window._toggleSwimlane = () => document.getElementById('groupByTagBtn')?.click();
-
   // Called after a card is drag-dropped — updates tag if card moved to a different group
   window._swimlaneOnCardDrop = function(card) {
     if (!_groupByTag || !card) return;
@@ -584,8 +581,6 @@
 
     // Re-build assignee list when board loads
     window._refreshFilterAssignees = buildAssigneeMenu;
-    // Apply filters after board renders
-    window._applyBoardFilters = applyFilters;
 
     // Group by Tag → sticky dividers inside existing columns
     const groupByTagBtn = document.getElementById('groupByTagBtn');

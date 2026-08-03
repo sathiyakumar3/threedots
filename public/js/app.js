@@ -2611,7 +2611,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (openColDropdown) { openColDropdown.classList.remove('open'); openColDropdown = null; }
     if (openDropdown)    { openDropdown.classList.remove('open');    openDropdown    = null; }
     dragSrcEl = task;
-    // If the dragged card is part of a bulk selection, carry all selected cards
+    task.style.willChange = 'transform';
     const isMulti = task.classList.contains('task--selected');
     dragSrcEls = isMulti ? [...board.querySelectorAll('.task--selected')] : [];
     // Rotated ghost drag image
@@ -2648,7 +2648,7 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     _clearColHoverExpand();
-    if (dragSrcEl) dragSrcEl.style.opacity = '1';
+    if (dragSrcEl) { dragSrcEl.style.opacity = '1'; dragSrcEl.style.willChange = ''; }
     dragSrcEls.forEach(c => { c.style.opacity = '1'; });
     dragSrcEls = [];
     clearHighlights();
