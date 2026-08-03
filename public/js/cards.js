@@ -142,6 +142,7 @@ function serializeTask(cardEl) {
     deadline:  cardEl.dataset.deadline  || '',
     assignee:  cardEl.dataset.assignee  || '',
     priority:  cardEl.dataset.priority  || '',
+    pinned:    cardEl.dataset.pinned === 'true',
     created:     cardEl.dataset.created || '',
     author:      cardEl.dataset.createdByUid || '',
     ...(cardEl.dataset.deletedAt ? { deletedAt: +cardEl.dataset.deletedAt } : {}),
@@ -162,6 +163,7 @@ function renderCard(taskData) {
   if (taskData.assignee)   card.dataset.assignee   = taskData.assignee;
   if (taskData.priority)   card.dataset.priority   = taskData.priority;
   if (taskData.deletedAt)  card.dataset.deletedAt  = taskData.deletedAt;
+  if (taskData.pinned)     { card.dataset.pinned = 'true'; card.classList.add('task--pinned'); }
   // Support new `author` field (UID string) and legacy `createdBy: { uid }` object
   const authorUid  = taskData.author || taskData.createdBy?.uid || '';
   const _cbResolved = (window._uidMap && authorUid) ? window._uidMap[authorUid] : null;
@@ -234,6 +236,8 @@ function addUpdateWidget(card) {
   const ageTxt = daysAgo(card.dataset.created);
   card.querySelector('.task__options').insertAdjacentHTML('beforebegin',
     `<button class='task__opt-edit task__inline-edit' title='Edit card'><i class='fas fa-pen'></i></button>`);
+  card.querySelector('.task__options').insertAdjacentHTML('beforebegin',
+    `<button class='task__pin-btn task__inline-edit' title='Pin to top'><i class='fas fa-thumbtack'></i></button>`);
   if (ageTxt) {
     card.querySelector('.task__options').insertAdjacentHTML('beforebegin',
       `<span class='task__age'>${ageTxt}</span>`);

@@ -1103,7 +1103,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const _loadId = ++_currentLoadId; // capture for stale-response guard
     window._localWriteIds = new Set();
     BOARD_ID = id;
-    applyTheme(localStorage.getItem(`theme_${id}`) === 'dark');
+    board.classList.remove('board--fading-in');
+    board.classList.add('board--fading-out');
     // Clear any collapsed columns carried over from the previous board
     const _csl = document.getElementById('collapsedBar');
     if (_csl) _csl.innerHTML = '';
@@ -1264,6 +1265,11 @@ document.addEventListener('DOMContentLoaded', () => {
                       buildTasksFromData(data.tasks);
                     }
                     // Mark layout ready after columns + tasks have settled
+                    requestAnimationFrame(() => {
+                      board.classList.remove('board--fading-out');
+                      board.classList.add('board--fading-in');
+                      setTimeout(() => board.classList.remove('board--fading-in'), 350);
+                    });
                     setTimeout(() => { window._boardLayoutReady = true; }, 800);
                     return;
                   }
@@ -3282,6 +3288,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (e.target.closest('.task__tl-entry--editing')) return;
     if (e.target.closest('.task__select-wrap'))       return;
     if (e.target.closest('.task__todo-cb'))           return;
+    if (e.target.closest('.task__pin-btn'))            return;
     if (task.classList.contains('task--expanded') && e.target.closest('.task__tl-text')) return;
     // Close any open timeline edit inputs across the whole board before toggling
     board.querySelectorAll('.task__tl-entry--editing').forEach(entry => {
@@ -3366,6 +3373,28 @@ document.addEventListener('DOMContentLoaded', () => {
       db.collection(`boards/${BOARD_ID}/templates`).add(templateData)
         .then(() => showToast('Saved as template ✓'))
         .catch(() => { showToast('Failed to save template', true); });
+      return;
+    }
+
+    // Pin / unpin card
+    if (e.target.closest('.task__pin-btn')) {
+      e.stopPropagation();
+      const task     = e.target.closest('.task');
+      const colEl    = task.closest('.project-column');
+      const isPinned = task.dataset.pinned === 'true';
+      task.querySelector('.task__dropdown')?.classList.remove('open');
+      openDropdown = null;
+      if (isPinned) {
+        delete task.dataset.pinned;
+        task.classList.remove('task--pinned');
+      } else {
+        task.dataset.pinned = 'true';
+        task.classList.add('task--pinned');
+        const firstUnpinned = colEl.querySelector(':scope > .task:not(.task--pinned)');
+        if (firstUnpinned) colEl.insertBefore(task, firstUnpinned);
+        else colEl.querySelector('.project-column-heading')?.after(task);
+      }
+      saveTask(task, true);
       return;
     }
 

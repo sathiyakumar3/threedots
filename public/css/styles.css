@@ -1701,6 +1701,18 @@ body.dark #appShell[data-role="member"] .board-combo__trigger::after {
   align-content:start;
   padding:0.5rem 0.5rem 0.5rem;
 }
+@keyframes boardSwitchIn {
+  from { opacity:0; transform:translateY(10px) scale(0.99); }
+  to   { opacity:1; transform:translateY(0)    scale(1);    }
+}
+.project-tasks.board--fading-out {
+  opacity:0;
+  pointer-events:none;
+  /* instant hide — no transition so mid-load content changes are invisible */
+}
+.project-tasks.board--fading-in {
+  animation: boardSwitchIn 0.30s cubic-bezier(0.22,1,0.36,1) both;
+}
 
 .project-column-heading {
   position:sticky;
@@ -2159,6 +2171,13 @@ body.dark .task__assignees .tl-avatar--initial {
 .task:hover .task__inline-edit { opacity:1; }
 .task__inline-edit:hover { background:#f1f5f9; color:#374151; }
 body.dark .task__inline-edit:hover { background:rgba(255,255,255,0.08); color:#e2e8f0; }
+/* Pin button — rotated at rest, upright and purple when active */
+.task__pin-btn { transform:rotate(45deg); transition:background .13s, color .13s, opacity .13s, transform .18s; }
+.task--pinned .task__pin-btn { opacity:1; color:#111827; transform:rotate(0deg); }
+body.dark .task--pinned .task__pin-btn { color:#f1f5f9; }
+/* Pinned card highlight */
+.task--pinned { border-top:2px solid #111827 !important; }
+body.dark .task--pinned { border-top-color:#f1f5f9 !important; }
 
 .task__stats {
   position:relative;
@@ -6297,11 +6316,15 @@ body.dark .project-info {
   border: 1.5px solid var(--glass-border) !important;
   box-shadow: 0 2px 10px rgba(99,102,241,0.07), 0 1px 3px rgba(0,0,0,0.04) !important;
 }
+.task--pinned { border-color: #111827 !important; }
+body.dark .task--pinned { border-color: #f1f5f9 !important; }
 .task:hover {
   background: #ffffff !important;
   border-color: rgba(255,255,255,1) !important;
   box-shadow: 0 8px 28px rgba(99,102,241,0.16), 0 2px 8px rgba(0,0,0,0.06) !important;
 }
+.task--pinned:hover { border-color: #111827 !important; }
+body.dark .task--pinned:hover { border-color: #f1f5f9 !important; }
 
 /* ── Board combo trigger ── */
 .board-combo__trigger {
@@ -6536,6 +6559,8 @@ body.dark .task:hover {
     inset 0 1px 0 rgba(255,255,255,0.11),
     inset 0 0 32px 12px rgba(255,255,255,0.03) !important;
 }
+body.dark .task--pinned,
+body.dark .task--pinned:hover { border-color: #f1f5f9 !important; }
 
 body.dark .board-combo__trigger {
   background: rgba(20,24,42,0.75) !important;
@@ -8046,9 +8071,10 @@ body.has-bg {
   background-image: none !important;
 }
 .app-content.has-bg .project-info {
-  background: rgba(255,255,255,.82);
-  backdrop-filter: blur(10px);
-  -webkit-backdrop-filter: blur(10px);
+  background: transparent;
+  backdrop-filter: none;
+  -webkit-backdrop-filter: none;
+  box-shadow: none;
 }
 .app-content.has-bg .filter-bar,
 .app-content.has-bg .tbar {
@@ -8061,7 +8087,7 @@ body.has-bg {
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
 }
-body.dark .app-content.has-bg .project-info { background: rgba(15,17,30,.84); }
+body.dark .app-content.has-bg .project-info { background: transparent; backdrop-filter: none; -webkit-backdrop-filter: none; }
 body.dark .app-content.has-bg .filter-bar,
 body.dark .app-content.has-bg .tbar        { background: rgba(15,17,30,.82); }
 body.dark .filter-bar { background: var(--glass-bg-strong); }
