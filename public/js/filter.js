@@ -596,7 +596,11 @@
       });
     }
 
-    // Hook into _applyBoardTags so the tag pills rebuild when board tags load/change
+    window._refreshTagBarUI = () => {
+      setTimeout(buildTagPills, 0);
+    };
+
+    // Also rebuild the tag pills when board tags load/change
     const _origApplyBoardTags = window._applyBoardTags;
     window._applyBoardTags = (tags) => {
       if (_origApplyBoardTags) _origApplyBoardTags(tags);

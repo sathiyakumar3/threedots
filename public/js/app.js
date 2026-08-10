@@ -2618,8 +2618,10 @@ document.addEventListener('DOMContentLoaded', () => {
     if (openDropdown)    { openDropdown.classList.remove('open');    openDropdown    = null; }
     dragSrcEl = task;
     task.style.willChange = 'transform';
+    task.classList.add('task--dragging');
     const isMulti = task.classList.contains('task--selected');
     dragSrcEls = isMulti ? [...board.querySelectorAll('.task--selected')] : [];
+    if (isMulti) dragSrcEls.forEach(c => c.classList.add('task--dragging'));
     // Rotated ghost drag image
     const _ghost = task.cloneNode(true);
     _ghost.style.cssText = `position:fixed;top:-9999px;left:-9999px;width:${task.offsetWidth}px;transform:rotate(2deg) scale(1.03);opacity:0.9;pointer-events:none;border-radius:12px;box-shadow:0 16px 40px rgba(99,102,241,0.25),0 4px 12px rgba(0,0,0,0.15);`;
@@ -2654,8 +2656,15 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
     _clearColHoverExpand();
-    if (dragSrcEl) { dragSrcEl.style.opacity = '1'; dragSrcEl.style.willChange = ''; }
-    dragSrcEls.forEach(c => { c.style.opacity = '1'; });
+    if (dragSrcEl) {
+      dragSrcEl.classList.remove('task--dragging');
+      dragSrcEl.style.opacity = '1';
+      dragSrcEl.style.willChange = '';
+    }
+    dragSrcEls.forEach(c => {
+      c.classList.remove('task--dragging');
+      c.style.opacity = '1';
+    });
     dragSrcEls = [];
     clearHighlights();
     dragSrcEl = null;

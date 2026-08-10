@@ -94,6 +94,9 @@
     syncTagLabels(tags);
     refreshModalSelect(tags);
     refreshCardLabels(tags);
+    if (typeof window !== 'undefined') {
+      window._refreshTagBarUI?.();
+    }
   }
 
   // ── Firestore persistence ──

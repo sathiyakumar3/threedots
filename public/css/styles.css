@@ -1844,6 +1844,15 @@ body.dark .col-collapse-btn:hover {
   position:relative;
   z-index:1;
 }
+/* Keep the active dragged card above the column UI while moving */
+.task.task--dragging {
+  z-index: 1000;
+  transform: translateY(-2px) scale(1.01);
+  box-shadow:
+    0 14px 40px rgba(99,102,241,0.22),
+    0 4px 12px rgba(0,0,0,0.12),
+    inset 0 1px 0 rgba(255,255,255,0.96);
+}
 /* Elevate a card above its siblings when its dropdown is open */
 .task:has(.task__dropdown.open) {
   z-index:100;
@@ -8419,26 +8428,38 @@ body.dark .topbar-search.open .topbar-search__filter { border-left-color: var(--
 .login-hero__inner {
   display: flex;
   flex-direction: column;
-  gap: 1.35rem;
+  gap: .95rem;
   width: 100%;
 }
 .login-hero__logo { display: flex; align-items: center; }
 
+.login-hero__eyebrow {
+  margin: .1rem 0 0;
+  font-size: .68rem;
+  font-weight: 700;
+  letter-spacing: .11em;
+  text-transform: uppercase;
+  color: #6366f1;
+}
+body.dark .login-hero__eyebrow { color: #a5b4fc; }
+
 .login-hero__headline {
-  font-size: clamp(1.9rem, 3vw, 2.7rem);
+  font-size: clamp(1.95rem, 3vw, 2.65rem);
   font-weight: 800;
-  letter-spacing: -0.04em;
+  letter-spacing: -0.03em;
   line-height: 1.12;
-  color: #1e293b;
+  color: var(--text);
   margin: 0;
+  max-width: 17ch;
 }
 body.dark .login-hero__headline { color: #f1f5f9; }
 
 .login-hero__sub {
-  font-size: .95rem;
+  font-size: .9rem;
   color: #64748b;
   margin: 0;
-  line-height: 1.6;
+  line-height: 1.55;
+  max-width: 54ch;
 }
 body.dark .login-hero__sub { color: #94a3b8; }
 
@@ -8453,119 +8474,26 @@ body.dark .login-hero__sub { color: #94a3b8; }
 .login-hero__features li {
   display: flex;
   align-items: center;
-  gap: .75rem;
-  font-size: .875rem;
+  gap: .62rem;
+  font-size: .83rem;
   font-weight: 500;
   color: #334155;
 }
 body.dark .login-hero__features li { color: #cbd5e1; }
 .login-hero__features li i {
-  width: 30px;
-  height: 30px;
-  border-radius: 9px;
-  background: rgba(99,102,241,.10);
+  width: 26px;
+  height: 26px;
+  border-radius: 8px;
+  background: rgba(99,102,241,.12);
   color: #6366f1;
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 12px;
+  font-size: 11px;
   flex-shrink: 0;
 }
 body.dark .login-hero__features li i {
-  background: rgba(99,102,241,.20);
+  background: rgba(129,140,248,.22);
   color: #818cf8;
 }
 
-/* ── Mini kanban preview ── */
-.login-hero__preview {
-  transform: perspective(900px) rotateX(4deg);
-  transform-origin: bottom center;
-  filter: drop-shadow(0 8px 24px rgba(99,102,241,.14));
-}
-.lp-board {
-  display: flex;
-  gap: .55rem;
-  padding: .85rem;
-  background: rgba(255,255,255,.62);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
-  border: 1.5px solid rgba(255,255,255,.82);
-  border-radius: 14px;
-  box-shadow: 0 4px 24px rgba(99,102,241,.10);
-}
-body.dark .lp-board {
-  background: rgba(14,16,38,.68);
-  border-color: rgba(255,255,255,.08);
-  box-shadow: 0 4px 24px rgba(0,0,0,.40);
-}
-.lp-col {
-  flex: 1;
-  min-width: 0;
-  display: flex;
-  flex-direction: column;
-  gap: .4rem;
-}
-.lp-col__hdr {
-  font-size: 9.5px;
-  font-weight: 700;
-  letter-spacing: .07em;
-  text-transform: uppercase;
-  color: #64748b;
-  display: flex;
-  align-items: center;
-  gap: 5px;
-  padding-bottom: 6px;
-  border-bottom: 1px solid rgba(0,0,0,.07);
-  margin-bottom: 1px;
-}
-body.dark .lp-col__hdr { color: #94a3b8; border-bottom-color: rgba(255,255,255,.08); }
-
-.lp-dot {
-  width: 7px;
-  height: 7px;
-  border-radius: 50%;
-  background: var(--c, #6366f1);
-  flex-shrink: 0;
-}
-.lp-card {
-  background: rgba(255,255,255,.88);
-  border: 1px solid rgba(226,232,240,.80);
-  border-radius: 7px;
-  padding: .4rem .55rem;
-  font-size: 10px;
-  font-weight: 500;
-  color: #334155;
-  display: flex;
-  flex-direction: column;
-  gap: 3px;
-  box-shadow: 0 1px 3px rgba(0,0,0,.05);
-}
-body.dark .lp-card {
-  background: rgba(28,32,62,.82);
-  border-color: rgba(255,255,255,.07);
-  color: #cbd5e1;
-}
-@keyframes lp-pulse {
-  0%, 100% { box-shadow: 0 2px 8px rgba(99,102,241,.16); }
-  50%       { box-shadow: 0 2px 16px rgba(99,102,241,.35); }
-}
-.lp-card--active {
-  border-color: rgba(99,102,241,.35) !important;
-  animation: lp-pulse 2.4s ease-in-out infinite;
-}
-.lp-card--done {
-  opacity: .48;
-  text-decoration: line-through;
-  color: #94a3b8;
-}
-.lp-tag {
-  display: inline-block;
-  font-size: 8.5px;
-  font-weight: 700;
-  letter-spacing: .04em;
-  padding: 1px 5px;
-  border-radius: 20px;
-  line-height: 1.6;
-  align-self: flex-start;
-  text-transform: uppercase;
-}
