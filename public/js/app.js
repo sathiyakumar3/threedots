@@ -47,13 +47,18 @@ document.addEventListener('DOMContentLoaded', () => {
   setTimeout(() => { document.getElementById('loginEmail')?.focus(); }, 80);
 
   // ── Progressive email disclosure ──
+  function setEmailSectionOpen(open) {
+    const section = document.getElementById('loginEmailSection');
+    const btn = document.getElementById('toggleEmailForm');
+    section.classList.toggle('open', !!open);
+    btn.classList.toggle('open', !!open);
+    if (open) setTimeout(() => document.getElementById('loginEmail')?.focus(), 320);
+  }
+
   document.getElementById('toggleEmailForm').addEventListener('click', () => {
     const section = document.getElementById('loginEmailSection');
-    const btn     = document.getElementById('toggleEmailForm');
     const isOpen  = section.classList.contains('open');
-    section.classList.toggle('open', !isOpen);
-    btn.classList.toggle('open', !isOpen);
-    if (!isOpen) setTimeout(() => document.getElementById('loginEmail')?.focus(), 320);
+    setEmailSectionOpen(!isOpen);
   });
 
   function setLoginError(msg)   { loginError.textContent = msg; loginError.classList.remove('login-success-msg'); }
@@ -348,7 +353,9 @@ document.addEventListener('DOMContentLoaded', () => {
       .then(() => {
         // Show verification banner instead of letting user in
         verifyBanner.style.display = '';
+        document.getElementById('loginForm').style.display = '';
         document.getElementById('registerForm').style.display = 'none';
+        setEmailSectionOpen(true);
         clearLoginError();
       })
       .catch(err => {
@@ -372,11 +379,13 @@ document.addEventListener('DOMContentLoaded', () => {
 
   // ── Toggle sign-in ↔ register ──
   document.getElementById('showRegister').addEventListener('click', () => {
+    setEmailSectionOpen(true);
     document.getElementById('loginForm').style.display    = 'none';
     document.getElementById('registerForm').style.display = '';
     clearLoginError();
   });
   document.getElementById('showLogin').addEventListener('click', () => {
+    setEmailSectionOpen(true);
     document.getElementById('registerForm').style.display = 'none';
     document.getElementById('loginForm').style.display    = '';
     clearLoginError();
@@ -2573,7 +2582,7 @@ document.addEventListener('DOMContentLoaded', () => {
           timeline: [{
             type:   'create',
             author: uid || '',
-            text:   `<b>${author}</b> created this card`,
+            text:   'Card Created',
             date:   now,
             ts:     taskTs
           }]

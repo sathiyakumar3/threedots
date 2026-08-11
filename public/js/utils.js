@@ -152,10 +152,11 @@ function buildTimeline(entries, opts) {
         ? `<img class='tl-avatar' src='${authorPhoto}' alt='${escapeHTML(authorName)}' title='${escapeHTML(authorName)}' onerror="${avatarFallback}">`
         : `<span class='tl-avatar tl-avatar--initial' title='${escapeHTML(authorName)}'>${initial}</span>`;
       const displayDate = stripYear(e.date);
+      const _cleanTimelineText = String(e.text || '').replace(/<[^>]*>/g, '');
       const textDiv = isComment
         ? `<div class="task__tl-text" data-comment="${escapeHTML(e.text)}">${escapeHTML(e.text)}<div class="task__tl-meta"><time>${displayDate}</time><b>${escapeHTML(authorName)}</b></div></div>`
         : (e.type === 'create' || e.type === 'delete')
-          ? `<div class="task__tl-text">${escapeHTML(e.text)}<div class="task__tl-meta"><time>${displayDate}</time><b>${escapeHTML(authorName)}</b></div></div>`
+          ? `<div class="task__tl-text">${escapeHTML(_cleanTimelineText)}<div class="task__tl-meta"><time>${displayDate}</time><b>${escapeHTML(authorName)}</b></div></div>`
           : `<div class="task__tl-text"><b>${escapeHTML(authorName)}</b> ${escapeHTML(e.text)}<time>${displayDate}</time></div>`;
       const createClass = (e.type === 'create') ? ' task__tl-entry--create' : '';
       return `<div class="task__tl-entry${createClass}" data-ts="${e.ts || ''}" data-author-uid="${e.author || ''}"><span class="task__tl-dot task__tl-dot--${e.type || 'create'}">${avatarHTML}</span>${textDiv}</div>`;
